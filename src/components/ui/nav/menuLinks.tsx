@@ -19,7 +19,7 @@ import {
     InsertDriveFileRounded, MapRounded, PaymentRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, Diversity3Rounded, PaymentsRounded, ImageSearchRounded, CampaignRounded, InsightsRounded, RequestQuoteRounded,
-    AccountBalanceWalletRounded,
+    AccountBalanceWalletRounded, CellTowerRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -53,6 +53,7 @@ export const MENU_LINKS: NavLink[] = [
     { section: "principal", text: "Mi grupo", icon: <GroupsRoundedIcon />, link: "/mi-grupo", roles: ["Vendedor"], leaderOnly: true, keywords: "lider equipo vendedoras" },
 
     // Ventas y reparto
+    { section: "ventas", text: "Logística propia", icon: <CellTowerRounded />, link: "/logistica", roles: ["Admin", "Master", "Operador logístico"], keywords: "torre de control centro despacho riders motorizados rondas carabobo valencia operador turno" },
     { section: "ventas", text: "Reparto de órdenes", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "round robin asignar reasignar vendedoras porcentajes roster" },
     { section: "ventas", text: "Grupos de venta", icon: <Diversity3Rounded />, link: "/grupos-de-venta", roles: ["Admin", "Master"], keywords: "lider lideres equipos vendedoras" },
     { section: "ventas", text: "Órdenes canceladas", icon: <DoNotDisturbAltRoundedIcon />, link: "/orders/cancelled", roles: ["Admin", "Gerente"], keywords: "canceladas rechazadas" },

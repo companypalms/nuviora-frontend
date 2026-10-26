@@ -1,7 +1,7 @@
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline, Theme } from '@mui/material';
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getThemeLight, getThemeDark } from './common/theme';
 import { Login } from './pages/auth/Login';
 
@@ -59,6 +59,7 @@ import { CityInventory } from './pages/inventory/CityInventory';
 import { WeeklyReportPage } from './pages/my-group/WeeklyReportPage';
 import { InternalChatPage } from './pages/internal-chat/InternalChatPage';
 import { AgencyChatGateModal } from './components/internal-chat/AgencyChatGateModal';
+import { ControlTower } from './pages/logistics/ControlTower';
 
 const useGetTheme = () => {
   const user = useUserStore((state) => state.user);
@@ -80,6 +81,8 @@ import { InventoryDashboard } from './pages/inventory/InventoryDashboard';
 function App() {
   const theme = useGetTheme()
   const isLite = useUserStore((s) => s.user.is_lite_view);
+  // El operador logístico no tiene dashboard: su pantalla es la torre de control
+  const isOperator = useUserStore((s) => s.user.role?.description === 'Operador logístico');
 
   return (
     <ThemeProvider theme={theme}>
@@ -93,7 +96,7 @@ function App() {
 
           <Route path="/dashboard" element={
             <RequireRole>
-              {isLite ? <SalesLite /> : <Dashboard />}
+              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : <Dashboard />}
             </RequireRole>
           } />
 
@@ -170,6 +173,9 @@ function App() {
           <Route path="/inventario-ciudades" element={<RequireRole allowedRoles={['Vendedor', 'Admin', 'Gerente', 'Master']}><CityInventory /></RequireRole>} />
           <Route path="/mi-grupo" element={<RequireRole allowedRoles={['Vendedor', 'Admin', 'Master']}><MyGroup /></RequireRole>} />
           <Route path="/mi-grupo/reporte" element={<RequireRole allowedRoles={['Vendedor', 'Admin', 'Master']}><WeeklyReportPage /></RequireRole>} />
+
+          {/* Logística propia (documento de Fran del 2026-10-21): torre de control del operador y configuración del Admin */}
+          <Route path="/logistica" element={<RequireRole allowedRoles={['Admin', 'Master', 'Operador logístico']}><ControlTower /></RequireRole>} />
 
           {/* Chat interno vendedora <-> agencia */}
           <Route path="/internal-chat" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master', 'Vendedor', 'Agencia']}><InternalChatPage /></RequireRole>} />

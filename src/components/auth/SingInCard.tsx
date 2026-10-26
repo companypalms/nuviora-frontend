@@ -34,6 +34,8 @@ export const SignInCard = () => {
                 const currentUser = useUserStore.getState().user;
                 if (currentUser.is_lite_view) {
                     window.location.href = '/ordenes';
+                } else if (currentUser.role?.description === 'Operador logístico') {
+                    window.location.href = '/logistica';
                 } else {
                     window.location.href = '/dashboard';
                 }
