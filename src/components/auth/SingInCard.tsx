@@ -27,6 +27,13 @@ export const SignInCard = () => {
     const onSubmit = async (values: FormData, resetForm: (nextState?: Partial<FormikState<FormData>> | undefined) => void) => {
         setLoading(true)
         const result = await login(values.email, values.password);
+        // Los riders usan la app Nuviora Rider; en la web la API no les deja hacer nada (RestrictLimitedRoles)
+        if (result.status && useUserStore.getState().user.role?.description === 'Repartidor') {
+            await useUserStore.getState().logout();
+            toast.error('Los riders entran por la app Nuviora Rider.');
+            setLoading(false);
+            return;
+        }
         if (result.status) {
             resetForm()
             toast.success(result.message)
