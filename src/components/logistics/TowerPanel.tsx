@@ -11,7 +11,7 @@ import { HistoryRounded, PhoneRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { playNotificationSound } from "../../lib/sound";
 import {
-    api, CenterBoard, clientName, clock, errorMessage, hour, mapsLink, minutes, OrdersResponse, SLA_COLOR, STATUS_COLOR, TowerOrder,
+    api, CenterBoard, clientName, clock, errorMessage, hour, mapsLink, minutes, OrdersResponse, RouteProposal, SLA_COLOR, STATUS_COLOR, TowerOrder,
 } from "./logistics";
 import { AgencyDialog, AssignDialog, DetailDialog, IncidentDialog, NoveltyDialog } from "./OrderDialogs";
 
@@ -45,6 +45,9 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
     const [detail, setDetail] = useState<number | null>(null);
     const [closing, setClosing] = useState<{ items: { texto: string; total: number }[] } | null>(null);
     const [reason, setReason] = useState("");
+    const [proposals, setProposals] = useState<RouteProposal[]>([]);
+    const [exceptional, setExceptional] = useState<RouteProposal | null>(null);
+    const [reorder, setReorder] = useState<number | null>(null);
     const seenAlerts = useRef<Set<number> | null>(null);
 
     const load = useCallback(async () => {
@@ -54,6 +57,9 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
                 api<OrdersResponse>(`/logistics/centers/${centerId}/orders`),
             ]);
             setBoard(b.center); setData(o); setFetchedAt(Date.now());
+            // §24.1: las rutas que propone el sistema; si Google falla, la torre sigue igual
+            api<{ proposals: RouteProposal[] }>(`/logistics/centers/${centerId}/route-proposals`)
+                .then((r) => setProposals(r.proposals)).catch(() => setProposals([]));
             // Suena cuando llega una alerta roja nueva (minuto 3 sin rider, novedad, sin operador…), no las que ya estaban
             const urgent = b.center.alerts.filter((a) => a.level === "critical" || a.level === "red");
             if (seenAlerts.current && urgent.some((a) => !seenAlerts.current!.has(a.id))) playNotificationSound();
@@ -119,7 +125,21 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
         } catch (e) { toast.error(errorMessage(e)); }
     };
 
-    const done = () => { setAssign(null); setAgency(null); setNovelty(null); setIncident(null); load(); };
+    const done = () => { setAssign(null); setAgency(null); setNovelty(null); setIncident(null); setReorder(null); load(); };
+
+    /** §24.1: "IF operator approves: update route; rider does not re-accept". */
+    const approveRoute = async (p: RouteProposal, asException = false) => {
+        if (p.exceptional && !asException) { setExceptional(p); return; }
+        setBusy(p.add_logistics_order_id);
+        try {
+            const r = await api<{ message: string }>("/logistics/routes/approve", "POST", {
+                add_logistics_order_id: p.add_logistics_order_id, stops: p.stops.map((s) => s.logistics_order_id), exceptional: asException,
+            });
+            toast.success(r.message);
+            setExceptional(null);
+            await load();
+        } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(null); }
+    };
 
     if (!board || !data) return <Typography color="text.secondary" sx={{ p: 2 }}>Cargando la torre…</Typography>;
 
@@ -200,6 +220,37 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
                 </Paper>
             )}
 
+            {/* §9.3, §24.1: sumar una orden a la ruta de un rider que todavía no salió, sin pedirle otra aceptación */}
+            {proposals.length > 0 && (
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid", borderColor: "primary.main" }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Rutas propuestas</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                        El rider todavía no salió: puede llevarse otra orden en la misma salida. Todas las entregas quedan dentro de {proposals[0].limit_minutes} min.
+                    </Typography>
+                    <Stack spacing={1.5}>
+                        {proposals.map((p) => (
+                            <Stack key={p.add_logistics_order_id} direction={{ xs: "column", md: "row" }} spacing={1.5}
+                                sx={{ alignItems: { md: "center" }, justifyContent: "space-between", borderTop: "1px solid", borderColor: "divider", pt: 1.5 }}>
+                                <Box>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}>
+                                        <Typography variant="body2">Sumar <b>{p.add_order_name ?? `#${p.add_logistics_order_id}`}</b> a la ruta de <b>{p.rider.names ?? "rider"}</b></Typography>
+                                        {p.exceptional && <Chip size="small" color="warning" label={`Excepcional · ${p.stops.length} paradas`} />}
+                                    </Stack>
+                                    {p.stops.map((s) => (
+                                        <Typography key={s.logistics_order_id} variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                            {s.stop}. {s.order_name ?? `#${s.logistics_order_id}`} · {s.stop === 1 ? "desde el centro" : "desde la parada anterior"}{" "}
+                                            {(s.leg_meters / 1000).toFixed(1)} km · entrega a los <b>{minutes(s.projected_minutes)}</b> de su SLA
+                                        </Typography>
+                                    ))}
+                                    <Typography variant="caption" color="text.secondary">Sale en ~{minutes(p.depart_in_minutes)} · {p.service_minutes} min por parada · ruta de {minutes(p.total_minutes)}</Typography>
+                                </Box>
+                                <Button variant="contained" size="small" disabled={busy === p.add_logistics_order_id} onClick={() => approveRoute(p)} sx={{ flexShrink: 0 }}>Armar ruta</Button>
+                            </Stack>
+                        ))}
+                    </Stack>
+                </Paper>
+            )}
+
             {/* Cola de prioridad (§21.3) */}
             <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
                 <Box sx={{ px: 2, pt: 2 }}>
@@ -221,7 +272,7 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
                                 {data.orders.map((o) => (
                                     <OrderRow key={o.id} o={o} elapsed={elapsed} busy={busy === o.id} isAdmin={isAdmin} onAct={(p, body) => act(o, p, body)}
                                         onAssign={() => setAssign(o)} onAgency={() => setAgency(o)} onNovelty={() => setNovelty(o)} onIncident={() => setIncident(o)}
-                                        onDetail={() => setDetail(o.id)} />
+                                        onDetail={() => setDetail(o.id)} onReorder={() => o.route && setReorder(o.route.id)} />
                                 ))}
                             </TableBody>
                         </Table>
@@ -234,6 +285,26 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
             <NoveltyDialog row={novelty} onClose={() => setNovelty(null)} onDone={done} />
             <IncidentDialog row={incident} onClose={() => setIncident(null)} onDone={done} />
             <DetailDialog id={detail} onClose={() => setDetail(null)} />
+            <ReorderDialog routeId={reorder} stops={data.orders.filter((o) => o.route?.id === reorder)} onClose={() => setReorder(null)} onDone={done} />
+
+            {/* §10: tres paradas solo como excepción, con aprobación expresa del operador */}
+            <Dialog open={!!exceptional} onClose={() => setExceptional(null)} fullWidth maxWidth="xs">
+                <DialogTitle>Ruta excepcional de {exceptional?.stops.length} paradas</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2">
+                        Lo normal son 2 paradas. Apruébala solo si los destinos están muy cerca entre sí:
+                    </Typography>
+                    {exceptional?.stops.map((s) => (
+                        <Typography key={s.logistics_order_id} variant="body2" sx={{ mt: 0.5 }}>
+                            {s.stop}. {s.order_name} · {(s.leg_meters / 1000).toFixed(1)} km {s.stop === 1 ? "desde el centro" : "desde la anterior"} · {minutes(s.projected_minutes)}
+                        </Typography>
+                    ))}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setExceptional(null)}>Cancelar</Button>
+                    <Button variant="contained" color="warning" onClick={() => exceptional && approveRoute(exceptional, true)}>Aprobar la excepción</Button>
+                </DialogActions>
+            </Dialog>
 
             {/* §31.1: cerrar con pendientes pide el motivo y quedan a la vista del siguiente operador */}
             <Dialog open={!!closing} onClose={() => setClosing(null)} fullWidth maxWidth="xs">
@@ -258,8 +329,8 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
 
 const OrderRow: React.FC<{
     o: TowerOrder; elapsed: number; busy: boolean; isAdmin: boolean; onAct: (path: string, body?: Record<string, unknown>) => void;
-    onAssign: () => void; onAgency: () => void; onNovelty: () => void; onIncident: () => void; onDetail: () => void;
-}> = ({ o, elapsed, busy, isAdmin, onAct, onAssign, onAgency, onNovelty, onIncident, onDetail }) => {
+    onAssign: () => void; onAgency: () => void; onNovelty: () => void; onIncident: () => void; onDetail: () => void; onReorder: () => void;
+}> = ({ o, elapsed, busy, isAdmin, onAct, onAssign, onAgency, onNovelty, onIncident, onDetail, onReorder }) => {
     const sla = o.sla_minutes !== null ? o.sla_minutes + elapsed / 60 : null;
     const searching = o.searching_seconds !== null ? o.searching_seconds + elapsed : null;
     const agencyIn = o.agency_in_seconds !== null ? o.agency_in_seconds - elapsed : null;
@@ -281,6 +352,12 @@ const OrderRow: React.FC<{
             </TableCell>
             <TableCell>
                 <Chip size="small" color={STATUS_COLOR[s] ?? "default"} label={o.status_label} />
+                {/* §10: la parada dentro de su ruta */}
+                {o.route && (
+                    <Typography variant="caption" color={o.route.exceptional ? "warning.main" : "primary"} sx={{ display: "block", mt: 0.5 }}>
+                        Ruta #{o.route.id} · parada {o.route.stop} de {o.route.stops}{o.route.exceptional ? " · excepcional" : ""}{o.route.locked ? " · cerrada" : ""}
+                    </Typography>
+                )}
                 {s === "buscando_rider" && searching !== null && (
                     <Typography variant="caption" sx={{ display: "block", mt: 0.5 }} color={agencyIn !== null && agencyIn < 120 ? "error" : "text.secondary"}>
                         {o.round ? `R${o.round.number} · ` : ""}buscando {clock(searching)}{o.pickup_rider ? "" : ` · agencia en ${clock(agencyIn)}`}
@@ -316,8 +393,14 @@ const OrderRow: React.FC<{
                     {s === "rider_confirmado" && !o.pickup_rider && <Button size="small" variant="contained" disabled={busy} onClick={() => onAct("prepare")}>Preparar</Button>}
                     {!o.pickup_rider && ((s === "buscando_rider" && !o.ready) || s === "rider_confirmado" || s === "preparando") &&
                         <Button size="small" variant={s === "preparando" ? "contained" : "text"} disabled={busy} onClick={() => onAct("ready")}>Listo</Button>}
+                    {/* §10.2: antes de salir, el operador puede cambiar el orden (queda auditado) */}
+                    {o.route && !o.route.locked && o.route.status === "abierta" && o.route.stop === 1 &&
+                        <Button size="small" disabled={busy} onClick={onReorder}>Cambiar orden</Button>}
                     {!o.pickup_rider && ["rider_confirmado", "preparando", "listo_despacho"].includes(s) &&
-                        <Button size="small" variant={s === "listo_despacho" ? "contained" : "text"} color="success" disabled={busy} onClick={() => onAct("depart")}>Confirmar salida</Button>}
+                        <Button size="small" variant={s === "listo_despacho" ? "contained" : "text"} color="success" disabled={busy}
+                            onClick={() => (!o.route || window.confirm(`Sale la ruta completa: las ${o.route.stops} paradas. ¿El rider recibió todos los paquetes?`)) && onAct("depart")}>
+                            {o.route ? `Confirmar salida (${o.route.stops} paradas)` : "Confirmar salida"}
+                        </Button>}
                     {/* §14.3: el reemplazo recibe el paquete del rider que tuvo la incidencia */}
                     {o.pickup_rider && o.rider_id && ["rider_confirmado", "preparando", "listo_despacho"].includes(s) &&
                         <Button size="small" variant="contained" color="success" disabled={busy} onClick={() => onAct("transfer")}>Confirmar traspaso</Button>}
@@ -334,5 +417,59 @@ const OrderRow: React.FC<{
                 </Stack>
             </TableCell>
         </TableRow>
+    );
+};
+
+/** §10.2: el operador cambia el orden de las paradas antes de la salida; el motivo queda en el historial de cada una. */
+const ReorderDialog: React.FC<{ routeId: number | null; stops: TowerOrder[]; onClose: () => void; onDone: () => void }> = ({ routeId, stops, onClose, onDone }) => {
+    const [order, setOrder] = useState<TowerOrder[]>([]);
+    const [why, setWhy] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (routeId) {
+            setOrder([...stops].sort((a, b) => (a.route?.stop ?? 0) - (b.route?.stop ?? 0)));
+            setWhy("");
+        }
+        // Solo al abrir: mientras está abierto, el sondeo de la torre no le cambia el orden que el operador está armando
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [routeId]);
+
+    const move = (i: number, d: -1 | 1) => setOrder((list) => {
+        const next = [...list];
+        [next[i], next[i + d]] = [next[i + d], next[i]];
+        return next;
+    });
+
+    const save = async () => {
+        setSaving(true);
+        try {
+            const r = await api<{ message: string }>(`/logistics/routes/${routeId}/reorder`, "POST", { stops: order.map((s) => s.id), reason: why || null });
+            toast.success(r.message);
+            onDone();
+        } catch (e) { toast.error(errorMessage(e)); } finally { setSaving(false); }
+    };
+
+    return (
+        <Dialog open={!!routeId} onClose={onClose} fullWidth maxWidth="xs">
+            <DialogTitle>Orden de las paradas</DialogTitle>
+            <DialogContent>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    El rider no puede cambiarlo. Si lo cambias, queda en el historial; no se acepta un orden que deje una entrega fuera del límite.
+                </Typography>
+                {order.map((s, i) => (
+                    <Stack key={s.id} direction="row" spacing={1} sx={{ alignItems: "center", py: 0.5 }}>
+                        <Typography variant="body2" sx={{ flex: 1 }}>{i + 1}. {s.order?.name ?? `#${s.order_id}`} · {clientName(s)}</Typography>
+                        <Button size="small" disabled={i === 0} onClick={() => move(i, -1)}>Subir</Button>
+                        <Button size="small" disabled={i === order.length - 1} onClick={() => move(i, 1)}>Bajar</Button>
+                    </Stack>
+                ))}
+                <TextField label="Motivo" value={why} onChange={(e) => setWhy(e.target.value)} fullWidth size="small" sx={{ mt: 1.5 }} />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Cancelar</Button>
+                <Button variant="contained" disabled={saving || !why.trim()} onClick={save}>Guardar orden</Button>
+            </DialogActions>
+        </Dialog>
     );
 };

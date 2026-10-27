@@ -43,6 +43,17 @@ export type TowerOrder = {
     } | null;
     rider: { id: number; names: string; phone: string | null } | null;
     agency: { id: number; names: string } | null;
+    // §10, §20.2: la ruta de varias paradas en la que va (la salida es de toda la ruta)
+    route: { id: number; status: string; exceptional: boolean; stop: number | null; stops: number; locked: boolean } | null;
+    route_stop: number | null;
+};
+
+/** §24.1: una ruta que propone el sistema (sumar una orden que busca rider a la de un rider que todavía no salió). */
+export type RouteProposal = {
+    add_logistics_order_id: number; add_order_name: string | null; route_id: number | null; exceptional: boolean;
+    rider: { id: number; names: string | null };
+    stops: { logistics_order_id: number; order_name: string | null; stop: number; leg_seconds: number; leg_meters: number; consumed_minutes: number; projected_minutes: number }[];
+    worst_minutes: number; total_minutes: number; depart_in_minutes: number; service_minutes: number; limit_minutes: number;
 };
 
 export type TowerSummary = {

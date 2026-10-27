@@ -16,6 +16,7 @@ import { RidersPanel } from "../../components/logistics/RidersPanel";
 import { PayoutsPanel } from "../../components/logistics/PayoutsPanel";
 import { CalendarPanel } from "../../components/logistics/CalendarPanel";
 import { AdminConfig } from "../../components/logistics/AdminConfig";
+import { MetricsPanel } from "../../components/logistics/MetricsPanel";
 
 export const ControlTower: React.FC = () => {
     const { loadingSession, isValid } = useValidateSession();
@@ -25,7 +26,7 @@ export const ControlTower: React.FC = () => {
     const [centers, setCenters] = useState<CenterBoard[] | null>(null);
 
     const tabs = [{ key: "torre", label: "Torre de control" }, { key: "riders", label: "Riders" }, { key: "pagos", label: "Pagos" },
-        { key: "calendario", label: "Calendario" }, ...(isAdmin ? [{ key: "config", label: "Configuración" }] : [])];
+        { key: "calendario", label: "Calendario" }, ...(isAdmin ? [{ key: "metricas", label: "Métricas" }, { key: "config", label: "Configuración" }] : [])];
     const tab = tabs.some((t) => t.key === params.get("tab")) ? params.get("tab")! : "torre";
     const centerId = Number(params.get("centro")) || centers?.[0]?.id || null;
     const set = (patch: Record<string, string>) => setParams({ tab, ...(centerId ? { centro: String(centerId) } : {}), ...patch });
@@ -67,6 +68,7 @@ export const ControlTower: React.FC = () => {
                     : tab === "riders" ? <RidersPanel key={centerId} centerId={centerId} />
                     : tab === "pagos" ? <PayoutsPanel key={centerId} centerId={centerId} />
                     : tab === "calendario" ? <CalendarPanel key={centerId} centerId={centerId} isAdmin={isAdmin} />
+                    : tab === "metricas" && isAdmin ? <MetricsPanel key={centerId} centerId={centerId} />
                     : <TowerPanel key={centerId} centerId={centerId} isAdmin={isAdmin} />}
             </Box>
         </Layout>
