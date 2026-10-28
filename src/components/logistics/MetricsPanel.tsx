@@ -22,7 +22,7 @@ type Metrics = {
         resolved_by_operator: number; escalated_to_sales: number; open: number; resolved_by_operator_pct: number | null; escalated_pct: number | null;
     };
     returns: { in_range: number; received: number; pending_now: number; hours_to_return: Stats };
-    cash: { in_custody_usd: number; riders_with_cash: { name: string; total_usd: number }[]; collections: number; handovers: number; differences: number; hours_to_handover: Stats };
+    cash: { in_custody_usd: number; riders_with_cash: { name: string; total_usd: number }[]; collections: number; handovers: number; differences: number; shift_differences: number; hours_to_handover: Stats };
     riders_pay: { rider_id: number; name: string; deliveries: number; earned_usd: number; failed_legs: number; paid_usd: number }[];
     incidents: { total: number; by_type: { label: string; count: number }[]; kept_going: number; interrupted: number; reassigned: number };
     delivery_rate: Record<"propia" | "agencia", { delivered: number; not_delivered: number; rate_pct: number | null }>;
@@ -42,7 +42,9 @@ const SIGNALS: Record<"riders" | "operators", [string, string][]> = {
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 const pct = (v: number | null) => (v === null ? "—" : `${v}%`);
-const num = (v: number | null, unit = "") => (v === null ? "—" : `${v}${unit}`);
+const num = (v: number | null, unit = "") => (v === null ? "—" : `${Math.round(v * 10) / 10}${unit}`);
+// Lo que se mide en horas: bajo una hora, en minutos ("0,01 h" no se lee)
+const span = (h: number | null) => (h === null ? "—" : h < 1 ? `${Math.round(h * 60)} min` : `${Math.round(h * 10) / 10} h`);
 const usd = (v: number) => `$${v.toFixed(2)}`;
 
 const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
@@ -53,12 +55,13 @@ const Section: React.FC<{ title: string; note?: string; children: React.ReactNod
     </Paper>
 );
 
-const Tiles: React.FC<{ items: [string, string][] }> = ({ items }) => (
+const Tiles: React.FC<{ items: ([string, string] | [string, string, string])[] }> = ({ items }) => (
     <Box sx={{ display: "grid", gap: 1.5, mt: 1, gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)", md: `repeat(${Math.min(items.length, 6)}, 1fr)` } }}>
-        {items.map(([label, value]) => (
+        {items.map(([label, value, detail]) => (
             <Box key={label}>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{value}</Typography>
-                <Typography variant="caption" color="text.secondary">{label}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{label}</Typography>
+                {detail && <Typography variant="caption" color="text.secondary">{detail}</Typography>}
             </Box>
         ))}
     </Box>
@@ -77,6 +80,9 @@ const Grid: React.FC<{ head: string[]; rows: (string | number)[][]; empty?: stri
     );
 
 const statsText = (s: Stats, unit: string) => s.count ? `${num(s.avg, unit)} · mediana ${num(s.median, unit)} · P90 ${num(s.p90, unit)}` : "—";
+// Un tiempo en horas para Tiles: el promedio arriba, la mediana y el P90 debajo
+const hoursTile = (label: string, s: Stats): [string, string, string] =>
+    [label, s.count ? span(s.avg) : "—", s.count ? `mediana ${span(s.median)} · P90 ${span(s.p90)}` : ""];
 
 export const MetricsPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
     const [from, setFrom] = useState(day(new Date(Date.now() - 6 * 86400000)));
@@ -166,9 +172,10 @@ export const MetricsPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
                 <Section title="Retornos y efectivo">
                     <Tiles items={[
                         ["Retornos en el rango", String(m.returns.in_range)], ["Pendientes ahora", String(m.returns.pending_now)],
-                        ["Hasta devolverlo", statsText(m.returns.hours_to_return, " h")],
-                        ["Efectivo en custodia ahora", usd(m.cash.in_custody_usd)], ["Diferencias de caja", String(m.cash.differences)],
-                        ["Del cobro a la entrega", statsText(m.cash.hours_to_handover, " h")],
+                        hoursTile("Hasta devolverlo", m.returns.hours_to_return),
+                        ["Efectivo en custodia ahora", usd(m.cash.in_custody_usd)], ["Diferencias de caja con riders", String(m.cash.differences)],
+                        ["Diferencias en cambio de turno", String(m.cash.shift_differences)],
+                        hoursTile("Del cobro a la entrega", m.cash.hours_to_handover),
                     ]} />
                     {m.cash.riders_with_cash.length > 0 && <Grid head={["Rider con efectivo", "USD"]} rows={m.cash.riders_with_cash.map((r) => [r.name, usd(r.total_usd)])} />}
                 </Section>
@@ -205,23 +212,46 @@ export const MetricsPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
     );
 };
 
+const PIECES_HEAD = ["Producto", "Variante o talla", "Piezas"];
+const RETURNS_HEAD = ["Orden", "Piezas", "Recibido", "Lo recibió", "Rider"];
+
+/** Imprime solo la hoja, en un marco aparte: con window.print() salían todas las métricas y el menú. */
+const printSheet = (title: string, tables: { head: string[]; rows: (string | number)[][]; empty: string }[]) => {
+    const esc = (v: string | number) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]!);
+    const body = tables.map((t) => t.rows.length === 0 ? `<p>${esc(t.empty)}</p>`
+        : `<table><tr>${t.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`).join("");
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;width:0;height:0;border:0";
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument!;
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+        body{font-family:Arial,sans-serif;font-size:12px;margin:16px}h1{font-size:16px}table{border-collapse:collapse;width:100%;margin:12px 0}
+        th,td{border:1px solid #999;padding:4px 6px;text-align:left}th{background:#eee}</style></head><body><h1>${esc(title)}</h1>${body}</body></html>`);
+    doc.close();
+    frame.contentWindow!.focus();
+    frame.contentWindow!.print();
+    setTimeout(() => frame.remove(), 1000);
+};
+
 /** La hoja de la revisión semanal de defectuosos (idea 2 de Fran): lo que está en revisión en el almacén, para imprimir. */
 const ReviewSheet: React.FC<{ centerId: number }> = ({ centerId }) => {
     const [sheet, setSheet] = useState<Sheet | null>(null);
     const load = () => api<Sheet>(`/logistics/centers/${centerId}/review-sheet`).then(setSheet).catch((e) => toast.error(errorMessage(e)));
+    const tables = sheet ? [
+        { head: PIECES_HEAD, rows: sheet.pieces.map((p) => [p.product, p.variant ?? "—", p.quantity]), empty: "No hay piezas defectuosas en el almacén." },
+        { head: RETURNS_HEAD, empty: "No hay retornos esperando decisión.",
+            rows: sheet.returns.map((r) => [r.order ?? "—", r.items.map((i) => `${i.quantity}× ${i.name}${i.size ? ` (${i.size})` : ""}`).join(", "),
+                r.returned_at ? new Date(r.returned_at).toLocaleString("es-VE") : "—", r.received_by ?? "—", r.rider ?? "—"]) },
+    ] : [];
 
     return (
-        <Section title="Revisión semanal de defectuosos" note="Las piezas defectuosas o en revisión del almacén del centro y los retornos que esperan decisión. Quién la revisa lo decide Fran.">
+        <Section title="Revisión semanal de defectuosos" note="Las piezas defectuosas o en revisión del almacén del centro y los retornos que esperan decisión.">
             <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                 <Button size="small" variant="outlined" onClick={load}>Ver la hoja</Button>
-                {sheet && <Button size="small" onClick={() => window.print()}>Imprimir</Button>}
+                {sheet && <Button size="small" onClick={() => printSheet(`Revisión semanal de defectuosos · ${new Date(sheet.generated_at).toLocaleString("es-VE")}`, tables)}>Imprimir</Button>}
             </Stack>
-            {sheet && <>
-                <Grid head={["Producto", "Variante o talla", "Piezas"]} rows={sheet.pieces.map((p) => [p.product, p.variant ?? "—", p.quantity])} empty="No hay piezas defectuosas en el almacén." />
-                <Grid head={["Orden", "Piezas", "Recibido", "Lo recibió", "Rider"]} empty="No hay retornos esperando decisión."
-                    rows={sheet.returns.map((r) => [r.order ?? "—", r.items.map((i) => `${i.quantity}× ${i.name}${i.size ? ` (${i.size})` : ""}`).join(", "),
-                        r.returned_at ? new Date(r.returned_at).toLocaleString("es-VE") : "—", r.received_by ?? "—", r.rider ?? "—"])} />
-            </>}
+            {tables.map((t) => <Grid key={t.head[0]} head={t.head} rows={t.rows} empty={t.empty} />)}
         </Section>
     );
 };

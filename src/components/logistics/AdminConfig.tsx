@@ -395,6 +395,7 @@ const RidersAdminCard: React.FC<{ centers: AdminCenter[]; centerId: number }> = 
                             <TableCell>{u.names} {u.surnames ?? ""}<Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{u.phone ?? u.email}</Typography></TableCell>
                             <TableCell>
                                 {u.profile?.suspended_at ? <Chip size="small" color="error" label="Suspendido" /> : u.profile?.is_active ? <Chip size="small" color="success" label="Activo" /> : <Chip size="small" label="Inactivo" />}
+                                {u.profile?.mock_location_at && <Chip size="small" color="error" variant="outlined" label="GPS falso: revisar" sx={{ ml: 0.5 }} />}
                             </TableCell>
                             <TableCell>{u.profile?.alarm_ready ? <Chip size="small" color="success" label="Alarma lista" /> : <Chip size="small" variant="outlined" label={u.profile?.has_push ? "Revisar permisos" : "Sin app"} />}</TableCell>
                             <TableCell align="right">
