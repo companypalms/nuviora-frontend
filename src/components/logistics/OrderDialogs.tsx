@@ -63,11 +63,11 @@ export const AssignDialog: React.FC<Props> = ({ row, onClose, onDone }) => {
                     </List>
                 )}
                 {chosen?.reason && <Alert severity="info" sx={{ mt: 1.5 }}>{chosen.name} no entraba en la ronda: {chosen.reason_label?.toLowerCase()}. Si igual te dijo que sí, el sistema decide si se puede.</Alert>}
-                <TextField label="Comentario (opcional)" value={comment} onChange={(e) => setComment(e.target.value)} fullWidth size="small" sx={{ mt: 2 }} inputProps={{ maxLength: 250 }} />
+                <TextField label="Motivo (obligatorio)" helperText="Por qué la asignas a mano: queda en el historial." value={comment} onChange={(e) => setComment(e.target.value)} fullWidth size="small" sx={{ mt: 2 }} inputProps={{ maxLength: 250 }} />
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancelar</Button>
-                <Button variant="contained" onClick={submit} disabled={!riderId || saving}>{chosen ? `Asignar a ${chosen.name}` : "Asignar"}</Button>
+                <Button variant="contained" onClick={submit} disabled={!riderId || saving || !comment.trim()}>{chosen ? `Asignar a ${chosen.name}` : "Asignar"}</Button>
             </DialogActions>
         </Dialog>
     );

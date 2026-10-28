@@ -292,11 +292,12 @@ const SETTINGS: { key: string; label: string; help?: string; kind?: "time" | "bo
     { key: "max_stops_exceptional", label: "Paradas por ruta (excepcional)" },
     { key: "cash_limit_usd", label: "Límite de efectivo del rider (USD)" },
     { key: "service_minutes_per_stop", label: "Minutos de servicio por parada" },
-    { key: "picking_minutes", label: "Tiempo de picking (min)", help: "Vacío: Fran todavía no lo fijó" },
+    { key: "picking_minutes", label: "Tiempo de picking (min)", help: "Fran, 27/10: menos de 3, máximo 5" },
     { key: "gps_max_age_seconds", label: "GPS reciente: máximo (s)" },
     { key: "morning_check_at", label: "Chequeo de la mañana", kind: "time" },
-    { key: "morning_check_max_eta_minutes", label: "Chequeo: ETA máximo (min)", help: "Vacío: Fran todavía no lo fijó" },
+    { key: "morning_check_max_eta_minutes", label: "Chequeo: ETA máximo (min)", help: "Vacío: el objetivo menos el picking (Fran, 27/10)" },
     { key: "road_report_minutes", label: "Incidencias en la vía: duran (min)", help: "Si nadie confirma que siguen, se quitan solas (§15)" },
+    { key: "onsite_radius_meters", label: "Entrega en el sitio: radio (m)", help: "Más lejos del cliente queda marcada para administración" },
     { key: "pay_failed_leg", label: "Se paga la ida si el cliente no recibe", kind: "bool" },
     { key: "return_deadline", label: "Plazo de retorno", kind: "fixed" },
 ];
@@ -358,7 +359,7 @@ const SettingsCard: React.FC<{ center: AdminCenter }> = ({ center }) => {
 
 type RiderUser = {
     id: number; names: string; surnames: string | null; phone: string | null; email: string;
-    profile: { center_id: number; is_active: boolean; suspended_at: string | null; suspended_reason: string | null; schedule: Hours | null; notes: string | null;
+    profile: { center_id: number; is_active: boolean; suspended_at: string | null; suspended_reason: string | null; schedule: Hours | null; notes: string | null; mock_location_at?: string | null;
         alarm_ready: boolean; has_push: boolean; center: Option | null } | null;
 };
 
@@ -417,14 +418,14 @@ const RidersAdminCard: React.FC<{ centers: AdminCenter[]; centerId: number }> = 
 };
 
 const RiderDialog: React.FC<{ user: RiderUser | null; centers: AdminCenter[]; centerId: number; onClose: () => void; onSaved: () => void }> = ({ user, centers, centerId, onClose, onSaved }) => {
-    const [f, setF] = useState({ center_id: String(centerId), is_active: true, suspended: false, suspended_reason: "", notes: "", useSchedule: false });
+    const [f, setF] = useState({ center_id: String(centerId), is_active: true, suspended: false, suspended_reason: "", notes: "", useSchedule: false, clearMock: false });
     const [schedule, setSchedule] = useState<Hours>(DEFAULT_HOURS);
 
     useEffect(() => {
         if (!user) return;
         const p = user.profile;
         setF({ center_id: String(p?.center_id ?? centerId), is_active: p?.is_active ?? true, suspended: !!p?.suspended_at, suspended_reason: p?.suspended_reason ?? "",
-            notes: p?.notes ?? "", useSchedule: !!p?.schedule });
+            notes: p?.notes ?? "", useSchedule: !!p?.schedule, clearMock: false });
         setSchedule(p?.schedule ?? centers.find((c) => c.id === centerId)?.opening_hours ?? DEFAULT_HOURS);
     }, [user, centerId, centers]);
 
@@ -433,7 +434,7 @@ const RiderDialog: React.FC<{ user: RiderUser | null; centers: AdminCenter[]; ce
         try {
             const r = await api<{ message: string }>(`/logistics/riders/${user.id}`, "PUT", {
                 center_id: Number(f.center_id), is_active: f.is_active, suspended: f.suspended, suspended_reason: f.suspended ? f.suspended_reason : null,
-                notes: f.notes || null, schedule: f.useSchedule ? schedule : null,
+                notes: f.notes || null, schedule: f.useSchedule ? schedule : null, clear_mock_location: f.clearMock,
             });
             toast.success(r.message);
             onSaved();
@@ -451,6 +452,9 @@ const RiderDialog: React.FC<{ user: RiderUser | null; centers: AdminCenter[]; ce
                     <FormControlLabel control={<Switch checked={f.is_active} onChange={(e) => setF({ ...f, is_active: e.target.checked })} />} label="Activo (recibe rondas)" />
                     <FormControlLabel control={<Switch checked={f.suspended} onChange={(e) => setF({ ...f, suspended: e.target.checked })} />} label="Suspendido" />
                     {f.suspended && <TextField size="small" label="Motivo de la suspensión" value={f.suspended_reason} onChange={(e) => setF({ ...f, suspended_reason: e.target.value })} />}
+                    {/* GPS falso (informe del 27/10, sección 06): queda fuera de las rondas hasta que administración lo revise */}
+                    {user?.profile?.mock_location_at && <FormControlLabel control={<Switch checked={f.clearMock} onChange={(e) => setF({ ...f, clearMock: e.target.checked })} />}
+                        label={`Su teléfono simuló la ubicación (GPS falso). Quitar la marca: lo revisé`} />}
                     <FormControlLabel control={<Switch checked={f.useSchedule} onChange={(e) => setF({ ...f, useSchedule: e.target.checked })} />}
                         label="Franjas propias (si no, las del centro)" />
                     {f.useSchedule && <HoursEditor value={schedule} onChange={setSchedule} />}

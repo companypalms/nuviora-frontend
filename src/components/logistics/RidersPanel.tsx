@@ -64,6 +64,7 @@ export const RidersPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
                                         </TableCell>
                                         <TableCell>
                                             <Chip size="small" variant="outlined" color={r.gps_ok ? "success" : "warning"} label={ago(r.last_location_at)} />
+                                            {r.mock_location_at && <Chip size="small" color="error" label="GPS falso: fuera de las rondas" sx={{ ml: 0.5 }} />}
                                             {r.last_lat !== null && r.last_lng !== null && (
                                                 <Link href={mapsLink(r.last_lat, r.last_lng)} target="_blank" rel="noopener" variant="caption" sx={{ display: "block", mt: 0.5 }}>Ver en el mapa</Link>
                                             )}

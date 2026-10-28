@@ -26,6 +26,18 @@ type Metrics = {
     riders_pay: { rider_id: number; name: string; deliveries: number; earned_usd: number; failed_legs: number; paid_usd: number }[];
     incidents: { total: number; by_type: { label: string; count: number }[]; kept_going: number; interrupted: number; reassigned: number };
     delivery_rate: Record<"propia" | "agencia", { delivered: number; not_delivered: number; rate_pct: number | null }>;
+    signals: Record<"riders" | "operators", { averages: Record<string, number>; rows: ({ id: number; name: string; flags: string[] } & Record<string, number | string | string[]>)[] }>;
+};
+type Sheet = {
+    generated_at: string;
+    pieces: { product: string; variant: string | null; quantity: number }[];
+    returns: { order: string | null; rider: string | null; items: { name: string; size: string | null; quantity: number }[]; returned_at: string | null; received_by: string | null }[];
+};
+
+const SIGNALS: Record<"riders" | "operators", [string, string][]> = {
+    riders: [["no_responde", "\"No responde\""], ["fallidas", "Fallidas"], ["fuera_del_sitio", "Fuera del sitio"], ["diferencias_caja", "Diferencias de caja"],
+        ["retornos_vencidos", "Retornos vencidos"], ["a_mano", "Asignadas a mano"]],
+    operators: [["a_mano", "Asignó a mano"], ["novedades_resueltas", "Novedades que resolvió"], ["diferencias_caja", "Diferencias de caja que recibió"]],
 };
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -165,6 +177,21 @@ export const MetricsPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
                     <Grid head={["Rider", "Entregas", "Idas pagadas", "Ganado", "Pagado"]} rows={m.riders_pay.map((r) => [r.name, r.deliveries, r.failed_legs, usd(r.earned_usd), usd(r.paid_usd)])} />
                 </Section>
 
+                {(["riders", "operators"] as const).map((who) => (
+                    <Section key={who} title={who === "riders" ? "Señales raras por rider" : "Señales raras por operador"}
+                        note="En rojo, quien tiene el doble del promedio o más (y al menos 2 casos): es lo que hay que mirar de cerca.">
+                        <Grid head={["", ...SIGNALS[who].map(([, l]) => l)]} rows={m.signals[who].rows.map((r) => [
+                            r.flags.length ? `⚠ ${r.name}` : r.name,
+                            ...SIGNALS[who].map(([k]) => (r.flags.includes(k) ? `${r[k]} (alto)` : String(r[k] ?? 0))),
+                        ])} />
+                        <Typography variant="caption" color="text.secondary">
+                            Promedio: {SIGNALS[who].map(([k, l]) => `${l} ${m.signals[who].averages[k] ?? 0}`).join(" · ")}
+                        </Typography>
+                    </Section>
+                ))}
+
+                <ReviewSheet centerId={centerId} />
+
                 <Section title="Incidencias graves y delivery rate">
                     <Tiles items={[
                         ["Incidencias graves", String(m.incidents.total)], ["Siguió la ruta", String(m.incidents.kept_going)], ["Ruta interrumpida", String(m.incidents.interrupted)],
@@ -175,5 +202,26 @@ export const MetricsPanel: React.FC<{ centerId: number }> = ({ centerId }) => {
                 </Section>
             </>}
         </Stack>
+    );
+};
+
+/** La hoja de la revisión semanal de defectuosos (idea 2 de Fran): lo que está en revisión en el almacén, para imprimir. */
+const ReviewSheet: React.FC<{ centerId: number }> = ({ centerId }) => {
+    const [sheet, setSheet] = useState<Sheet | null>(null);
+    const load = () => api<Sheet>(`/logistics/centers/${centerId}/review-sheet`).then(setSheet).catch((e) => toast.error(errorMessage(e)));
+
+    return (
+        <Section title="Revisión semanal de defectuosos" note="Las piezas defectuosas o en revisión del almacén del centro y los retornos que esperan decisión. Quién la revisa lo decide Fran.">
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button size="small" variant="outlined" onClick={load}>Ver la hoja</Button>
+                {sheet && <Button size="small" onClick={() => window.print()}>Imprimir</Button>}
+            </Stack>
+            {sheet && <>
+                <Grid head={["Producto", "Variante o talla", "Piezas"]} rows={sheet.pieces.map((p) => [p.product, p.variant ?? "—", p.quantity])} empty="No hay piezas defectuosas en el almacén." />
+                <Grid head={["Orden", "Piezas", "Recibido", "Lo recibió", "Rider"]} empty="No hay retornos esperando decisión."
+                    rows={sheet.returns.map((r) => [r.order ?? "—", r.items.map((i) => `${i.quantity}× ${i.name}${i.size ? ` (${i.size})` : ""}`).join(", "),
+                        r.returned_at ? new Date(r.returned_at).toLocaleString("es-VE") : "—", r.received_by ?? "—", r.rider ?? "—"])} />
+            </>}
+        </Section>
     );
 };

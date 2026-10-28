@@ -86,10 +86,31 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
         } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(null); }
     };
 
+    // Informe del 27/10, sección 06 punto 4 (Fran: "rápido y fácil"): la que entra confirma el efectivo que recibe o dice cuánto hay
+    const [handover, setHandover] = useState<"open" | "close" | null>(null);
+    const [cashOk, setCashOk] = useState(true);
+    const [cashUsd, setCashUsd] = useState("");
+    const [cashVes, setCashVes] = useState("");
+    const [receive, setReceive] = useState<{ usd: string; ves: string; method: string } | null>(null);
+    const cashBody = () => (cashOk ? { cash_ok: true } : { cash_usd: Number(cashUsd || 0), cash_ves: Number(cashVes || 0) });
+
     const startShift = async () => {
         try {
-            const r = await api<{ message: string }>(`/logistics/centers/${centerId}/shift/start`, "POST");
+            const r = await api<{ message: string }>(`/logistics/centers/${centerId}/shift/start`, "POST", cashBody());
             toast.success(r.message);
+            setHandover(null);
+            load();
+        } catch (e) { toast.error(errorMessage(e)); }
+    };
+
+    /** Administración marca como recibido el efectivo que le entregó la operadora ("se marca como pagado", Fran). */
+    const receiveCash = async () => {
+        if (!receive) return;
+        try {
+            const r = await api<{ message: string }>(`/logistics/centers/${centerId}/cash/received`, "POST",
+                { usd: Number(receive.usd || 0), ves: Number(receive.ves || 0), method: receive.method || null });
+            toast.success(r.message);
+            setReceive(null);
             load();
         } catch (e) { toast.error(errorMessage(e)); }
     };
@@ -97,13 +118,13 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
     const askClose = async () => {
         try {
             const r = await api<{ pending: { texto: string; total: number }[] }>(`/logistics/centers/${centerId}/shift/pending`);
-            setReason(""); setClosing({ items: r.pending });
+            setReason(""); setCashOk(true); setCashUsd(""); setCashVes(""); setClosing({ items: r.pending });
         } catch (e) { toast.error(errorMessage(e)); }
     };
 
     const closeShift = async () => {
         try {
-            const r = await api<{ message: string }>(`/logistics/centers/${centerId}/shift/close`, "POST", { reason: reason || null });
+            const r = await api<{ message: string }>(`/logistics/centers/${centerId}/shift/close`, "POST", { reason: reason || null, ...cashBody() });
             toast.success(r.message);
             setClosing(null);
             load();
@@ -163,7 +184,13 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
                     </Box>
                     {board.is_active && (board.active_shift
                         ? <Button variant="outlined" color="inherit" onClick={askClose}>Cerrar turno</Button>
-                        : <Button variant="contained" onClick={startShift}>Iniciar turno</Button>)}
+                        : <Button variant="contained" onClick={() => { setCashOk(true); setCashUsd(""); setCashVes(""); setHandover("open"); }}>Iniciar turno</Button>)}
+                </Stack>
+                {/* Informe del 27/10, sección 06 punto 3: el efectivo que tiene el centro, para la operadora y para administración */}
+                <Stack direction="row" spacing={1.5} sx={{ mt: 1.5, alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
+                    <Typography variant="body2"><b>Caja del centro:</b> {cashLine(board.cash)}</Typography>
+                    {isAdmin && (board.cash.usd > 0 || board.cash.ves > 0) &&
+                        <Button size="small" onClick={() => setReceive({ usd: String(board.cash.usd), ves: String(board.cash.ves), method: "" })}>Me lo entregaron</Button>}
                 </Stack>
                 {!board.is_active && <Alert severity="info" sx={{ mt: 1.5 }}>El centro está apagado: {board.city ?? "la ciudad"} sigue con sus agencias. Lo enciende el Admin en Configuración.</Alert>}
                 {board.is_active && !board.active_shift && board.last_close?.close_type === "con_pendientes" && (
@@ -287,6 +314,35 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
             <DetailDialog id={detail} onClose={() => setDetail(null)} />
             <ReorderDialog routeId={reorder} stops={data.orders.filter((o) => o.route?.id === reorder)} onClose={() => setReorder(null)} onDone={done} />
 
+            {/* Cambio de turno: la que entra confirma lo que recibe */}
+            <Dialog open={handover === "open"} onClose={() => setHandover(null)} fullWidth maxWidth="xs">
+                <DialogTitle>Iniciar turno</DialogTitle>
+                <DialogContent>
+                    <CashCheck title={`Recibes en la caja ${cashLine(board.cash)}${board.cash.returns ? ` y ${board.cash.returns} retorno(s) en revisión` : ""}`}
+                        ok={cashOk} setOk={setCashOk} usd={cashUsd} setUsd={setCashUsd} ves={cashVes} setVes={setCashVes} />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setHandover(null)}>Cancelar</Button>
+                    <Button variant="contained" onClick={startShift}>Iniciar turno</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={!!receive} onClose={() => setReceive(null)} fullWidth maxWidth="xs">
+                <DialogTitle>Efectivo que te entregó el centro</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Según el sistema, la caja tiene {cashLine(board.cash)}. Al guardarlo, baja de la caja del centro.</Typography>
+                    <Stack spacing={1.5}>
+                        <TextField label="Dólares" type="number" size="small" value={receive?.usd ?? ""} onChange={(e) => setReceive((r) => r && { ...r, usd: e.target.value })} />
+                        <TextField label="Bolívares" type="number" size="small" value={receive?.ves ?? ""} onChange={(e) => setReceive((r) => r && { ...r, ves: e.target.value })} />
+                        <TextField label="Cómo (efectivo, depósito…)" size="small" value={receive?.method ?? ""} onChange={(e) => setReceive((r) => r && { ...r, method: e.target.value })} />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setReceive(null)}>Cancelar</Button>
+                    <Button variant="contained" onClick={receiveCash}>Guardar</Button>
+                </DialogActions>
+            </Dialog>
+
             {/* §10: tres paradas solo como excepción, con aprobación expresa del operador */}
             <Dialog open={!!exceptional} onClose={() => setExceptional(null)} fullWidth maxWidth="xs">
                 <DialogTitle>Ruta excepcional de {exceptional?.stops.length} paradas</DialogTitle>
@@ -310,6 +366,7 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
             <Dialog open={!!closing} onClose={() => setClosing(null)} fullWidth maxWidth="xs">
                 <DialogTitle>Cerrar turno</DialogTitle>
                 <DialogContent>
+                    <CashCheck title={`Dejas en la caja ${cashLine(board.cash)}`} ok={cashOk} setOk={setCashOk} usd={cashUsd} setUsd={setCashUsd} ves={cashVes} setVes={setCashVes} />
                     {closing && closing.items.length === 0 ? <Typography>No quedan pendientes: el turno cierra limpio.</Typography> : (
                         <>
                             <Typography variant="body2" sx={{ mb: 1 }}>Quedan pendientes:</Typography>
@@ -387,7 +444,13 @@ const OrderRow: React.FC<{
                 <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", flexWrap: "wrap", rowGap: 1 }}>
                     {o.open_incident && <Button size="small" color="error" variant={o.priority_key === "incidencia" ? "contained" : "outlined"} onClick={onIncident}>Incidencia</Button>}
                     {o.open_novelty && <Button size="small" color="error" variant={o.priority_key === "novedad" ? "contained" : "outlined"} onClick={onNovelty}>Novedad</Button>}
-                    {s === "buscando_rider" && <Button size="small" variant="contained" onClick={onAssign}>Asignar a mano</Button>}
+                    {/* Fran, 27/10: a mano solo desde el minuto 3, cuando las rondas no la colocaron */}
+                    {s === "buscando_rider" && (() => {
+                        const wait = o.calls_in_seconds !== null ? o.calls_in_seconds - elapsed : 0;
+                        return wait > 0
+                            ? <Tooltip title="A mano solo desde el minuto 3: hasta entonces la toman las rondas"><span><Button size="small" disabled>A mano en {clock(wait)}</Button></span></Tooltip>
+                            : <Button size="small" variant="contained" onClick={onAssign}>Asignar a mano</Button>;
+                    })()}
                     {/* Con el paquete en la calle (§14), la agencia no lo puede recoger en el centro */}
                     {s === "buscando_rider" && !o.pickup_rider && <Button size="small" color="secondary" onClick={onAgency}>A la agencia</Button>}
                     {s === "rider_confirmado" && !o.pickup_rider && <Button size="small" variant="contained" disabled={busy} onClick={() => onAct("prepare")}>Preparar</Button>}
@@ -473,3 +536,25 @@ const ReorderDialog: React.FC<{ routeId: number | null; stops: TowerOrder[]; onC
         </Dialog>
     );
 };
+
+const cashLine = (c: { usd: number; ves: number }) =>
+    [`USD ${c.usd.toFixed(2)}`, c.ves ? `Bs ${c.ves.toLocaleString("es-VE", { minimumFractionDigits: 2 })}` : null].filter(Boolean).join(" y ");
+
+/** El efectivo del cambio de turno: confirmar con un toque o escribir lo que hay (informe del 27/10, sección 06 punto 4). */
+const CashCheck: React.FC<{
+    title: string; ok: boolean; setOk: (v: boolean) => void; usd: string; setUsd: (v: string) => void; ves: string; setVes: (v: string) => void;
+}> = ({ title, ok, setOk, usd, setUsd, ves, setVes }) => (
+    <Box sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ mb: 1 }}>{title}</Typography>
+        <Stack direction="row" spacing={1}>
+            <Button size="small" variant={ok ? "contained" : "outlined"} color="success" onClick={() => setOk(true)}>Está completo</Button>
+            <Button size="small" variant={!ok ? "contained" : "outlined"} color="warning" onClick={() => setOk(false)}>No cuadra</Button>
+        </Stack>
+        {!ok && (
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+                <TextField label="Dólares que hay" type="number" size="small" value={usd} onChange={(e) => setUsd(e.target.value)} />
+                <TextField label="Bolívares que hay" type="number" size="small" value={ves} onChange={(e) => setVes(e.target.value)} />
+            </Stack>
+        )}
+    </Box>
+);

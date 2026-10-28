@@ -13,7 +13,9 @@ export type CenterBoard = {
     today_hours: [string, string] | null; dispatch_cutoff: string | null; before_cutoff: boolean;
     active_shift: { id: number; user: { id: number; names: string } | null; started_at: string } | null;
     counts: Record<string, number>; alerts: Alert[];
-    last_close: { id: number; user_id: number; ended_at: string; close_type: string; close_reason: string | null } | null;
+    last_close: { id: number; user_id: number; ended_at: string; close_type: string; close_reason: string | null; close_cash_usd: string | number | null; close_cash_ves: string | number | null; user?: { names: string } | null } | null;
+    // Informe del 27/10, sección 06: el efectivo del centro (lo recibido de los riders menos lo que administración marcó recibido)
+    cash: { usd: number; ves: number; returns: number };
 };
 
 export type Novelty = {
@@ -81,7 +83,7 @@ export type OrdersResponse = {
 export type CenterRider = {
     id: number; user_id: number; is_active: boolean; suspended_at: string | null; suspended_reason: string | null;
     platform: string | null; app_version: string | null; notifications_enabled: boolean | null; location_permission: string | null;
-    last_lat: number | null; last_lng: number | null; last_location_at: string | null; eta_center_seconds: number | null; eta_center_meters: number | null;
+    last_lat: number | null; last_lng: number | null; last_location_at: string | null; mock_location_at?: string | null; eta_center_seconds: number | null; eta_center_meters: number | null;
     has_push: boolean; alarm_ready: boolean; gps_ok: boolean; routes_today: number; push_error: string | null;
     cash: RiderCashBalance; cash_over_limit: boolean; returns_pending: number;
     user: { id: number; names: string; phone: string | null } | null;
