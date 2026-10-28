@@ -30,8 +30,9 @@ export const SignInCard = () => {
         // Los riders usan la app Nuviora Rider; en la web la API no les deja hacer nada (RestrictLimitedRoles)
         if (result.status && useUserStore.getState().user.role?.description === 'Repartidor') {
             await useUserStore.getState().logout();
-            toast.error('Los riders entran por la app Nuviora Rider.');
+            toast.error('Los riders entran por la app Nuviora Rider: aquí la puedes descargar.');
             setLoading(false);
+            window.location.assign('/app');
             return;
         }
         if (result.status) {
@@ -157,6 +158,12 @@ export const SignInCard = () => {
                                         sx={{ fontWeight: 'bold', cursor: 'pointer' }}
                                     >
                                         Regístrate
+                                    </Link>
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                    ¿Eres rider?{' '}
+                                    <Link href="/app" variant="subtitle2" underline="hover" sx={{ fontWeight: 'bold' }}>
+                                        Descarga la app
                                     </Link>
                                 </Typography>
                             </Box>

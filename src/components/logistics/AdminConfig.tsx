@@ -4,7 +4,7 @@
 // todo lo que aquí se guarda lo usa el backend desde ese momento.
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Paper,
+    Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, Link, MenuItem, Paper,
     Stack, Switch, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
 import { DeleteRounded } from "@mui/icons-material";
@@ -386,6 +386,7 @@ const RidersAdminCard: React.FC<{ centers: AdminCenter[]; centerId: number }> = 
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Riders del centro</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                 Los usuarios se crean en Usuarios con el rol Repartidor; aquí se les asigna el centro. Entran a la app con ese mismo correo y contraseña.
+                {" "}La app se descarga en <Link href="/app" target="_blank" rel="noreferrer">{window.location.origin}/app</Link>: mándales ese enlace.
             </Typography>
             <Table size="small">
                 <TableHead><TableRow><TableCell>Rider</TableCell><TableCell>Estado</TableCell><TableCell>App</TableCell><TableCell align="right" /></TableRow></TableHead>

@@ -6,6 +6,7 @@ import { getThemeLight, getThemeDark } from './common/theme';
 import { Login } from './pages/auth/Login';
 
 import { RecoverPassword } from './pages/auth/RecoverPassword';
+import { RiderApp } from './pages/auth/RiderApp';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { useUserStore } from './store/user/UserStore';
 import { RequireRole } from './components/auth/RequireRole';
@@ -92,6 +93,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/recover-password" element={<RecoverPassword />} />
+          <Route path="/app" element={<RiderApp />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route path="/dashboard" element={
