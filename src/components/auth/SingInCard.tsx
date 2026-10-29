@@ -12,6 +12,7 @@ import { useUserStore } from "../../store/user/UserStore";
 import { TypographyCustom, TextFieldCustom, ButtonCustom } from "../custom";
 import { useState } from "react";
 import { Loading } from "../ui/content/Loading";
+import { APP_VERSION } from "../../version";
 
 const initialValues: FormData = {
     email: '',
@@ -165,6 +166,9 @@ export const SignInCard = () => {
                                     <Link href="/app" variant="subtitle2" underline="hover" sx={{ fontWeight: 'bold' }}>
                                         Descarga la app
                                     </Link>
+                                </Typography>
+                                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 3 }}>
+                                    Versión {APP_VERSION}
                                 </Typography>
                             </Box>
                         </Box>
