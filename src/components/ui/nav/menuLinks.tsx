@@ -18,7 +18,7 @@ import {
     InsertDriveFileRounded, MapRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
-    AccountBalanceWalletRounded, CellTowerRounded,
+    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -68,6 +68,8 @@ export const MENU_LINKS: NavLink[] = [
 
     // Dinero
     { section: "dinero", text: "Finanzas", icon: <AccountBalanceWalletRounded />, link: "/finanzas", roles: ["Admin"], keywords: "gastos recurrentes editor shopify chatgpt rentabilidad contabilidad egresos comprobante" },
+    // Antes solo se llegaba desde el widget del dashboard
+    { section: "dinero", text: "Conciliación", icon: <CompareArrowsRounded />, link: "/conciliacion", roles: ["Admin"], keywords: "conciliaciones pagos digitales extracto banco estado de cuenta pago movil zelle binance cuadre diario incidencias" },
     { section: "dinero", text: "Vueltos de mi grupo", icon: <ReceiptLongRounded />, link: "/mi-grupo/vueltos", roles: ["Vendedor"], leaderOnly: true, keywords: "vuelto cambio pagar" },
     { section: "dinero", text: "Cierres de agencias", icon: <RequestQuoteRounded />, link: "/admin/cierres-agencias", roles: ["Admin"], keywords: "cierre semanal agencias carreras excel discrepancias pagar delivery pyp dalgo rapi2" },
     { section: "dinero", text: "Cierres / Servicios", icon: <RequestQuoteRounded />, link: "/cierres", roles: ["Agencia"], keywords: "cierre semanal subir excel carreras pago" },
