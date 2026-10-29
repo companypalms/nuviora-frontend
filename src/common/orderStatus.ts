@@ -14,10 +14,11 @@ export const sendOrderStatus = async (orderId: number | string, body: URLSearchP
 
     // Dueño (2026-10-29): para cancelar, desde cualquier pantalla, hay que escribir el motivo. Si se cierra sin
     // escribirlo, no cambia nada (null, como el doble toque).
-    if (body.get("status") === "Cancelado" && !body.get("cancel_reason")) {
-        const reason = await askCancelReason();
-        if (!reason) return null;
-        body.set("cancel_reason", reason);
+    if (body.get("status") === "Cancelado" && (!body.get("cancel_reason") || !body.get("cancel_category"))) {
+        const answer = await askCancelReason();
+        if (!answer) return null;
+        body.set("cancel_reason", answer.reason);
+        body.set("cancel_category", answer.category);
         if (inFlight.has(key)) return null;
     }
 

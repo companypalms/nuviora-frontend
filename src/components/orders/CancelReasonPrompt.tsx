@@ -5,17 +5,21 @@ import { Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from "@
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { ButtonCustom } from "../custom";
 import { CancelReasonField } from "./CancelReasonField";
-import { isValidCancelReason, useCancelReasonPrompt } from "./cancelReason";
+import { CancelAnswer, isValidCancel, useCancelReasonPrompt } from "./cancelReason";
 
 export const CancelReasonPrompt: FC = () => {
     const { open, resolve } = useCancelReasonPrompt();
     const [reason, setReason] = useState("");
+    const [category, setCategory] = useState("");
 
     useEffect(() => {
-        if (open) setReason("");
+        if (open) {
+            setReason("");
+            setCategory("");
+        }
     }, [open]);
 
-    const finish = (value: string | null) => {
+    const finish = (value: CancelAnswer | null) => {
         useCancelReasonPrompt.setState({ open: false, resolve: null });
         resolve?.(value);
     };
@@ -29,13 +33,13 @@ export const CancelReasonPrompt: FC = () => {
                 </IconButton>
             </DialogTitle>
             <DialogContent>
-                <CancelReasonField value={reason} onChange={setReason} />
+                <CancelReasonField value={reason} onChange={setReason} category={category} onCategory={setCategory} />
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
                 <ButtonCustom variant="outlined" onClick={() => finish(null)}>
                     Volver
                 </ButtonCustom>
-                <ButtonCustom variant="contained" color="error" disabled={!isValidCancelReason(reason)} onClick={() => finish(reason.trim())}>
+                <ButtonCustom variant="contained" color="error" disabled={!isValidCancel(reason, category)} onClick={() => finish({ reason: reason.trim(), category })}>
                     Confirmar cancelación
                 </ButtonCustom>
             </DialogActions>

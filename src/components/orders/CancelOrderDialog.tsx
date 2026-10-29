@@ -13,7 +13,7 @@ import { IResponse } from "../../interfaces/response-type";
 import { toast } from "react-toastify";
 import { useOrdersStore } from "../../store/orders/OrdersStore";
 import { CancelReasonField } from "./CancelReasonField";
-import { isValidCancelReason, MIN_CANCEL_REASON } from "./cancelReason";
+import { isValidCancel, MIN_CANCEL_REASON } from "./cancelReason";
 
 interface CancelOrderDialogProps {
     open: boolean;
@@ -30,12 +30,13 @@ export const CancelOrderDialog: FC<CancelOrderDialogProps> = ({
     onCancelled,
 }) => {
     const [reason, setReason] = useState("");
+    const [category, setCategory] = useState("");
     const [loading, setLoading] = useState(false);
     const { updateOrderInColumns } = useOrdersStore();
 
     const handleCancelOrder = async () => {
-        if (!isValidCancelReason(reason) || !orderId) {
-            toast.error(`Escribe el motivo de la cancelación (mínimo ${MIN_CANCEL_REASON} caracteres) ❌`);
+        if (!isValidCancel(reason, category) || !orderId) {
+            toast.error(`Elige el motivo de la lista y escríbelo (mínimo ${MIN_CANCEL_REASON} caracteres) ❌`);
             return;
         }
 
@@ -43,6 +44,7 @@ export const CancelOrderDialog: FC<CancelOrderDialogProps> = ({
 
         const body = new URLSearchParams();
         body.append("reason", reason.trim());
+        body.append("category", category);
 
         try {
             const { status, response }: IResponse = await request(
@@ -61,6 +63,7 @@ export const CancelOrderDialog: FC<CancelOrderDialogProps> = ({
 
                 toast.success("Orden cancelada ✅");
                 setReason("");
+                setCategory("");
                 onClose();
             } else {
                 toast.error((await response.json().catch(() => ({})))?.message || "No se pudo cancelar la orden ❌");
@@ -83,7 +86,7 @@ export const CancelOrderDialog: FC<CancelOrderDialogProps> = ({
             </DialogTitle>
 
             <DialogContent>
-                <CancelReasonField value={reason} onChange={setReason} disabled={loading} />
+                <CancelReasonField value={reason} onChange={setReason} category={category} onCategory={setCategory} disabled={loading} />
             </DialogContent>
 
             <DialogActions sx={{ p: 2 }}>
@@ -94,7 +97,7 @@ export const CancelOrderDialog: FC<CancelOrderDialogProps> = ({
                     variant="contained"
                     color="error"
                     onClick={handleCancelOrder}
-                    disabled={loading || !isValidCancelReason(reason)}
+                    disabled={loading || !isValidCancel(reason, category)}
                 >
                     {loading ? "Cancelando..." : "Confirmar cancelación"}
                 </ButtonCustom>
