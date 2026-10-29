@@ -30,8 +30,9 @@ import { IResponse } from "../interfaces/response-type";
 import { OrderDialog } from "../components/orders/OrderDialog";
 import { orderNo } from "../lib/functions";
 import { AdminDashboard } from "../components/dashboard/admin/AdminDashboard";
+import { DaySummary } from "../components/dashboard/admin/DaySummary";
 import { ClosureReminder } from "../components/agency-closures/ClosureReminder";
-import { DashboardStats, PendingVuelto } from "../components/dashboard/admin/types";
+import { DashboardStats } from "../components/dashboard/admin/types";
 
 interface DashboardData {
     role: string;
@@ -42,12 +43,11 @@ interface DashboardData {
 
 export const Dashboard = () => {
     const user = useUserStore((state) => state.user);
+    // El Admin tiene su propio Dashboard (Etapa 4): sus metas, lo de hoy y su asistente. No pide los números de aquí
+    const isAdmin = user.role?.description === "Admin";
     const { loadingSession, isValid } = useValidateSession();
     const [data, setData] = useState<DashboardData | null>(null);
-    const [pendingVueltos, setPendingVueltos] = useState<PendingVuelto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [autoAssigning, setAutoAssigning] = useState(false);
-    const [assigningCities, setAssigningCities] = useState(false);
     const [agencySettlement, setAgencySettlement] = useState<any[]>([]);
     const [fromDate, setFromDate] = useState(dayjs().startOf('month').format("YYYY-MM-DD"));
     const [toDate, setToDate] = useState(dayjs().format("YYYY-MM-DD"));
@@ -84,18 +84,6 @@ export const Dashboard = () => {
                 }
             }
 
-            // Fetch pending vueltos if admin/gerente
-            if (['Admin', 'Gerente'].includes(user.role?.description || '')) {
-                const { status: vStatus, response: vResponse } = await request('/orders/pending-vueltos', 'GET');
-                if (vStatus) {
-                    const vJson = await vResponse.json();
-                    console.log({ vJson });
-                    if (vJson.status) {
-                        setPendingVueltos(vJson.orders);
-                    }
-                }
-            }
-
             // Fetch agency settlement if agency
             if (user.role?.description === 'Agencia') {
                 await fetchSettlement();
@@ -110,13 +98,23 @@ export const Dashboard = () => {
     };
 
     useEffect(() => {
-        if (isValid && !loadingSession) {
+        if (isValid && !loadingSession && !isAdmin) {
             fetchData();
         }
-    }, [user.token, isValid, loadingSession]);
+    }, [user.token, isValid, loadingSession, isAdmin]);
 
     if (loadingSession || !isValid || !user.token) {
         return <Loading />;
+    }
+
+    if (isAdmin) {
+        return (
+            <Layout>
+                <Box sx={{ mt: 1 }}>
+                    <AdminDashboard />
+                </Box>
+            </Layout>
+        );
     }
 
     if (loading || !data) {
@@ -140,43 +138,6 @@ export const Dashboard = () => {
             console.error(error);
         }
     };
-
-    const autoAssignLogistics = async () => {
-        setAutoAssigning(true);
-        try {
-            const { status, response }: IResponse = await request("/orders/auto-assign-logistics", "POST");
-            if (status) {
-                const result = await response.json();
-                toast.success(result.message);
-                fetchData(); // Refresh stats
-            } else {
-                toast.error("Error al auto-asignar logística");
-            }
-        } catch (e) {
-            toast.error("Error en el servidor");
-        } finally {
-            setAutoAssigning(false);
-        }
-    };
-
-    const autoAssignCities = async () => {
-        setAssigningCities(true);
-        try {
-            const { status, response }: IResponse = await request("/orders/auto-assign-cities", "POST");
-            if (status) {
-                const result = await response.json();
-                toast.success(result.message);
-                fetchData(); // Refresh stats
-            } else {
-                toast.error("Error al asignar ciudades");
-            }
-        } catch (e) {
-            toast.error("Error en el servidor");
-        } finally {
-            setAssigningCities(false);
-        }
-    };
-
 
     const exportToExcel = (agency: any) => {
         if (!agency) return;
@@ -204,21 +165,9 @@ export const Dashboard = () => {
 
     const renderWidgetsByRole = () => {
         switch (role) {
-            case "Admin":
             case "Gerente":
             case "Master":
-                return (
-                    <AdminDashboard
-                        role={role}
-                        stats={stats}
-                        vueltos={pendingVueltos}
-                        onOpenOrder={handleOpenOrder}
-                        onAutoAssignAgency={autoAssignLogistics}
-                        assigningAgency={autoAssigning}
-                        onAutoAssignCities={autoAssignCities}
-                        assigningCities={assigningCities}
-                    />
-                );
+                return <DaySummary role={role} stats={stats} onOpenOrder={handleOpenOrder} onChanged={fetchData} />;
 
 
             case "Vendedor":

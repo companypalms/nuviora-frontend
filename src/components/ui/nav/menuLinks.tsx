@@ -17,7 +17,7 @@ import {
     InsertDriveFileRounded, MapRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
-    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded,
+    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -45,6 +45,8 @@ export const SECTIONS: { id: SectionId; title: string; icon: ReactNode }[] = [
 export const MENU_LINKS: NavLink[] = [
     // Principal
     { section: "principal", text: "Dashboard", icon: <DashboardRoundedIcon />, link: "/dashboard", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "inicio resumen home panel" },
+    // Etapa 4: lo que estaba en el Dashboard del Admin antes de que quedara con sus metas, lo de hoy y su asistente
+    { section: "principal", text: "Resumen del día", icon: <TodayRounded />, link: "/resumen-del-dia", roles: ["Admin"], keywords: "numeros de hoy pendientes vueltos deficit stock bajo sin agencia asignar agencias ciudades sin registrar validaciones conciliacion equipo pagos por metodo kpi" },
     // Etapa 2: los números del negocio con las reglas de guias/DICCIONARIO-METRICAS.md
     { section: "principal", text: "Panel del dueño", icon: <InsightsRounded />, link: "/panel-dueno", roles: ["Admin"], keywords: "metricas kpi indicadores ventas efectividad entregados ticket tablero numeros graficos" },
     // Etapa 3: pagos, tareas, revisiones y notas de cada día
