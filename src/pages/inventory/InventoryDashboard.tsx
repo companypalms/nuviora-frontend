@@ -12,6 +12,9 @@ import {
     History as HistoryIcon,
     AccountBalance as ValuationIcon,
     LocalShippingOutlined as InTransitIcon,
+    Map as CityIcon,
+    Route as ReplenishmentIcon,
+    FileDownload as ExportIcon,
 } from '@mui/icons-material';
 import { Layout } from '../../components/ui/Layout';
 import { DescripcionDeVista } from '../../components/ui/content/DescripcionDeVista';
@@ -29,6 +32,9 @@ import { TransferTripsPanel } from '../../components/finance/TransferTripsPanel'
 import { InventoryMovements } from './InventoryMovements';
 import { InventoryValuation } from './InventoryValuation';
 import { InTransitPanel } from '../../components/inventory/InTransitPanel';
+import { CityInventory } from './CityInventory';
+import { Replenishment } from '../admin/Replenishment';
+import { StockExportPage } from '../admin/StockExportPage';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -66,6 +72,9 @@ export const InventoryDashboard: React.FC = () => {
     // Define tabs with their requirements
     const allTabs = [
         { label: 'Inventario Global', icon: <InventoryIcon />, component: <GlobalInventory isEmbedded />, roles: ['Admin', 'Agencia'], path: '/inventory' },
+        // Las pestañas "Por ciudad", "Reabastecimiento" y "Exportar" son solo del Admin: Gerente y Vendedora siguen entrando
+        // a /inventario-ciudades y /admin/stock-export desde su menú
+        { label: 'Por ciudad', icon: <CityIcon />, component: <CityInventory isEmbedded />, roles: ['Admin'], path: '/inventory/por-ciudad' },
         { label: 'Almacenes', icon: <WarehouseIcon />, component: <Warehouses isEmbedded />, roles: ['Admin', 'Agencia'], path: '/warehouses' },
         { label: 'Stock Repartidores', icon: <DelivererIcon />, component: <DelivererStock isEmbedded />, roles: ['Admin', 'Agencia', 'Repartidor'], path: '/deliverers/stock' },
         {
@@ -82,6 +91,8 @@ export const InventoryDashboard: React.FC = () => {
         { label: 'Historial', icon: <HistoryIcon />, component: <InventoryMovements isEmbedded />, roles: ['Admin', 'Agencia'], path: '/movements' },
         // R9 (Módulo 5): "Reabastecimiento SCM", "Órdenes de Compra" y "Test SCM" salieron del menú; los reemplaza Reabastecimiento
         { label: 'Valoración', icon: <ValuationIcon />, component: <InventoryValuation />, roles: ['Admin', 'Gerente', 'Master'], path: '/valuation' },
+        { label: 'Reabastecimiento', icon: <ReplenishmentIcon />, component: <Replenishment isEmbedded />, roles: ['Admin'], path: '/reabastecimiento' },
+        { label: 'Exportar', icon: <ExportIcon />, component: <StockExportPage isEmbedded />, roles: ['Admin'], path: '/inventory/exportar' },
     ];
 
     const availableTabs = allTabs.filter(tab => tab.roles.includes(roleDesc));

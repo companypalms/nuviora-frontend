@@ -31,7 +31,7 @@ import { request } from '../../common/request';
 import { IResponse } from '../../interfaces/response-type';
 import { useUserStore } from '../../store/user/UserStore';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Layout } from '../../components/ui/Layout';
+import { PageLayout } from '../../components/ui/SectionTabsPage';
 
 interface StockRow {
     product_id: number;
@@ -49,7 +49,7 @@ interface StockRow {
     lead_time_source: string;
 }
 
-export const StockExportPage: React.FC = () => {
+export const StockExportPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const user = useUserStore((state) => state.user);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
@@ -167,8 +167,8 @@ export const StockExportPage: React.FC = () => {
     };
 
     return (
-        <Layout>
-            <Toolbar />
+        <PageLayout isEmbedded={isEmbedded}>
+            {!isEmbedded && <Toolbar />}
             <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, mx: 'auto' }}>
                 <Paper
                     sx={{
@@ -183,9 +183,12 @@ export const StockExportPage: React.FC = () => {
                     }}
                 >
                     <Stack direction="row" alignItems="center" spacing={2} mb={1.5}>
-                        <IconButton onClick={() => navigate(-1)} size="small">
-                            <ArrowBackIcon />
-                        </IconButton>
+                        {/* Dentro de Inventario no hay a dónde volver: es una pestaña */}
+                        {!isEmbedded && (
+                            <IconButton onClick={() => navigate(-1)} size="small">
+                                <ArrowBackIcon />
+                            </IconButton>
+                        )}
                         <Box sx={{ flex: 1 }}>
                             <Typography variant="h4" fontWeight="black" gutterBottom sx={{ mb: 0 }}>
                                 📦 Reporte de Stock y Lead Time
@@ -322,6 +325,6 @@ export const StockExportPage: React.FC = () => {
                     )}
                 </Paper>
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };

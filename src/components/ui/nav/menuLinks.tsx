@@ -15,7 +15,7 @@ import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 import {
     AccessTimeRounded, AccountBalanceRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
-    InsertDriveFileRounded, MapRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
+    InsertDriveFileRounded, MapRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded,
@@ -60,11 +60,11 @@ export const MENU_LINKS: NavLink[] = [
     { section: "ventas", text: "Órdenes canceladas", icon: <DoNotDisturbAltRoundedIcon />, link: "/orders/cancelled", roles: ["Admin", "Gerente"], keywords: "canceladas rechazadas" },
 
     // Inventario
-    { section: "inventario", text: "Inventario", icon: <Inventory2RoundedIcon />, link: "/inventory", roles: ["Admin", "Agencia"], keywords: "stock almacen productos tallas conteo" },
-    { section: "inventario", text: "Reabastecimiento", icon: <RouteRounded />, link: "/reabastecimiento", roles: ["Admin"], keywords: "plan compras traslados forecast proveedores rutas cobertura chofer modulo 5" },
-    { section: "inventario", text: "Inventario por ciudad", icon: <MapRounded />, link: "/inventario-ciudades", roles: ["Admin", "Gerente", "Vendedor"], keywords: "stock agencias ciudades caracas valencia maracay" },
+    // Para el Admin, "Por ciudad", "Reabastecimiento" y "Exportar" son pestañas de Inventario
+    { section: "inventario", text: "Inventario", icon: <Inventory2RoundedIcon />, link: "/inventory", roles: ["Admin", "Agencia"], keywords: "stock almacen productos tallas conteo reabastecimiento plan compras traslados forecast proveedores rutas cobertura chofer modulo 5 por ciudad agencias ciudades caracas valencia maracay exportar excel descargar lead time" },
+    { section: "inventario", text: "Inventario por ciudad", icon: <MapRounded />, link: "/inventario-ciudades", roles: ["Gerente", "Vendedor"], keywords: "stock agencias ciudades caracas valencia maracay" },
     { section: "inventario", text: "Stock repartidor", icon: <LocalMallRoundedIcon />, link: "/deliverers/stock", roles: ["Repartidor"], keywords: "inventario" },
-    { section: "inventario", text: "Exportar Stock", icon: <WarehouseRounded />, link: "/admin/stock-export", roles: ["Admin", "Gerente"], keywords: "excel descargar inventario" },
+    { section: "inventario", text: "Exportar Stock", icon: <WarehouseRounded />, link: "/admin/stock-export", roles: ["Gerente"], keywords: "excel descargar inventario" },
 
     // Dinero
     { section: "dinero", text: "Finanzas", icon: <AccountBalanceWalletRounded />, link: "/finanzas", roles: ["Admin"], keywords: "gastos recurrentes editor shopify chatgpt rentabilidad contabilidad egresos comprobante" },

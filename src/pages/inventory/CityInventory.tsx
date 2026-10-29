@@ -46,9 +46,10 @@ function byProduct(rows: CityRow[]): ProductCard[] {
     return [...cards.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
-/** Las vendedoras con vista simple no tienen menú lateral: se les da una barra con "volver". */
-const Shell: React.FC<{ lite: boolean; children: React.ReactNode }> = ({ lite, children }) => {
+/** Las vendedoras con vista simple no tienen menú lateral: se les da una barra con "volver". Dentro de Inventario no lleva marco. */
+const Shell: React.FC<{ lite: boolean; isEmbedded?: boolean; children: React.ReactNode }> = ({ lite, isEmbedded, children }) => {
     const navigate = useNavigate();
+    if (isEmbedded) return <>{children}</>;
     if (!lite) return <Layout>{children}</Layout>;
     return (
         <Box sx={{ minHeight: "100vh", bgcolor: "background.default", p: 2 }}>
@@ -62,7 +63,7 @@ const Shell: React.FC<{ lite: boolean; children: React.ReactNode }> = ({ lite, c
 
 const chipSx = { height: 20, fontSize: "0.7rem", borderRadius: 1 };
 
-export const CityInventory: React.FC = () => {
+export const CityInventory: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const user = useUserStore((s) => s.user);
     const [rows, setRows] = useState<CityRow[]>([]);
@@ -102,7 +103,7 @@ export const CityInventory: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Shell lite={!!user.is_lite_view}>
+        <Shell lite={!!user.is_lite_view} isEmbedded={isEmbedded}>
             <Box sx={{ maxWidth: 1300, mx: "auto" }}>
                 <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1} mb={2}>
                     <Box>
