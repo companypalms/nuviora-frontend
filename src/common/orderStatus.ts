@@ -1,4 +1,5 @@
 import { request } from "./request";
+import { askCancelReason } from "../components/orders/cancelReason";
 
 /**
  * Un doble toque en "Confirmar entrega" o "En ruta" mandaba dos cambios de estado iguales en el mismo segundo, y cada
@@ -10,6 +11,16 @@ const inFlight = new Set<string>();
 export const sendOrderStatus = async (orderId: number | string, body: URLSearchParams) => {
     const key = String(orderId);
     if (inFlight.has(key)) return null;
+
+    // Dueño (2026-10-29): para cancelar, desde cualquier pantalla, hay que escribir el motivo. Si se cierra sin
+    // escribirlo, no cambia nada (null, como el doble toque).
+    if (body.get("status") === "Cancelado" && !body.get("cancel_reason")) {
+        const reason = await askCancelReason();
+        if (!reason) return null;
+        body.set("cancel_reason", reason);
+        if (inFlight.has(key)) return null;
+    }
+
     inFlight.add(key);
     try {
         return await request(`/orders/${orderId}/status`, "PUT", body);

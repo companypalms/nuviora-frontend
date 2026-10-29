@@ -6,7 +6,6 @@ import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
-import DoNotDisturbAltRoundedIcon from "@mui/icons-material/DoNotDisturbAltRounded";
 import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded";
 import LocalMallRoundedIcon from "@mui/icons-material/LocalMallRounded";
 import SavingsRoundedIcon from "@mui/icons-material/SavingsRounded";
@@ -57,7 +56,6 @@ export const MENU_LINKS: NavLink[] = [
     { section: "ventas", text: "Logística propia", icon: <CellTowerRounded />, link: "/logistica", roles: ["Admin", "Master", "Operador logístico"], keywords: "torre de control centro despacho riders motorizados rondas carabobo valencia operador turno" },
     // El Gerente ve solo la pestaña "Hoy"; "Grupos y %" es de Admin y Master
     { section: "ventas", text: "Reparto", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "reparto de ordenes round robin asignar reasignar vendedoras porcentajes roster grupos de venta lider lideres equipos" },
-    { section: "ventas", text: "Órdenes canceladas", icon: <DoNotDisturbAltRoundedIcon />, link: "/orders/cancelled", roles: ["Admin", "Gerente"], keywords: "canceladas rechazadas" },
 
     // Inventario
     // Para el Admin, "Por ciudad", "Reabastecimiento" y "Exportar" son pestañas de Inventario

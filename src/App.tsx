@@ -50,6 +50,7 @@ import { CityInventory } from './pages/inventory/CityInventory';
 import { WeeklyReportPage } from './pages/my-group/WeeklyReportPage';
 import { InternalChatPage } from './pages/internal-chat/InternalChatPage';
 import { AgencyChatGateModal } from './components/internal-chat/AgencyChatGateModal';
+import { CancelReasonPrompt } from './components/orders/CancelReasonPrompt';
 import { ControlTower } from './pages/logistics/ControlTower';
 
 const useGetTheme = () => {
@@ -80,6 +81,7 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <AgencyChatGateModal />
+        <CancelReasonPrompt />
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/recover-password" element={<RecoverPassword />} />
