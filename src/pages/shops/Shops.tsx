@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { Loading } from "../../components/ui/content/Loading";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -15,7 +15,7 @@ import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, PersonAdd as Pe
 import { toast } from "react-toastify";
 import { TypographyCustom } from "../../components/custom";
 
-export const Shops = () => {
+export const Shops: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid, user } = useValidateSession();
     const [shops, setShops] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -251,7 +251,7 @@ export const Shops = () => {
     if (loadingSession || loading) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
                 <DescripcionDeVista title="Tiendas" description="Administración de tiendas y asignación de vendedoras" />
                 {user.role?.description === 'Admin' && (
@@ -576,6 +576,6 @@ export const Shops = () => {
                     <Button onClick={handleCloseRoster}>Cerrar</Button>
                 </DialogActions>
             </Dialog>
-        </Layout>
+        </PageLayout>
     );
 };

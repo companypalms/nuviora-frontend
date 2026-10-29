@@ -57,7 +57,6 @@ export const MENU_LINKS: NavLink[] = [
     { section: "ventas", text: "Reparto de órdenes", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "round robin asignar reasignar vendedoras porcentajes roster" },
     { section: "ventas", text: "Grupos de venta", icon: <Diversity3Rounded />, link: "/grupos-de-venta", roles: ["Admin", "Master"], keywords: "lider lideres equipos vendedoras" },
     { section: "ventas", text: "Órdenes canceladas", icon: <DoNotDisturbAltRoundedIcon />, link: "/orders/cancelled", roles: ["Admin", "Gerente"], keywords: "canceladas rechazadas" },
-    { section: "ventas", text: "Tiendas", icon: <StorefrontRounded />, link: "/shops", roles: ["Admin", "Gerente"], keywords: "shopify nuviora solo brillo meloon" },
 
     // Inventario
     { section: "inventario", text: "Inventario", icon: <Inventory2RoundedIcon />, link: "/inventory", roles: ["Admin", "Agencia"], keywords: "stock almacen productos tallas conteo" },
@@ -88,8 +87,8 @@ export const MENU_LINKS: NavLink[] = [
     // Configuración
     { section: "config", text: "Usuarios", icon: <PeopleAltRounded />, link: "/users", roles: ["Admin", "Gerente"], keywords: "vendedoras empleados roles contraseña agencias" },
     { section: "config", text: "Repartidores", icon: <EngineeringRoundedIcon />, link: "/deliverers", roles: ["Admin"], keywords: "motorizados delivery" },
-    { section: "config", text: "Ciudades y Agencias", icon: <MapRounded />, link: "/cities", roles: ["Admin", "Gerente"], keywords: "agencias reparto porcentajes cupo" },
-    { section: "config", text: "Tarifas de delivery", icon: <RouteRounded />, link: "/admin/tarifas-delivery", roles: ["Admin"], keywords: "agencias carreras tarifario kilometros distancia google routes almacenes coordenadas cierre" },
+    // El Gerente ve las pestañas Tiendas y Ciudades; Tarifas es solo del Admin
+    { section: "config", text: "Tiendas, ciudades y agencias", icon: <StorefrontRounded />, link: "/admin/tiendas-y-ciudades", roles: ["Admin", "Gerente"], keywords: "tiendas shopify nuviora solo brillo meloon vendedoras ciudades agencias reparto porcentajes cupo tarifas delivery carreras tarifario kilometros distancia google routes almacenes coordenadas cierre" },
     { section: "config", text: "Tasa y pagos", icon: <AttachMoneyRoundedIcon />, link: "/admin/tasa-y-pagos", roles: ["Admin"], keywords: "tasa dolar bcv binance euro tasas cambio cuentas empresa banco pago movil zelle bancos codigos" },
     // El Gerente no ve la tasa: solo cuentas y bancos
     { section: "config", text: "Cuentas y bancos", icon: <AccountBalanceRounded />, link: "/admin/tasa-y-pagos", roles: ["Gerente"], keywords: "cuentas empresa banco pago movil zelle bancos codigos" },

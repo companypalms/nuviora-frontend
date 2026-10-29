@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Layout } from "../components/ui/Layout";
+import { PageLayout } from "../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../components/ui/content/DescripcionDeVista";
 import { Loading } from "../components/ui/content/Loading";
 import { useValidateSession } from "../hooks/useValidateSession";
@@ -57,7 +57,7 @@ const WorkingChip = ({ h, onClick }: { h: WorkingFields & Partial<Pick<WorkingHo
  * Ciudades y agencias (tareas 3c, 6 y 8): qué agencias entregan en cada ciudad y con qué %, la tarifa
  * y el máximo de cada agencia, y pasar las órdenes de una agencia a las demás.
  */
-export const Cities = () => {
+export const Cities: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid, user } = useValidateSession();
     const [routing, setRouting] = useState<AgencyRouting | null>(null);
     const [loading, setLoading] = useState(true);
@@ -118,7 +118,7 @@ export const Cities = () => {
     const cities = routing?.cities ?? [];
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} gap={2} flexWrap="wrap">
                 <DescripcionDeVista title="Ciudades y Agencias" description="Qué agencias entregan en cada ciudad, con qué % y hasta cuántas órdenes a la vez, y cuándo trabaja cada una" />
                 <Box display="flex" gap={2}>
@@ -332,6 +332,6 @@ export const Cities = () => {
                 onSaved={setRouting}
             />
             <AddUserDialog open={openAddAgency} onClose={() => setOpenAddAgency(false)} defaultRole="Agencia" onUserAdded={fetchData} />
-        </Layout>
+        </PageLayout>
     );
 };

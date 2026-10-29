@@ -5,7 +5,7 @@
 import React from "react";
 import { Box, Paper, Tab, Tabs } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { Loading } from "../../components/ui/content/Loading";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -19,7 +19,7 @@ const TABS = [
     { key: "warehouses", label: "Almacenes" },
 ];
 
-export const DeliveryTariffs: React.FC = () => {
+export const DeliveryTariffs: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [params, setParams] = useSearchParams();
     const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab")! : "routes";
@@ -27,11 +27,11 @@ export const DeliveryTariffs: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1200, mx: "auto" }}>
                 <DescripcionDeVista title="Tarifas de delivery" description="Cuánto debería costar cada carrera según la distancia por carretera y el tarifario de la agencia. Solo administración: las agencias no ven nada de esto." />
                 <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", my: 2 }}>
-                    <Tabs value={tab} onChange={(_, v) => setParams({ tab: v })} variant="scrollable" allowScrollButtonsMobile>
+                    <Tabs value={tab} onChange={(_, v) => setParams((p) => { p.set("tab", v); return p; })} variant="scrollable" allowScrollButtonsMobile>
                         {TABS.map((t) => <Tab key={t.key} value={t.key} label={t.label} />)}
                     </Tabs>
                 </Paper>
@@ -39,6 +39,6 @@ export const DeliveryTariffs: React.FC = () => {
                 {tab === "tariffs" && <TariffsTab />}
                 {tab === "warehouses" && <WarehousesTab />}
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };

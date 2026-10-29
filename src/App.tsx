@@ -22,17 +22,15 @@ import { CancellationsReview } from './pages/orders/cancellations/CancellationsR
 import { WarehouseInventory } from './pages/inventory/WarehouseInventory';
 import { EarningsAdmin } from './pages/money/EarningsAdmin';
 import { MyEarningsPage } from './pages/money/EarningsMyPage';
-import { Shops } from './pages/shops/Shops';
 import { Metrics } from './pages/Metrics';
 import { BusinessMetrics } from './pages/BusinessMetrics';
-import { Cities } from './pages/Cities';
+import { ShopsAndCities } from './pages/admin/ShopsAndCities';
 import { RatesAndPayments } from './pages/admin/RatesAndPayments';
 import { PendingVueltos } from './pages/admin/PendingVueltos';
 import { ChangeApprovals } from './pages/admin/ChangeApprovals';
 import { ReceiptReview } from './pages/admin/ReceiptReview';
 import { Reconciliation } from './pages/admin/Reconciliation';
 import { ReconciliationDay } from './pages/admin/ReconciliationDay';
-import { DeliveryTariffs } from './pages/admin/DeliveryTariffs';
 import { Finance } from './pages/admin/Finance';
 import { Replenishment } from './pages/admin/Replenishment';
 import { AgencyClosures } from './pages/admin/AgencyClosures';
@@ -133,10 +131,11 @@ function App() {
 
           <Route path="/earnings" element={<RequireRole allowedRoles={['Admin']}><EarningsAdmin /></RequireRole>} />
           <Route path="/me/earnings" element={<RequireRole allowedRoles={['Vendedor', 'Repartidor', 'Gerente']}><MyEarningsPage /></RequireRole>} />
-          <Route path="/shops" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Shops /></RequireRole>} />
+          <Route path="/shops" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tiendas" />} />
           <Route path="/metrics" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Metrics /></RequireRole>} />
           <Route path="/business-metrics" element={<RequireRole allowedRoles={['Admin']}><BusinessMetrics /></RequireRole>} />
-          <Route path="/cities" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><Cities /></RequireRole>} />
+          <Route path="/cities" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="ciudades" />} />
+          <Route path="/admin/tiendas-y-ciudades" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ShopsAndCities /></RequireRole>} />
           <Route path="/admin/tasa-y-pagos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><RatesAndPayments /></RequireRole>} />
           <Route path="/admin/company-accounts" element={<RedirectToSection to="/admin/tasa-y-pagos" section="cuentas" />} />
           <Route path="/admin/banks" element={<RedirectToSection to="/admin/tasa-y-pagos" section="bancos" />} />
@@ -150,7 +149,7 @@ function App() {
           <Route path="/meta-ads" element={<RequireRole allowedRoles={['Admin']}><MetaAdsDashboard /></RequireRole>} />
           <Route path="/meta-ads/creativos/:id" element={<RequireRole allowedRoles={['Admin']}><MetaCreativePage /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
-          <Route path="/admin/tarifas-delivery" element={<RequireRole allowedRoles={['Admin']}><DeliveryTariffs /></RequireRole>} />
+          <Route path="/admin/tarifas-delivery" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tarifas" />} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />
           {/* Módulo 5 de Fran: reabastecimiento, solo Admin (§3) */}
           <Route path="/reabastecimiento" element={<RequireRole allowedRoles={['Admin']}><Replenishment /></RequireRole>} />
