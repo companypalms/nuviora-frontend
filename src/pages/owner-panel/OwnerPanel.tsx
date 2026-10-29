@@ -11,9 +11,10 @@ import { SalesSection } from "../../components/owner-panel/SalesSection";
 import { MoneySection } from "../../components/owner-panel/MoneySection";
 import { FunnelSection } from "../../components/owner-panel/FunnelSection";
 import { LossesSection } from "../../components/owner-panel/LossesSection";
+import { TeamSection } from "../../components/owner-panel/TeamSection";
 import { PeriodSummary } from "../../components/owner-panel/parts";
 import {
-    Filters, PanelOptions, ViewKey, fetchFunnel, fetchLosses, fetchMoney, fetchOptions, fetchSales, loadPrefs, savePrefs,
+    Filters, PanelOptions, ViewKey, fetchFunnel, fetchLosses, fetchMoney, fetchOptions, fetchSales, fetchTeam, loadPrefs, savePrefs,
 } from "../../components/owner-panel/ownerPanel";
 import { todayCaracas } from "../../components/finance/finance";
 
@@ -58,22 +59,28 @@ export const OwnerPanel: React.FC = () => {
     const today = todayCaracas();
     const [filters, setFilters] = useState<Filters>({ preset: prefs.preset, from: daysBefore(today, 6), to: today, shop: "", city: "", product: "" });
     const [views, setViews] = useState<ViewKey[]>(prefs.views);
+    const [teamRole, setTeamRole] = useState(prefs.teamRole);
     const [options, setOptions] = useState<PanelOptions | null>(null);
     const [tick, setTick] = useState(0);
 
     const dateError = checkDates(filters, today);
+    const fetchTeamRole = useCallback((f: Filters) => fetchTeam(f, teamRole), [teamRole]);
     const sales = useSection(views.includes("sales"), filters, !dateError, tick, fetchSales);
     const money = useSection(views.includes("money"), filters, !dateError, tick, fetchMoney);
     const funnel = useSection(views.includes("funnel"), filters, !dateError, tick, fetchFunnel);
     const losses = useSection(views.includes("losses"), filters, !dateError, tick, fetchLosses);
+    const team = useSection(views.includes("team"), filters, !dateError, tick, fetchTeamRole);
     // El período y el aviso de lo que se sigue entregando son los mismos para todas las secciones: se muestran una vez
     const summary = (views.includes("sales") ? sales.data : null) ?? (views.includes("money") ? money.data : null)
-        ?? (views.includes("funnel") ? funnel.data : null) ?? (views.includes("losses") ? losses.data : null);
+        ?? (views.includes("funnel") ? funnel.data : null) ?? (views.includes("losses") ? losses.data : null)
+        ?? (views.includes("team") ? team.data : null);
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
 
-    // El panel recuerda las secciones prendidas y el período (no las fechas elegidas a mano)
-    useEffect(() => { savePrefs({ views, preset: filters.preset === "custom" ? prefs.preset : filters.preset }); }, [views, filters.preset, prefs.preset]);
+    // El panel recuerda las secciones prendidas, el período (no las fechas elegidas a mano) y el rol de Equipo
+    useEffect(() => {
+        savePrefs({ views, preset: filters.preset === "custom" ? prefs.preset : filters.preset, teamRole });
+    }, [views, filters.preset, prefs.preset, teamRole]);
 
     const live = filters.preset === "today" || filters.preset === "7d" || filters.preset === "month" || (filters.preset === "custom" && filters.to >= today);
     useEffect(() => {
@@ -117,6 +124,9 @@ export const OwnerPanel: React.FC = () => {
                     {views.includes("funnel") && (funnel.data ? <FunnelSection data={funnel.data} loading={funnel.loading} /> : calculating)}
                     {views.includes("losses") && (losses.data
                         ? <LossesSection data={losses.data} loading={losses.loading} filters={filters} ready={!dateError} />
+                        : calculating)}
+                    {views.includes("team") && (team.data
+                        ? <TeamSection data={team.data} loading={team.loading} role={teamRole} onRole={setTeamRole} filters={filters} />
                         : calculating)}
                 </Stack>
             </Box>

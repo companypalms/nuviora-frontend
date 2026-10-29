@@ -22,7 +22,8 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
     const up = (card.change ?? 0) > 0;
     const down = (card.change ?? 0) < 0;
     const good = card.better === "lower" ? down : up;
-    const color = card.neutral || (!up && !down) ? "text.secondary" : good ? "success.main" : "error.main";
+    // "none": una cantidad que no es ni buena ni mala (turnos, pedidos recibidos): sube o baja en gris
+    const color = card.neutral || card.better === "none" || (!up && !down) ? "text.secondary" : good ? "success.main" : "error.main";
     const text = changeText(card);
     const before = formatValue(card.previous, card.format);
     const negative = card.format === "money" && (card.value ?? 0) < 0;
@@ -73,8 +74,8 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
                         ) : text ? (
                             <Stack direction="row" alignItems="center" flexWrap="wrap" columnGap={0.5} sx={{ color }}>
                                 <Stack direction="row" alignItems="center" gap={0.25}>
-                                    {!card.neutral && up && <ArrowUpwardRoundedIcon sx={{ fontSize: 16 }} />}
-                                    {!card.neutral && down && <ArrowDownwardRoundedIcon sx={{ fontSize: 16 }} />}
+                                    {!card.neutral && card.better !== "none" && up && <ArrowUpwardRoundedIcon sx={{ fontSize: 16 }} />}
+                                    {!card.neutral && card.better !== "none" && down && <ArrowDownwardRoundedIcon sx={{ fontSize: 16 }} />}
                                     <Typography variant="caption" fontWeight={700} sx={{ color }}>{text}</Typography>
                                 </Stack>
                                 <Typography variant="caption" color="text.secondary">antes {before}</Typography>

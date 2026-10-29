@@ -22,7 +22,7 @@ export const VIEWS: { key: ViewKey; label: string; soon?: boolean }[] = [
     { key: "money", label: "Dinero" },
     { key: "funnel", label: "Embudo" },
     { key: "losses", label: "Pérdidas" },
-    { key: "team", label: "Equipo", soon: true },
+    { key: "team", label: "Equipo" },
 ];
 
 export type Option = { id: number; name: string };
@@ -32,13 +32,16 @@ export type Filters = { preset: Preset; from: string; to: string; shop: string; 
 
 export type PeriodInfo = { preset: string; label: string; from: string; to: string; until: string; days: number; compare_label?: string };
 
-export type MetricFormat = "count" | "money" | "percent" | "hours";
+/** "hours": un tiempo ("40 min", "3,5 h", "2,1 días"); "hours_total": horas sumadas ("62 h"). */
+export type MetricFormat = "count" | "money" | "percent" | "hours" | "hours_total";
+
+/** Si subir es bueno ("higher"), malo ("lower", un costo) o ninguna de las dos ("none", una cantidad). */
+export type Better = "higher" | "lower" | "none";
 
 export type MetricCardData = {
     key: string; label: string; help: string; detail: string | null; format: MetricFormat;
     value: number | null; previous: number | null; change: number | null; change_unit: "percent" | "points"; neutral: boolean;
-    /** Si subir es bueno ("higher") o malo ("lower", un costo). */
-    better: "higher" | "lower";
+    better: Better;
     /** En false no se compara con el período anterior (lo de ahora mismo, o una estimación): se muestra "note". */
     compare: boolean;
     note: string | null;
@@ -148,6 +151,78 @@ export type InsightsResponse = {
     analysis?: InsightsAnalysis;
 };
 
+/* ── Equipo: los KPIs de cada persona de un rol. Qué KPIs tiene cada rol y su explicación vienen del backend
+   (Metrics\Team): esta pantalla sirve igual para un rol nuevo. ── */
+
+export type TeamColumn = {
+    key: string; label: string; help: string; format: MetricFormat; better: Better;
+    /** Todavía puede cambiar en un período reciente: se compara en gris. */
+    matures: boolean;
+    /** Es lo de ahora mismo: no se compara. */
+    now: boolean;
+    /** Se marca a quien tiene el doble del promedio o más. */
+    flag: boolean;
+};
+
+export type TeamValues = Record<string, number | null>;
+
+export type TeamRow = {
+    id: number; name: string; group: string | null; values: TeamValues; previous: TeamValues | null;
+    /** No llega al mínimo de su rol: va al final del ranking, en gris. */
+    low_data: boolean;
+    flags: string[];
+};
+
+export type TeamTable = {
+    columns: TeamColumn[]; rank_by: string; base: { key: string; min: number; label: string }; rows: TeamRow[];
+};
+
+export type TeamRoleData = TeamTable & {
+    key: string; label: string; help: string; filters_note: string | null; totals: TeamValues; totals_previous: TeamValues;
+};
+
+export type TeamResponse = SectionBase & {
+    roles: { key: string; label: string; people: number }[];
+    coverage: { missing: string[]; unmeasured: { role: string; note: string }[] };
+    role: TeamRoleData;
+};
+
+export type CountOf = { label: string; count: number; of: number };
+
+export type TeamBlock =
+    | { type: "bars"; title: string; subtitle: string; help: string; rows: CountOf[]; empty?: string }
+    | ({ type: "table"; title: string; help: string } & TeamTable);
+
+export type TeamPerson = {
+    id: number; name: string; group: string | null; role: string; compare_label: string;
+    cards: MetricCardData[]; blocks: TeamBlock[];
+};
+
+export const fetchTeam = (f: Filters, role: string) => api<TeamResponse>(`/owner-panel/team?${query(f)}&role=${encodeURIComponent(role)}`);
+export const fetchTeamPerson = (f: Filters, role: string, id: number) =>
+    api<TeamPerson>(`/owner-panel/team/person?${query(f)}&role=${encodeURIComponent(role)}&id=${id}`);
+
+/**
+ * Cuánto cambió un número contra el período anterior, como las tarjetas: los porcentajes en puntos y lo demás en %.
+ * null si no se compara (lo de ahora mismo, o falta uno de los dos).
+ */
+export const teamChange = (col: TeamColumn, value: number | null | undefined, before: number | null | undefined) => {
+    if (col.now || value === null || value === undefined || before === null || before === undefined) return null;
+    if (col.format === "percent") return Math.round((value - before) * 10) / 10;
+    return before !== 0 ? Math.round(((value - before) / Math.abs(before)) * 1000) / 10 : null;
+};
+
+/** El orden del ranking: lo mejor primero; los de pocos datos y los sin valor, al final (igual que el backend). */
+export const sortTeam = (rows: TeamRow[], key: string, better: Better) =>
+    [...rows].sort((a, b) => {
+        if (a.low_data !== b.low_data) return a.low_data ? 1 : -1;
+        const va = a.values[key] ?? null;
+        const vb = b.values[key] ?? null;
+        if ((va === null) !== (vb === null)) return va === null ? 1 : -1;
+        if (va !== null && vb !== null && va !== vb) return better === "lower" ? va - vb : vb - va;
+        return a.name.localeCompare(b.name, "es");
+    });
+
 export const fetchLosses = (f: Filters) => api<LossesResponse>(`/owner-panel/losses?${query(f)}`);
 export const fetchInsights = (f: Filters, force = false) =>
     api<InsightsResponse>(`/owner-panel/losses/insights?${query(f)}${force ? "&force=1" : ""}`);
@@ -181,7 +256,8 @@ export const duration = (hours: number | null | undefined) => {
 };
 
 export const formatValue = (v: number | null, format: MetricFormat) =>
-    format === "money" ? money(v) : format === "percent" ? pct(v) : format === "hours" ? duration(v) : count(v);
+    format === "money" ? money(v) : format === "percent" ? pct(v) : format === "hours" ? duration(v)
+        : format === "hours_total" ? (v === null ? "—" : `${oneDecimal.format(v)} h`) : count(v);
 
 /** Fecha corta para los gráficos: "26/10". */
 export const shortDay = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
@@ -190,8 +266,9 @@ export const shortDay = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}
    el panel funciona igual con lo de siempre. ── */
 
 const PREFS_KEY = "nuviora.ownerPanel.v1";
-type Prefs = { views: ViewKey[]; preset: Preset };
-const DEFAULT_PREFS: Prefs = { views: ["sales"], preset: "7d" };
+/** teamRole: el rol que se mira en Equipo (si ya no existe, el backend muestra las vendedoras). */
+type Prefs = { views: ViewKey[]; preset: Preset; teamRole: string };
+const DEFAULT_PREFS: Prefs = { views: ["sales"], preset: "7d", teamRole: "sellers" };
 
 export const loadPrefs = (): Prefs => {
     try {
@@ -201,6 +278,7 @@ export const loadPrefs = (): Prefs => {
         return {
             views: Array.isArray(p.views) ? p.views.filter((v) => VIEWS.some((x) => x.key === v && !x.soon)) : DEFAULT_PREFS.views,
             preset: PRESETS.some((x) => x.key === p.preset) && p.preset !== "custom" ? p.preset! : DEFAULT_PREFS.preset,
+            teamRole: typeof p.teamRole === "string" && /^[a-z_]{1,30}$/.test(p.teamRole) ? p.teamRole : DEFAULT_PREFS.teamRole,
         };
     } catch {
         return DEFAULT_PREFS;
