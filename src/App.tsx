@@ -34,7 +34,6 @@ import { ChangeApprovals } from './pages/admin/ChangeApprovals';
 import { ReceiptReview } from './pages/admin/ReceiptReview';
 import { Reconciliation } from './pages/admin/Reconciliation';
 import { ReconciliationDay } from './pages/admin/ReconciliationDay';
-import { MetaAdsSettings } from './pages/admin/MetaAdsSettings';
 import { DeliveryTariffs } from './pages/admin/DeliveryTariffs';
 import { Finance } from './pages/admin/Finance';
 import { Replenishment } from './pages/admin/Replenishment';
@@ -45,9 +44,8 @@ import { MetaCreativePage } from './pages/admin/MetaCreativePage';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
 import { Javascript } from '@mui/icons-material';
-import { WhatsappTemplates } from './pages/admin/WhatsappTemplates';
-import { WebhooksPage } from './pages/admin/WebhooksPage';
-import { MediaExplorerPage } from './pages/admin/MediaExplorerPage';
+import { Integrations } from './pages/admin/Integrations';
+import { RedirectToSection } from './components/ui/SectionTabsPage';
 import { DeliveredHoursReport } from './pages/admin/DeliveredHoursReport';
 import { PurchaseOrders } from './pages/inventory/PurchaseOrders';
 import { QaSuitePage } from './pages/admin/QaSuitePage';
@@ -152,7 +150,7 @@ function App() {
           {/* Meta Ads, solo lectura (Módulo 2 de Fran): solo el Administrador (§44) */}
           <Route path="/meta-ads" element={<RequireRole allowedRoles={['Admin']}><MetaAdsDashboard /></RequireRole>} />
           <Route path="/meta-ads/creativos/:id" element={<RequireRole allowedRoles={['Admin']}><MetaCreativePage /></RequireRole>} />
-          <Route path="/admin/meta-ads" element={<RequireRole allowedRoles={['Admin']}><MetaAdsSettings /></RequireRole>} />
+          <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
           <Route path="/admin/tarifas-delivery" element={<RequireRole allowedRoles={['Admin']}><DeliveryTariffs /></RequireRole>} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />
           {/* Módulo 5 de Fran: reabastecimiento, solo Admin (§3) */}
@@ -161,9 +159,10 @@ function App() {
           <Route path="/admin/cierres-agencias/:id" element={<RequireRole allowedRoles={['Admin']}><AgencyClosures /></RequireRole>} />
           <Route path="/cierres" element={<RequireRole allowedRoles={['Agencia']}><MyClosures /></RequireRole>} />
           <Route path="/mi-grupo/vueltos" element={<RequireRole allowedRoles={['Vendedor']}><PendingVueltos /></RequireRole>} />
-          <Route path="/admin/whatsapp-templates" element={<RequireRole allowedRoles={['Admin']}><WhatsappTemplates /></RequireRole>} />
-          <Route path="/admin/webhooks" element={<RequireRole allowedRoles={['Admin']}><WebhooksPage /></RequireRole>} />
-          <Route path="/admin/media-explorer" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><MediaExplorerPage /></RequireRole>} />
+          <Route path="/admin/integraciones" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Integrations /></RequireRole>} />
+          <Route path="/admin/whatsapp-templates" element={<RedirectToSection to="/admin/integraciones" section="whatsapp" />} />
+          <Route path="/admin/webhooks" element={<RedirectToSection to="/admin/integraciones" section="webhooks" />} />
+          <Route path="/admin/media-explorer" element={<RedirectToSection to="/admin/integraciones" section="medios" />} />
           <Route path="/tracking-report" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><OrderTrackingReport /></RequireRole>} />
           <Route path="/admin/delivered-hours-report" element={<RequireRole allowedRoles={['Admin']}><DeliveredHoursReport /></RequireRole>} />
           <Route path="/admin/qa-suite" element={<RequireRole allowedRoles={['Admin']}><QaSuitePage /></RequireRole>} />

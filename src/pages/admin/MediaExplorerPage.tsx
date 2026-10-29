@@ -13,7 +13,7 @@ import {
     ArrowForwardIosRounded, SearchRounded, VisibilityRounded,
     VideoLibraryRounded
 } from '@mui/icons-material';
-import { Layout } from '../../components/ui/Layout';
+import { PageLayout } from '../../components/ui/SectionTabsPage';
 import { request } from '../../common/request';
 import { useDropzone } from 'react-dropzone';
 
@@ -27,7 +27,7 @@ interface FileItem {
     last_modified: number;
 }
 
-export const MediaExplorerPage = () => {
+export const MediaExplorerPage = ({ isEmbedded }: { isEmbedded?: boolean }) => {
     const [path, setPath] = useState('');
     const [items, setItems] = useState<FileItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -152,7 +152,7 @@ export const MediaExplorerPage = () => {
     const filteredItems = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
@@ -341,6 +341,6 @@ export const MediaExplorerPage = () => {
                     {toast.message}
                 </Alert>
             </Snackbar>
-        </Layout>
+        </PageLayout>
     );
 };

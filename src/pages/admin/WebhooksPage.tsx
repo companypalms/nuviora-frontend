@@ -15,7 +15,7 @@ import {
 } from "@mui/icons-material";
 import { request } from "../../common/request";
 import { toast } from "react-toastify";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 
 interface Status {
@@ -32,7 +32,7 @@ interface Webhook {
     is_active: boolean;
 }
 
-export const WebhooksPage: FC = () => {
+export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const [webhooks, setWebhooks] = useState<Webhook[]>([]);
     const [statuses, setStatuses] = useState<Status[]>([]);
     const [loading, setLoading] = useState(false);
@@ -174,7 +174,7 @@ export const WebhooksPage: FC = () => {
     };
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, margin: "0 auto" }}>
                 {/* Header Section */}
                 <Box sx={{ 
@@ -525,6 +525,6 @@ export const WebhooksPage: FC = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Layout>
+        </PageLayout>
     );
 };

@@ -15,10 +15,10 @@ import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 import {
-    AccessTimeRounded, AccountBalanceRounded, EditNoteRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
+    AccessTimeRounded, AccountBalanceRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
     InsertDriveFileRounded, MapRounded, PaymentRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
-    AssessmentRounded, Diversity3Rounded, PaymentsRounded, ImageSearchRounded, CampaignRounded, InsightsRounded, RequestQuoteRounded,
+    AssessmentRounded, Diversity3Rounded, PaymentsRounded, ImageSearchRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded,
 } from "@mui/icons-material";
 
@@ -93,10 +93,9 @@ export const MENU_LINKS: NavLink[] = [
     { section: "config", text: "Repartidores", icon: <EngineeringRoundedIcon />, link: "/deliverers", roles: ["Admin"], keywords: "motorizados delivery" },
     { section: "config", text: "Ciudades y Agencias", icon: <MapRounded />, link: "/cities", roles: ["Admin", "Gerente"], keywords: "agencias reparto porcentajes cupo" },
     { section: "config", text: "Tarifas de delivery", icon: <RouteRounded />, link: "/admin/tarifas-delivery", roles: ["Admin"], keywords: "agencias carreras tarifario kilometros distancia google routes almacenes coordenadas cierre" },
-    { section: "config", text: "Plantillas WhatsApp", icon: <EditNoteRounded />, link: "/admin/whatsapp-templates", roles: ["Admin"], keywords: "mensajes" },
-    { section: "config", text: "Meta Ads (conexiones)", icon: <CampaignRounded />, link: "/admin/meta-ads", roles: ["Admin"], keywords: "facebook business manager bm token cuentas publicitarias clasificar campañas objetivos cpa reglas" },
-    { section: "config", text: "Integraciones Webhooks", icon: <SettingsEthernetRounded />, link: "/admin/webhooks", roles: ["Admin"], keywords: "n8n integraciones" },
-    { section: "config", text: "Biblioteca de Medios", icon: <InsertDriveFileRounded />, link: "/admin/media-explorer", roles: ["Admin", "Gerente"], keywords: "imagenes archivos fotos videos" },
+    { section: "config", text: "Integraciones", icon: <SettingsEthernetRounded />, link: "/admin/integraciones", roles: ["Admin"], keywords: "plantillas whatsapp mensajes meta ads conexiones facebook business manager bm token cuentas publicitarias clasificar campañas objetivos cpa reglas webhooks n8n biblioteca medios imagenes archivos fotos videos" },
+    // El Gerente solo tiene la pestaña de la biblioteca, así que la ve con su nombre de siempre
+    { section: "config", text: "Biblioteca de Medios", icon: <InsertDriveFileRounded />, link: "/admin/integraciones", roles: ["Gerente"], keywords: "imagenes archivos fotos videos" },
 ];
 
 /** Minúsculas y sin tildes, para que "metricas" encuentre "Métricas". */

@@ -38,7 +38,7 @@ import {
     HourglassTopRounded,
     CloudDownloadRounded,
 } from '@mui/icons-material';
-import { Layout } from '../../components/ui/Layout';
+import { PageLayout } from '../../components/ui/SectionTabsPage';
 import { DescripcionDeVista } from '../../components/ui/content/DescripcionDeVista';
 import { request } from '../../common/request';
 import { IResponse } from '../../interfaces/response-type';
@@ -76,7 +76,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: 'success' | 'warning
     DISABLED: { label: 'Desactivada', color: 'default', icon: <ErrorRounded sx={{ fontSize: 14 }} /> },
 };
 
-export const WhatsappTemplates: React.FC = () => {
+export const WhatsappTemplates: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { isValid } = useValidateSession();
     const [templates, setTemplates] = useState<IWhatsappTemplate[]>([]);
     const [loading, setLoading] = useState(false);
@@ -259,7 +259,7 @@ export const WhatsappTemplates: React.FC = () => {
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: { xs: 2, md: 4 } }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
                     <Box>
@@ -696,6 +696,6 @@ export const WhatsappTemplates: React.FC = () => {
                     </DialogActions>
                 </Dialog>
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };

@@ -5,7 +5,7 @@ import React from "react";
 import { Box, Button, Paper, Tab, Tabs } from "@mui/material";
 import { InsightsRounded } from "@mui/icons-material";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { Loading } from "../../components/ui/content/Loading";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -19,7 +19,7 @@ const TABS = [
     { key: "rules", label: "Reglas" },
 ];
 
-export const MetaAdsSettings: React.FC = () => {
+export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [params, setParams] = useSearchParams();
     const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab")! : "connections";
@@ -27,7 +27,7 @@ export const MetaAdsSettings: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
                 <DescripcionDeVista title="Meta Ads" description="Conexiones con Meta, cuentas que se sincronizan, campañas por clasificar, objetivos y reglas. Solo lectura: nada de esto modifica Meta Ads." />
                 <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
@@ -43,6 +43,6 @@ export const MetaAdsSettings: React.FC = () => {
                 {tab === "targets" && <MetaTargetsTab />}
                 {tab === "rules" && <MetaRulesTab />}
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };
