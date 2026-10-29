@@ -34,7 +34,8 @@ export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                     <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads">Ver métricas</Button>
                 </Box>
                 <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", mb: 2 }}>
-                    <Tabs value={tab} onChange={(_, v) => setParams({ tab: v })} variant="scrollable" allowScrollButtonsMobile>
+                    {/* Cambia solo ?tab=: dentro de Integraciones, ?seccion= dice en qué pestaña de arriba está */}
+                    <Tabs value={tab} onChange={(_, v) => setParams((p) => { p.set("tab", v); return p; })} variant="scrollable" allowScrollButtonsMobile>
                         {TABS.map((t) => <Tab key={t.key} value={t.key} label={t.label} />)}
                     </Tabs>
                 </Paper>
