@@ -19,7 +19,7 @@ export const PRESETS: { key: Preset; label: string }[] = [
 /** Las secciones que se prenden y apagan con "Ver". Las que tienen "soon" llegan en los próximos pasos. */
 export const VIEWS: { key: ViewKey; label: string; soon?: boolean }[] = [
     { key: "sales", label: "Ventas" },
-    { key: "money", label: "Dinero", soon: true },
+    { key: "money", label: "Dinero" },
     { key: "funnel", label: "Embudo", soon: true },
     { key: "losses", label: "Pérdidas", soon: true },
     { key: "team", label: "Equipo", soon: true },
@@ -37,6 +37,19 @@ export type MetricFormat = "count" | "money" | "percent";
 export type MetricCardData = {
     key: string; label: string; help: string; detail: string | null; format: MetricFormat;
     value: number | null; previous: number | null; change: number | null; change_unit: "percent" | "points"; neutral: boolean;
+    /** Si subir es bueno ("higher") o malo ("lower", un costo). */
+    better: "higher" | "lower";
+    /** En false no se compara con el período anterior (lo de ahora mismo, o una estimación): se muestra "note". */
+    compare: boolean;
+    note: string | null;
+    /** Una explicación más, para el cursor (de dónde sale una estimación). */
+    extra?: string | null;
+};
+
+/** Lo que tienen en común las respuestas de todas las secciones. */
+export type SectionBase = {
+    period: PeriodInfo; previous: PeriodInfo; maturing: boolean; maturity_days: number; pending: number; updated_at: string;
+    cards: MetricCardData[];
 };
 
 export type StatusKey = "delivered" | "open" | "not_delivered";
@@ -46,17 +59,37 @@ export type SeriesPoint = {
     effectiveness: number | null; ticket: number | null;
 };
 
-export type SalesResponse = {
-    period: PeriodInfo; previous: PeriodInfo; maturing: boolean; maturity_days: number; pending: number; updated_at: string;
-    cards: MetricCardData[];
+export type Granularity = "day" | "week" | "month";
+
+export type SalesResponse = SectionBase & {
     status: { key: StatusKey; label: string; help: string; count: number }[];
-    series: { granularity: "day" | "week" | "month"; points: SeriesPoint[]; help: string };
+    series: { granularity: Granularity; points: SeriesPoint[]; help: string };
     excluded: { exchange: number; return: number; help: string };
+};
+
+export type MoneyPoint = {
+    date: string; revenue: number; product: number; commissions: number; shipping: number; ads: number; expenses: number;
+    profit: number; open: number; pending: number;
+};
+
+export type WaterfallStep = { key: string; label: string; help: string; kind: "start" | "cost" | "total"; amount: number };
+
+export type ProductProfit = {
+    product_id: number | null; name: string; others?: boolean; revenue: number; costs: number; ads: number; profit: number; delivered: number;
+};
+
+export type MoneyResponse = SectionBase & {
+    filtered: boolean;
+    waterfall: WaterfallStep[];
+    series: { granularity: Granularity; points: MoneyPoint[]; help: string };
+    products: { rows: ProductProfit[]; help: string };
+    receivables: { rows: { agency_id: number | null; name: string; usd: number }[]; total: number; help: string };
+    warnings: string[];
 };
 
 export const fetchOptions = () => api<PanelOptions>("/owner-panel/options");
 
-export const fetchSales = (f: Filters) => {
+const query = (f: Filters) => {
     const qs = new URLSearchParams({ preset: f.preset });
     if (f.preset === "custom") {
         qs.set("from", f.from);
@@ -65,8 +98,26 @@ export const fetchSales = (f: Filters) => {
     if (f.shop) qs.set("shop_id", f.shop);
     if (f.city) qs.set("city_id", f.city);
     if (f.product) qs.set("product_id", f.product);
-    return api<SalesResponse>(`/owner-panel/sales?${qs}`);
+    return qs.toString();
 };
+
+export const fetchSales = (f: Filters) => api<SalesResponse>(`/owner-panel/sales?${query(f)}`);
+export const fetchMoney = (f: Filters) => api<MoneyResponse>(`/owner-panel/money?${query(f)}`);
+
+const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+/** Lo que dice el cursor sobre una barra: "lunes 26/10", "Semana del 19/10" u "octubre 2026". */
+export const pointTitle = (date: string, granularity: Granularity) => {
+    const d = new Date(`${date}T12:00:00`);
+    if (granularity === "month") return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    if (granularity === "week") return `Semana del ${shortDay(date)}`;
+    return `${WEEKDAYS[d.getDay()]} ${shortDay(date)}`;
+};
+
+/** La etiqueta corta bajo cada barra: "26/10" o "oct". */
+export const pointLabel = (date: string, granularity: Granularity) =>
+    granularity === "month" ? MONTHS[Number(date.slice(5, 7)) - 1].slice(0, 3) : shortDay(date);
 
 const intFmt = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 });
 export const count = (v: number | null | undefined) => (v === null || v === undefined ? "—" : intFmt.format(v));

@@ -1,6 +1,7 @@
 // src/components/owner-panel/MetricCard.tsx
 // Una tarjeta del panel del dueño: el número grande, si subió o bajó contra el período anterior y, al pasar el cursor,
-// cómo se calcula. Los números que todavía pueden subir (pedidos que se siguen entregando) se comparan en gris.
+// cómo se calcula. Los números que todavía pueden cambiar (pedidos que se siguen entregando) se comparan en gris; en
+// los costos, bajar es lo bueno; lo de "ahora mismo" y las estimaciones no se comparan.
 import React, { FC } from "react";
 import { Box, LinearProgress, Stack, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -20,9 +21,11 @@ const changeText = (c: MetricCardData) => {
 export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({ card, compareLabel }) => {
     const up = (card.change ?? 0) > 0;
     const down = (card.change ?? 0) < 0;
-    const color = card.neutral || (!up && !down) ? "text.secondary" : up ? "success.main" : "error.main";
+    const good = card.better === "lower" ? down : up;
+    const color = card.neutral || (!up && !down) ? "text.secondary" : good ? "success.main" : "error.main";
     const text = changeText(card);
     const before = formatValue(card.previous, card.format);
+    const negative = card.format === "money" && (card.value ?? 0) < 0;
 
     return (
         <Explain
@@ -31,16 +34,22 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
             detail={card.detail}
             extra={
                 <Typography variant="caption" color="text.secondary" component="div">
-                    {compareLabel}: <b>{before}</b>
-                    {card.change_unit === "points" && card.change !== null && (
-                        <Box component="span" display="block" sx={{ mt: 0.5 }}>
-                            La diferencia va en puntos: de 50 % a 55 % son +5 puntos.
-                        </Box>
-                    )}
-                    {card.neutral && (
-                        <Box component="span" display="block" sx={{ mt: 0.5 }}>
-                            Este período todavía se está entregando, por eso la comparación sale en gris: el número va a seguir subiendo.
-                        </Box>
+                    {card.extra && <Box component="span" display="block" sx={{ mb: 0.5 }}>{card.extra}</Box>}
+                    {card.compare && (
+                        <>
+                            {compareLabel}: <b>{before}</b>
+                            {card.change_unit === "points" && card.change !== null && (
+                                <Box component="span" display="block" sx={{ mt: 0.5 }}>La diferencia va en puntos: de 50 % a 55 % son +5 puntos.</Box>
+                            )}
+                            {card.better === "lower" && card.change !== null && !card.neutral && (
+                                <Box component="span" display="block" sx={{ mt: 0.5 }}>Es un costo: si baja, sale en verde.</Box>
+                            )}
+                            {card.neutral && (
+                                <Box component="span" display="block" sx={{ mt: 0.5 }}>
+                                    Este período todavía se está entregando, por eso la comparación sale en gris: el número va a seguir cambiando.
+                                </Box>
+                            )}
+                        </>
                     )}
                 </Typography>
             }
@@ -51,13 +60,17 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
                         <Typography variant="body2" color="text.secondary" fontWeight={700} sx={{ lineHeight: 1.3 }}>{card.label}</Typography>
                         <InfoOutlinedIcon sx={{ fontSize: 16, color: "text.disabled", flexShrink: 0, mt: 0.25 }} />
                     </Stack>
-                    <Typography sx={{ fontSize: { xs: 21, sm: 30 }, fontWeight: 800, lineHeight: 1.15, overflowWrap: "anywhere" }}>{formatValue(card.value, card.format)}</Typography>
+                    <Typography sx={{ fontSize: { xs: 21, sm: 30 }, fontWeight: 800, lineHeight: 1.15, overflowWrap: "anywhere", color: negative ? "error.main" : undefined }}>
+                        {formatValue(card.value, card.format)}
+                    </Typography>
                     {/* Sin rojo ni verde hasta que el dueño ponga su meta (paso de Metas y alertas) */}
                     {card.format === "percent" && card.value !== null && (
                         <LinearProgress variant="determinate" value={Math.min(100, Math.max(0, card.value))} sx={{ height: 6, borderRadius: 3, my: 0.5 }} />
                     )}
                     <Box sx={{ mt: "auto" }}>
-                        {text ? (
+                        {!card.compare ? (
+                            <Typography variant="caption" color="text.secondary">{card.note}</Typography>
+                        ) : text ? (
                             <Stack direction="row" alignItems="center" flexWrap="wrap" columnGap={0.5} sx={{ color }}>
                                 <Stack direction="row" alignItems="center" gap={0.25}>
                                     {!card.neutral && up && <ArrowUpwardRoundedIcon sx={{ fontSize: 16 }} />}

@@ -8,8 +8,10 @@ import { Layout } from "../../components/ui/Layout";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { OwnerFilters } from "../../components/owner-panel/OwnerFilters";
 import { SalesSection } from "../../components/owner-panel/SalesSection";
+import { MoneySection } from "../../components/owner-panel/MoneySection";
+import { PeriodSummary } from "../../components/owner-panel/parts";
 import {
-    Filters, PanelOptions, SalesResponse, ViewKey, fetchOptions, fetchSales, loadPrefs, savePrefs,
+    Filters, PanelOptions, ViewKey, fetchMoney, fetchOptions, fetchSales, loadPrefs, savePrefs,
 } from "../../components/owner-panel/ownerPanel";
 import { todayCaracas } from "../../components/finance/finance";
 
@@ -32,34 +34,41 @@ const checkDates = (f: Filters, today: string): string | null => {
 /** Los períodos que llegan hasta ahora se recalculan solos cada 2 minutos. */
 const LIVE_REFRESH_MS = 120_000;
 
+/** Los datos de una sección: se piden solo si está prendida, y de nuevo cuando cambian los filtros o se actualiza. */
+function useSection<T>(enabled: boolean, filters: Filters, ready: boolean, tick: number, fetcher: (f: Filters) => Promise<T>) {
+    const [data, setData] = useState<T | null>(null);
+    const [loading, setLoading] = useState(false);
+    useEffect(() => {
+        if (!enabled || !ready) return;
+        let alive = true;
+        setLoading(true);
+        fetcher(filters)
+            .then((r) => { if (alive) setData(r); })
+            .catch((e) => { if (alive) toast.error(e.message); })
+            .finally(() => { if (alive) setLoading(false); });
+        return () => { alive = false; };
+    }, [enabled, filters, ready, tick, fetcher]);
+    return { data, loading };
+}
+
 export const OwnerPanel: React.FC = () => {
     const prefs = useMemo(loadPrefs, []);
     const today = todayCaracas();
     const [filters, setFilters] = useState<Filters>({ preset: prefs.preset, from: daysBefore(today, 6), to: today, shop: "", city: "", product: "" });
     const [views, setViews] = useState<ViewKey[]>(prefs.views);
     const [options, setOptions] = useState<PanelOptions | null>(null);
-    const [sales, setSales] = useState<SalesResponse | null>(null);
-    const [loading, setLoading] = useState(false);
     const [tick, setTick] = useState(0);
 
     const dateError = checkDates(filters, today);
-    const showSales = views.includes("sales");
+    const sales = useSection(views.includes("sales"), filters, !dateError, tick, fetchSales);
+    const money = useSection(views.includes("money"), filters, !dateError, tick, fetchMoney);
+    // El período y el aviso de lo que se sigue entregando son los mismos para todas las secciones: se muestran una vez
+    const summary = (views.includes("sales") ? sales.data : null) ?? (views.includes("money") ? money.data : null);
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
 
     // El panel recuerda las secciones prendidas y el período (no las fechas elegidas a mano)
     useEffect(() => { savePrefs({ views, preset: filters.preset === "custom" ? prefs.preset : filters.preset }); }, [views, filters.preset, prefs.preset]);
-
-    useEffect(() => {
-        if (!showSales || dateError) return;
-        let alive = true;
-        setLoading(true);
-        fetchSales(filters)
-            .then((r) => { if (alive) setSales(r); })
-            .catch((e) => { if (alive) toast.error(e.message); })
-            .finally(() => { if (alive) setLoading(false); });
-        return () => { alive = false; };
-    }, [filters, showSales, dateError, tick]);
 
     const live = filters.preset === "today" || filters.preset === "7d" || filters.preset === "month" || (filters.preset === "custom" && filters.to >= today);
     useEffect(() => {
@@ -69,6 +78,7 @@ export const OwnerPanel: React.FC = () => {
     }, [live]);
 
     const refresh = useCallback(() => setTick((t) => t + 1), []);
+    const calculating = <Typography color="text.secondary" sx={{ p: 2 }}>Calculando…</Typography>;
 
     return (
         <Layout>
@@ -84,7 +94,7 @@ export const OwnerPanel: React.FC = () => {
                         options={options}
                         views={views}
                         onViews={setViews}
-                        updatedAt={sales?.updated_at}
+                        updatedAt={summary?.updated_at}
                         onRefresh={refresh}
                         dateError={dateError}
                     />
@@ -95,9 +105,10 @@ export const OwnerPanel: React.FC = () => {
                         </Typography>
                     )}
 
-                    {showSales && (sales
-                        ? <SalesSection data={sales} loading={loading} />
-                        : <Typography color="text.secondary" sx={{ p: 2 }}>Calculando…</Typography>)}
+                    {summary && <PeriodSummary data={summary} />}
+
+                    {views.includes("sales") && (sales.data ? <SalesSection data={sales.data} loading={sales.loading} /> : calculating)}
+                    {views.includes("money") && (money.data ? <MoneySection data={money.data} loading={money.loading} /> : calculating)}
                 </Stack>
             </Box>
         </Layout>
