@@ -58,7 +58,16 @@ export type TodayResponse = {
 export type CalendarOptions = { kinds: Record<NoteKind, string>; repeats: Record<Repeat, string> };
 
 export const fetchRange = (from: string, to: string) => api<RangeResponse>(`/calendar?from=${from}&to=${to}`);
-export const fetchToday = () => api<TodayResponse>("/calendar/today");
+/** fresh: recién calculado (el servidor guarda lo de hoy un minuto, porque el número de arriba lo pide cada pantalla). */
+export const fetchToday = (fresh = false) => api<TodayResponse>(`/calendar/today${fresh ? "?fresh=1" : ""}`);
+
+/** Avisa que algo del calendario cambió (se tildó, se anotó, se pagó): el cuadro "Hoy" y el número de arriba se actualizan. */
+const CHANGED = "calendar:changed";
+export const notifyCalendarChanged = () => window.dispatchEvent(new Event(CHANGED));
+export const onCalendarChanged = (fn: () => void) => {
+    window.addEventListener(CHANGED, fn);
+    return () => window.removeEventListener(CHANGED, fn);
+};
 export const fetchCalendarOptions = () => api<CalendarOptions>("/calendar/options");
 export const saveNote = (id: number | null, body: NoteFields) =>
     api<{ message: string }>(id ? `/calendar/notes/${id}` : "/calendar/notes", id ? "PUT" : "POST", body);

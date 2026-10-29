@@ -12,6 +12,7 @@ import { useUserStore } from "../../../store/user/UserStore";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { WhatsAppBell } from "../notifications/WhatsAppBell";
 import { InternalChatBell } from "../notifications/InternalChatBell";
+import { CalendarBell } from "../notifications/CalendarBell";
 import { MENU_LINKS, NavLink, SECTIONS } from "./menuLinks";
 import { useMenuPrefs } from "./useMenuPrefs";
 import { SideBarItem } from "./SideBarItem";
@@ -148,6 +149,7 @@ export const SideBar = () => {
                             <ManageAccountsRoundedIcon />
                         </IconButton>
                     </Tooltip>
+                    <CalendarBell />
                     <WhatsAppBell />
                     <InternalChatBell />
                     <NotificationBell />

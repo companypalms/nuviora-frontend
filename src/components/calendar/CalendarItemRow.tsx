@@ -15,6 +15,8 @@ type Props = {
     item: CalendarItem;
     /** En la lista de atrasadas se muestra de qué día era. */
     showDate?: boolean;
+    /** El cuadro "Hoy" del Dashboard: el detalle en una línea y solo el botón principal. */
+    compact?: boolean;
     busy?: boolean;
     onToggle: (item: CalendarItem) => void;
     onDismiss: (item: CalendarItem) => void;
@@ -36,7 +38,7 @@ const markLine = (item: CalendarItem) => {
     return `${m.status === "done" ? "Hecho" : "Descartado"}${m.by ? ` por ${m.by}` : ""}${when}${m.note ? ` · ${m.note}` : ""}`;
 };
 
-export const CalendarItemRow: FC<Props> = ({ item, showDate, busy, onToggle, onDismiss, onUndo, onEdit, onPay }) => {
+export const CalendarItemRow: FC<Props> = ({ item, showDate, compact, busy, onToggle, onDismiss, onUndo, onEdit, onPay }) => {
     const navigate = useNavigate();
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const [allLines, setAllLines] = useState(false);
@@ -50,8 +52,9 @@ export const CalendarItemRow: FC<Props> = ({ item, showDate, busy, onToggle, onD
     const moved = item.date !== item.due_date;
     const close = () => setAnchor(null);
     const line = markLine(item);
-    // Los botones que marcan ("Están bien") solo mientras está pendiente; los que llevan a una página, siempre
-    const actions = item.actions.filter((a) => a.link || !closed);
+    // Los botones que marcan ("Están bien") solo mientras está pendiente; los que llevan a una página, siempre. En el
+    // cuadro "Hoy", solo el principal
+    const actions = item.actions.filter((a) => a.link || !closed).slice(0, compact ? 1 : undefined);
 
     return (
         <Stack
@@ -100,17 +103,24 @@ export const CalendarItemRow: FC<Props> = ({ item, showDate, busy, onToggle, onD
                     {item.source === "assistant" && <Chip size="small" variant="outlined" label="La anotó tu asistente" sx={{ height: 20, fontSize: 11 }} />}
                 </Stack>
                 {item.details && (
-                    <Typography variant="caption" color="text.secondary" component="div" sx={{ whiteSpace: "pre-line", wordBreak: "break-word" }}>
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        component="div"
+                        noWrap={compact}
+                        title={compact ? item.details : undefined}
+                        sx={compact ? undefined : { whiteSpace: "pre-line", wordBreak: "break-word" }}
+                    >
                         {item.details}
                     </Typography>
                 )}
-                {item.group !== "daily" && (
+                {!compact && item.group !== "daily" && (
                     <Typography variant="caption" color="text.secondary" component="div">
                         {item.repeat_label}
                         {moved && ` · El ${shortDate(item.due_date).split(" ")[1]} cae domingo: ${item.date < item.due_date ? "se adelantó al sábado" : "pasó al lunes"}`}
                     </Typography>
                 )}
-                {item.lines.length > 0 && (
+                {!compact && item.lines.length > 0 && (
                     <Box component="ul" sx={{ m: 0, mt: 0.5, p: 0, listStyle: "none" }}>
                         {lines.map((l, i) => (
                             <Box component="li" key={`${l.label}-${i}`} sx={{ display: "flex", gap: 1, alignItems: "baseline", py: 0.1 }}>
