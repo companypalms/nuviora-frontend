@@ -1,5 +1,6 @@
 // src/components/dashboard/admin/AdminDashboard.tsx
-// El dashboard del Admin, el Gerente y el Master. Arriba, los números del día. En el medio, los pendientes (con su propio
+// El dashboard del Admin, el Gerente y el Master. Arriba de todo, solo para el Admin, sus metas del mes (Panel del dueño,
+// Metas y alertas). Después, los números del día. En el medio, los pendientes (con su propio
 // alto) y, al lado, las conciliaciones y el inventario, que el Admin tiene que ver apenas entra, y el equipo. Abajo, los
 // pagos por método. Nada crece hacia abajo sin límite: las listas largas bajan dentro de su panel.
 import React, { FC } from "react";
@@ -7,6 +8,7 @@ import { Grid, Stack } from "@mui/material";
 import { ConciliationWidget } from "../../reconciliation/ConciliationWidget";
 import { StockAlertWidget } from "../../inventory/StockAlertWidget";
 import { PaymentMethodsReport } from "../../reports/PaymentMethodsReport";
+import { GoalsStrip } from "../../owner-panel/GoalsStrip";
 import { KpiStrip } from "./KpiStrip";
 import { ActionCenter } from "./ActionCenter";
 import { TeamPanel } from "./TeamPanel";
@@ -25,6 +27,7 @@ export const AdminDashboard: FC<{
     const isAdmin = role === "Admin";
     return (
         <Stack spacing={2}>
+            {isAdmin && <GoalsStrip />}
             <KpiStrip stats={stats} />
             <Grid container spacing={2}>
                 <Grid size={{ xs: 12, lg: 8 }}>

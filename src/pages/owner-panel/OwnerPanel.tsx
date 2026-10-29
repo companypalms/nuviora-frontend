@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { toast } from "react-toastify";
+import { useSearchParams } from "react-router-dom";
 import { Layout } from "../../components/ui/Layout";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { OwnerFilters } from "../../components/owner-panel/OwnerFilters";
@@ -67,7 +68,9 @@ export const OwnerPanel: React.FC = () => {
     const [options, setOptions] = useState<PanelOptions | null>(null);
     const [tick, setTick] = useState(0);
     const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
-    const [goalsOpen, setGoalsOpen] = useState(false);
+    // "?metas=1": se llega desde "Poner metas" del Dashboard y abre la ventana de metas
+    const [params, setParams] = useSearchParams();
+    const [goalsOpen, setGoalsOpen] = useState(params.get("metas") === "1");
     const [focus, setFocus] = useState<{ role: string; id: number; name: string } | null>(null);
 
     const dateError = checkDates(filters, today);
@@ -105,6 +108,10 @@ export const OwnerPanel: React.FC = () => {
 
     const refresh = useCallback(() => setTick((t) => t + 1), []);
     const focused = useCallback(() => setFocus(null), []);
+    const closeGoals = () => {
+        setGoalsOpen(false);
+        if (params.has("metas")) setParams({}, { replace: true });
+    };
 
     /** Tocar una alerta: prende su sección, muestra los días que miró (sin filtros: es del negocio entero) y, si se tocó a una persona, su detalle. */
     const goTo = (a: PanelAlert, item?: AlertItem) => {
@@ -166,7 +173,7 @@ export const OwnerPanel: React.FC = () => {
                     )}
                 </Stack>
             </Box>
-            <GoalsDialog open={goalsOpen} onClose={() => setGoalsOpen(false)} onSaved={refresh} />
+            <GoalsDialog open={goalsOpen} onClose={closeGoals} onSaved={refresh} />
         </Layout>
     );
 };

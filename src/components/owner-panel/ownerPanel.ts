@@ -72,7 +72,8 @@ export type CardGoal = {
 
 export type AlertLevel = "yellow" | "red";
 
-export type AlertItem = { id: number | null; name: string | null; level: AlertLevel; value: number; text: string };
+/** text: lo entero (para el cursor); short: lo corto, para la línea de la alerta. */
+export type AlertItem = { id: number | null; name: string | null; level: AlertLevel; value: number; text: string; short: string };
 
 export type PanelAlert = {
     type: string; level: AlertLevel; title: string; help: string; section: ViewKey; role: string | null; items: AlertItem[];
@@ -102,7 +103,14 @@ export type GoalsResponse = {
     references: { label: string; business: Record<string, string>; team: Record<string, string>; alerts: Record<string, string> };
 };
 
+/** Las metas del negocio de este mes, para la franja de arriba del Dashboard del Admin. */
+export type GoalsSummary = {
+    configured: boolean; month: string; updated_at: string;
+    cards: Pick<MetricCardData, "key" | "label" | "help" | "detail" | "format" | "value" | "neutral" | "goal">[];
+};
+
 export const fetchAlerts = () => api<AlertsResponse>("/owner-panel/alerts");
+export const fetchGoalsSummary = () => api<GoalsSummary>("/owner-panel/goals/summary");
 export const fetchGoals = () => api<GoalsResponse>("/owner-panel/goals");
 export const saveGoals = (c: Pick<GoalsConfig, "business" | "team" | "alerts">) => api<GoalsResponse>("/owner-panel/goals", "PUT", c);
 
