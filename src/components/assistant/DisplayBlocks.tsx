@@ -1,11 +1,13 @@
 // src/components/assistant/DisplayBlocks.tsx
 // Lo que se ve debajo de una respuesta del asistente: las tarjetas del Panel del dueño (MetricCard), gráficas, tablas
-// (los rankings), listas (las alertas) y enlaces. Todo sale de los datos del sistema, no de la IA.
+// (los rankings, el stock, las comisiones), listas (las alertas, el historial de una orden), órdenes con su botón
+// "Abrir" y enlaces. Todo sale de los datos del sistema, no de la IA.
 import React, { FC, useState } from "react";
 import { Box, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "../owner-panel/MetricCard";
+import { OrderDialog } from "../orders/OrderDialog";
 import { formatValue } from "../owner-panel/ownerPanel";
 import { AssistantChart } from "./AssistantChart";
 import { DisplayBlock } from "./assistant";
@@ -13,7 +15,33 @@ import { DisplayBlock } from "./assistant";
 /** Las filas que se ven de una tabla antes de "Ver todas". */
 const TABLE_ROWS = 10;
 
-const LEVEL_COLOR: Record<string, string> = { red: "error.main", yellow: "warning.main", pending: "text.disabled" };
+const LEVEL_COLOR: Record<string, string> = { red: "error.main", orange: "warning.dark", yellow: "warning.main", pending: "text.disabled" };
+
+/** Las órdenes que encontró el asistente, cada una con "Abrir" (la ficha de siempre, ahí mismo). */
+const OrdersBlock: FC<{ block: Extract<DisplayBlock, { type: "orders" }> }> = ({ block }) => {
+    const [open, setOpen] = useState<number | null>(null);
+    return (
+        <Box>
+            <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>{block.title}</Typography>
+            <Stack spacing={0.75}>
+                {block.orders.map((o) => (
+                    <Stack key={o.id} direction="row" alignItems="center" gap={1} sx={{ border: 1, borderColor: "divider", borderRadius: 2, px: 1.25, py: 0.75 }}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={700} noWrap>
+                                {o.name} · {formatValue(o.total, "money")}{o.status ? ` · ${o.status}` : ""}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                                {[o.client, o.city, o.created].filter(Boolean).join(" · ")}
+                            </Typography>
+                        </Box>
+                        <Button size="small" variant="outlined" onClick={() => setOpen(o.id)} sx={{ textTransform: "none", flexShrink: 0 }}>Abrir</Button>
+                    </Stack>
+                ))}
+            </Stack>
+            {open !== null && <OrderDialog open setOpen={(v) => { if (!v) setOpen(null); }} id={open} />}
+        </Box>
+    );
+};
 
 const TableBlock: FC<{ block: Extract<DisplayBlock, { type: "table" }> }> = ({ block }) => {
     const [all, setAll] = useState(false);
@@ -83,6 +111,8 @@ const Block: FC<{ block: DisplayBlock }> = ({ block }) => {
                     </Stack>
                 </Box>
             );
+        case "orders":
+            return <OrdersBlock block={block} />;
         case "link":
             return (
                 <Box>

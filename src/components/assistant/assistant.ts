@@ -17,8 +17,12 @@ export type DisplayBlock =
         type: "table"; title: string; columns: Array<{ key: string; label: string; format: MetricFormat }>;
         rows: Array<{ name: string; group: string | null; values: Record<string, number | null>; low_data: boolean }>;
     }
-    | { type: "list"; title: string; items: Array<{ text: string; level?: string }> }
-    | { type: "link"; label: string; to: string };
+    | { type: "list"; title: string; items: Array<{ text: string; level?: string | null }> }
+    | { type: "link"; label: string; to: string }
+    | {
+        type: "orders"; title: string;
+        orders: Array<{ id: number; name: string; status: string | null; client: string | null; city: string | null; total: number; created: string | null }>;
+    };
 
 export type ChatMessage = {
     id: number;
@@ -52,5 +56,6 @@ export const SUGGESTIONS = [
     "¿Cuánto vendimos esta semana?",
     "Ranking de vendedoras de este mes",
     "¿Cómo voy con mis metas?",
+    "¿Qué productos se están acabando?",
     "¿Qué tengo pendiente hoy?",
 ];
