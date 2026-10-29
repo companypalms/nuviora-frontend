@@ -1,6 +1,7 @@
 // src/pages/owner-panel/OwnerPanel.tsx
 // Panel del dueño (Etapa 2, guias/DICCIONARIO-METRICAS.md): una sola pantalla, sin pestañas, con filtros y secciones
-// que se prenden con "Ver". Solo el Admin (la ruta y el backend). Solo lee: no cambia nada.
+// que se prenden con "Ver", y arriba las alertas (§6). Solo el Admin (la ruta y el backend). Solo lee, salvo las metas y
+// los límites de las alertas que pone el dueño en "Metas y límites".
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { toast } from "react-toastify";
@@ -12,9 +13,12 @@ import { MoneySection } from "../../components/owner-panel/MoneySection";
 import { FunnelSection } from "../../components/owner-panel/FunnelSection";
 import { LossesSection } from "../../components/owner-panel/LossesSection";
 import { TeamSection } from "../../components/owner-panel/TeamSection";
+import { AlertsBar } from "../../components/owner-panel/AlertsBar";
+import { GoalsDialog } from "../../components/owner-panel/GoalsDialog";
 import { PeriodSummary } from "../../components/owner-panel/parts";
 import {
-    Filters, PanelOptions, ViewKey, fetchFunnel, fetchLosses, fetchMoney, fetchOptions, fetchSales, fetchTeam, loadPrefs, savePrefs,
+    AlertItem, AlertsResponse, Filters, PanelAlert, PanelOptions, ViewKey, fetchAlerts, fetchFunnel, fetchLosses, fetchMoney, fetchOptions, fetchSales,
+    fetchTeam, loadPrefs, savePrefs,
 } from "../../components/owner-panel/ownerPanel";
 import { todayCaracas } from "../../components/finance/finance";
 
@@ -62,6 +66,9 @@ export const OwnerPanel: React.FC = () => {
     const [teamRole, setTeamRole] = useState(prefs.teamRole);
     const [options, setOptions] = useState<PanelOptions | null>(null);
     const [tick, setTick] = useState(0);
+    const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
+    const [goalsOpen, setGoalsOpen] = useState(false);
+    const [focus, setFocus] = useState<{ role: string; id: number; name: string } | null>(null);
 
     const dateError = checkDates(filters, today);
     const fetchTeamRole = useCallback((f: Filters) => fetchTeam(f, teamRole), [teamRole]);
@@ -77,6 +84,13 @@ export const OwnerPanel: React.FC = () => {
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
 
+    // Las alertas no dependen de los filtros: se piden al entrar y cada vez que el panel se actualiza
+    useEffect(() => {
+        let alive = true;
+        fetchAlerts().then((r) => { if (alive) setAlerts(r); }).catch((e) => toast.error(e.message));
+        return () => { alive = false; };
+    }, [tick]);
+
     // El panel recuerda las secciones prendidas, el período (no las fechas elegidas a mano) y el rol de Equipo
     useEffect(() => {
         savePrefs({ views, preset: filters.preset === "custom" ? prefs.preset : filters.preset, teamRole });
@@ -90,6 +104,19 @@ export const OwnerPanel: React.FC = () => {
     }, [live]);
 
     const refresh = useCallback(() => setTick((t) => t + 1), []);
+    const focused = useCallback(() => setFocus(null), []);
+
+    /** Tocar una alerta: prende su sección, muestra los días que miró (sin filtros: es del negocio entero) y, si se tocó a una persona, su detalle. */
+    const goTo = (a: PanelAlert, item?: AlertItem) => {
+        if (!views.includes(a.section)) setViews([...views, a.section]);
+        if (a.role) setTeamRole(a.role);
+        const period = a.period;
+        if (period) {
+            setFilters((f) => ({ ...f, preset: period.preset, from: period.from ?? f.from, to: period.to ?? f.to, shop: "", city: "", product: "" }));
+        }
+        if (item?.id && a.role) setFocus({ role: a.role, id: item.id, name: item.name ?? "" });
+        window.setTimeout(() => document.getElementById(`seccion-${a.section}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    };
     const calculating = <Typography color="text.secondary" sx={{ p: 2 }}>Calculando…</Typography>;
 
     return (
@@ -108,8 +135,11 @@ export const OwnerPanel: React.FC = () => {
                         onViews={setViews}
                         updatedAt={summary?.updated_at}
                         onRefresh={refresh}
+                        onGoals={() => setGoalsOpen(true)}
                         dateError={dateError}
                     />
+
+                    <AlertsBar data={alerts} onGo={goTo} onSetup={() => setGoalsOpen(true)} />
 
                     {views.length === 0 && (
                         <Typography color="text.secondary" sx={{ p: 3, textAlign: "center" }}>
@@ -119,17 +149,24 @@ export const OwnerPanel: React.FC = () => {
 
                     {summary && <PeriodSummary data={summary} />}
 
-                    {views.includes("sales") && (sales.data ? <SalesSection data={sales.data} loading={sales.loading} /> : calculating)}
-                    {views.includes("money") && (money.data ? <MoneySection data={money.data} loading={money.loading} /> : calculating)}
-                    {views.includes("funnel") && (funnel.data ? <FunnelSection data={funnel.data} loading={funnel.loading} /> : calculating)}
-                    {views.includes("losses") && (losses.data
-                        ? <LossesSection data={losses.data} loading={losses.loading} filters={filters} ready={!dateError} />
-                        : calculating)}
-                    {views.includes("team") && (team.data
-                        ? <TeamSection data={team.data} loading={team.loading} role={teamRole} onRole={setTeamRole} filters={filters} />
-                        : calculating)}
+                    {views.includes("sales") && <Box id="seccion-sales">{sales.data ? <SalesSection data={sales.data} loading={sales.loading} /> : calculating}</Box>}
+                    {views.includes("money") && <Box id="seccion-money">{money.data ? <MoneySection data={money.data} loading={money.loading} /> : calculating}</Box>}
+                    {views.includes("funnel") && <Box id="seccion-funnel">{funnel.data ? <FunnelSection data={funnel.data} loading={funnel.loading} /> : calculating}</Box>}
+                    {views.includes("losses") && (
+                        <Box id="seccion-losses">
+                            {losses.data ? <LossesSection data={losses.data} loading={losses.loading} filters={filters} ready={!dateError} /> : calculating}
+                        </Box>
+                    )}
+                    {views.includes("team") && (
+                        <Box id="seccion-team">
+                            {team.data
+                                ? <TeamSection data={team.data} loading={team.loading} role={teamRole} onRole={setTeamRole} filters={filters} focus={focus} onFocused={focused} />
+                                : calculating}
+                        </Box>
+                    )}
                 </Stack>
             </Box>
+            <GoalsDialog open={goalsOpen} onClose={() => setGoalsOpen(false)} onSaved={refresh} />
         </Layout>
     );
 };

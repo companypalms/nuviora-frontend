@@ -47,7 +47,64 @@ export type MetricCardData = {
     note: string | null;
     /** Una explicación más, para el cursor (de dónde sale una estimación). */
     extra?: string | null;
+    /** La meta del dueño para este número (Metas y límites), si puso una. */
+    goal?: CardGoal;
 };
+
+/* ── Metas y alertas (diccionario §6). Solo el Admin. Qué es cada meta y cómo se compara viene del backend
+   (Metrics\Rules\GoalRules y AlertRules); aquí solo se muestra y se edita. ── */
+
+/** met: cumplida · on_track: va bien · behind: va atrasada (amarillo) · below: no llegó (rojo) · neutral: todavía no se sabe. */
+export type GoalStatus = "met" | "on_track" | "behind" | "below" | "neutral";
+
+/** La meta de una tarjeta, con su texto ya escrito ("Meta del mes: $6.000. Llevas…"). */
+export type CardGoal = {
+    label: string; value: number; red: number | null; format: MetricFormat; better: Better;
+    /** % de la meta que ya se lleva (solo dinero). */
+    progress: number | null;
+    /** Lo que todavía puede sumar lo que está en camino (solo dinero, estimado). */
+    pending: number | null;
+    status: GoalStatus;
+    /** "Este mes": dónde deberías ir hoy y cómo terminarías a este ritmo. */
+    pace: { expected: number; projection: number } | null;
+    text: string;
+};
+
+export type AlertLevel = "yellow" | "red";
+
+export type AlertItem = { id: number | null; name: string | null; level: AlertLevel; value: number; text: string };
+
+export type PanelAlert = {
+    type: string; level: AlertLevel; title: string; help: string; section: ViewKey; role: string | null; items: AlertItem[];
+    /** Los días que miró la alerta (null: es lo de ahora mismo). */
+    period: { preset: Preset; from?: string; to?: string } | null;
+};
+
+export type AlertsResponse = { configured: boolean; alerts: PanelAlert[]; window: string | null; updated_at: string };
+
+export type TeamGoal = { value: number | null; red: number | null; alert: boolean; people: { id: number; value: number }[] };
+export type AlertLimits = { yellow: number | null; red: number | null; on: boolean };
+
+export type GoalsConfig = {
+    business: Record<string, number | null>;
+    team: Record<string, TeamGoal>;
+    alerts: Record<string, AlertLimits>;
+    updated_by: string | null;
+    updated_at: string | null;
+};
+
+export type GoalDef = { label: string; format: MetricFormat; better: Better; help: string; role?: string | null; title?: string };
+
+export type GoalsResponse = {
+    config: GoalsConfig;
+    catalog: { business: Record<string, GoalDef>; team: Record<string, GoalDef>; alerts: Record<string, GoalDef> };
+    people: { sellers: Option[]; agencies: Option[] };
+    references: { label: string; business: Record<string, string>; team: Record<string, string>; alerts: Record<string, string> };
+};
+
+export const fetchAlerts = () => api<AlertsResponse>("/owner-panel/alerts");
+export const fetchGoals = () => api<GoalsResponse>("/owner-panel/goals");
+export const saveGoals = (c: Pick<GoalsConfig, "business" | "team" | "alerts">) => api<GoalsResponse>("/owner-panel/goals", "PUT", c);
 
 /** Lo que tienen en común las respuestas de todas las secciones. */
 export type SectionBase = {
@@ -162,6 +219,8 @@ export type TeamColumn = {
     now: boolean;
     /** Se marca a quien tiene el doble del promedio o más. */
     flag: boolean;
+    /** La meta del dueño para todas (la rayita del ranking) y su rojo. */
+    goal?: { value: number; red: number | null };
 };
 
 export type TeamValues = Record<string, number | null>;
@@ -171,6 +230,8 @@ export type TeamRow = {
     /** No llega al mínimo de su rol: va al final del ranking, en gris. */
     low_data: boolean;
     flags: string[];
+    /** KPI => si llega a su meta ("ok") o queda en amarillo o rojo. Sin marca: pocos datos o todavía se está entregando. */
+    goal_levels?: Record<string, "ok" | AlertLevel>;
 };
 
 export type TeamTable = {

@@ -1,10 +1,11 @@
 // src/components/owner-panel/OwnerFilters.tsx
 // Los filtros del panel del dueño (diccionario de métricas, §8): período, tienda, ciudad y producto, y los botones
-// "Ver" que prenden y apagan secciones. Todo en una sola barra, sin pestañas.
+// "Ver" que prenden y apagan secciones, y el botón de "Metas y límites". Todo en una sola barra, sin pestañas.
 import React, { FC } from "react";
 import { Box, Button, Chip, Divider, MenuItem, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import FlagRoundedIcon from "@mui/icons-material/FlagRounded";
 import { Panel } from "../ui/surface/Panel";
 import { Filters, PRESETS, PanelOptions, VIEWS, ViewKey } from "./ownerPanel";
 
@@ -24,8 +25,9 @@ export const OwnerFilters: FC<{
     onViews: (v: ViewKey[]) => void;
     updatedAt?: string;
     onRefresh: () => void;
+    onGoals: () => void;
     dateError: string | null;
-}> = ({ filters, onChange, options, views, onViews, updatedAt, onRefresh, dateError }) => {
+}> = ({ filters, onChange, options, views, onViews, updatedAt, onRefresh, onGoals, dateError }) => {
     const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
     const hasFilters = Boolean(filters.shop || filters.city || filters.product);
 
@@ -38,6 +40,11 @@ export const OwnerFilters: FC<{
                             variant={filters.preset === p.key ? "filled" : "outlined"} onClick={() => set({ preset: p.key })} />
                     ))}
                     <Box sx={{ flexGrow: 1 }} />
+                    <Tooltip title="Tus metas y desde dónde te avisa cada alerta">
+                        <Button size="small" variant="outlined" startIcon={<FlagRoundedIcon />} onClick={onGoals} sx={{ textTransform: "none" }}>
+                            Metas y límites
+                        </Button>
+                    </Tooltip>
                     <Tooltip title="Volver a calcular ahora">
                         <Button size="small" startIcon={<RefreshRoundedIcon />} onClick={onRefresh} sx={{ textTransform: "none" }}>
                             {updatedAt ? `Actualizado ${updatedAt}` : "Actualizar"}

@@ -1,7 +1,8 @@
 // src/components/owner-panel/MetricCard.tsx
 // Una tarjeta del panel del dueño: el número grande, si subió o bajó contra el período anterior y, al pasar el cursor,
 // cómo se calcula. Los números que todavía pueden cambiar (pedidos que se siguen entregando) se comparan en gris; en
-// los costos, bajar es lo bueno; lo de "ahora mismo" y las estimaciones no se comparan.
+// los costos, bajar es lo bueno; lo de "ahora mismo" y las estimaciones no se comparan. Si el dueño puso una meta para
+// el número, se ve su barra (GoalBar).
 import React, { FC } from "react";
 import { Box, LinearProgress, Stack, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -9,6 +10,7 @@ import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import { Panel } from "../ui/surface/Panel";
 import { Explain } from "./Explain";
+import { GoalBar, GoalHelp } from "./GoalBar";
 import { MetricCardData, formatValue } from "./ownerPanel";
 
 const changeText = (c: MetricCardData) => {
@@ -35,6 +37,7 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
             detail={card.detail}
             extra={
                 <Typography variant="caption" color="text.secondary" component="div">
+                    {card.goal && <GoalHelp goal={card.goal} />}
                     {card.extra && <Box component="span" display="block" sx={{ mb: 0.5 }}>{card.extra}</Box>}
                     {card.compare && (
                         <>
@@ -64,8 +67,7 @@ export const MetricCard: FC<{ card: MetricCardData; compareLabel: string }> = ({
                     <Typography sx={{ fontSize: { xs: 21, sm: 30 }, fontWeight: 800, lineHeight: 1.15, overflowWrap: "anywhere", color: negative ? "error.main" : undefined }}>
                         {formatValue(card.value, card.format)}
                     </Typography>
-                    {/* Sin rojo ni verde hasta que el dueño ponga su meta (paso de Metas y alertas) */}
-                    {card.format === "percent" && card.value !== null && (
+                    {card.goal ? <GoalBar goal={card.goal} value={card.value} /> : card.format === "percent" && card.value !== null && (
                         <LinearProgress variant="determinate" value={Math.min(100, Math.max(0, card.value))} sx={{ height: 6, borderRadius: 3, my: 0.5 }} />
                     )}
                     <Box sx={{ mt: "auto" }}>

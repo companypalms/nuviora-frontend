@@ -265,7 +265,8 @@ export const api = async <T = unknown>(url: string, method: "GET" | "POST" | "PU
     const json = await response.json().catch(() => ({}));
     if (status >= 400) {
         const message = json?.message || (json?.errors ? Object.values(json.errors).flat().join(" ") : null) || `Error ${status}`;
-        throw Object.assign(new Error(message), { status });
+        // errors: casilla => mensajes (Laravel), para marcar la casilla que está mal
+        throw Object.assign(new Error(message), { status, errors: json?.errors });
     }
     return json as T;
 };

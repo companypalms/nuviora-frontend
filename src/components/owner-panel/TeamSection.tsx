@@ -3,9 +3,10 @@
 // tarjetas, un ranking con barras (eligiendo por qué número ordenar) y la tabla persona por persona, y al tocar a una
 // persona, su detalle. Qué roles hay y qué KPIs tiene cada uno viene del backend (Metrics\Team\TeamCatalog): un rol
 // nuevo aparece solo, y uno del sistema sin KPIs se avisa.
-import React, { FC, useState } from "react";
+import React, { FC, useEffect, useState } from "react";
 import { Alert, Box, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { Panel } from "../ui/surface/Panel";
+import { useGoalColor } from "./goalColor";
 import { MetricCard } from "./MetricCard";
 import { TeamPersonDialog } from "./TeamPersonDialog";
 import { TeamTable } from "./TeamTable";
@@ -14,13 +15,18 @@ import { Filters, TeamResponse, TeamRoleData, TeamRow, count, formatValue, sortT
 
 const list = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}` : items[0] ?? "");
 
-/** El ranking con barras por el número que se elija. Los de pocos datos van al final, en gris y sin puesto. */
-const Ranking: FC<{ role: TeamRoleData }> = ({ role }) => {
+/**
+ * El ranking con barras por el número que se elija. Los de pocos datos van al final, en gris y sin puesto. Si el número
+ * tiene meta del dueño, la rayita es la meta y quien no llega sale en amarillo o rojo (no mientras se sigue entregando).
+ */
+const Ranking: FC<{ role: TeamRoleData; maturing: boolean }> = ({ role, maturing }) => {
     const [key, setKey] = useState(role.rank_by);
+    const goalColor = useGoalColor();
     const col = role.columns.find((c) => c.key === key) ?? role.columns[0];
     const rows = sortTeam(role.rows, col.key, col.better);
-    const max = Math.max(...rows.map((r) => Math.abs(r.values[col.key] ?? 0)), 0);
+    const max = Math.max(...rows.map((r) => Math.abs(r.values[col.key] ?? 0)), col.goal?.value ?? 0, 0);
     const width = (v: number | null) => (v === null ? 0 : col.format === "percent" ? Math.min(100, Math.max(0, v)) : max > 0 ? (Math.abs(v) / max) * 100 : 0);
+    const tick = col.goal ? width(col.goal.value) : null;
     let place = 0;
 
     return (
@@ -33,11 +39,16 @@ const Ranking: FC<{ role: TeamRoleData }> = ({ role }) => {
             </Stack>
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1.5 }}>
                 Todos juntos: <b>{formatValue(role.totals[col.key] ?? null, col.format)}</b>. Con menos de {role.base.min} {role.base.label} van al final, en gris («pocos datos»).
+                {col.goal && (
+                    <> La rayita es tu {col.better === "lower" ? "máximo" : "meta"} (<b>{formatValue(col.goal.value, col.format)}</b>)
+                        {maturing && col.matures ? ": este período todavía se está entregando, por eso nadie sale en amarillo ni rojo todavía." : "; quien no llega sale en amarillo o rojo."}</>
+                )}
             </Typography>
             <Stack spacing={1.25}>
                 {rows.map((r) => {
                     const v = r.values[col.key] ?? null;
                     const flagged = r.flags.includes(col.key);
+                    const goal = r.goal_levels?.[col.key];
                     if (!r.low_data && v !== null) place++;
                     return (
                         <Box key={r.id} sx={{ opacity: r.low_data ? 0.55 : 1 }}>
@@ -52,8 +63,10 @@ const Ranking: FC<{ role: TeamRoleData }> = ({ role }) => {
                                     {r.low_data && <Typography component="span" variant="caption" color="text.secondary"> · pocos datos ({count(r.values[role.base.key] ?? 0)})</Typography>}
                                 </Typography>
                             </Stack>
-                            <Box sx={{ height: 8, borderRadius: 4, bgcolor: "action.hover", overflow: "hidden", mt: 0.5 }}>
-                                <Box sx={{ height: "100%", width: `${width(v)}%`, borderRadius: 4, bgcolor: r.low_data ? "grey.500" : flagged ? "warning.main" : "primary.main" }} />
+                            <Box sx={{ position: "relative", height: 8, borderRadius: 4, bgcolor: "action.hover", mt: 0.5 }}>
+                                <Box sx={{ height: "100%", width: `${width(v)}%`, borderRadius: 4,
+                                    bgcolor: r.low_data ? "grey.500" : goal === "red" || goal === "yellow" ? goalColor(goal) : flagged ? "warning.main" : "primary.main" }} />
+                                {tick !== null && <Box sx={{ position: "absolute", left: `calc(${tick}% - 1px)`, top: -3, bottom: -3, width: 2, borderRadius: 1, bgcolor: "text.primary" }} />}
                             </Box>
                         </Box>
                     );
@@ -69,9 +82,19 @@ export const TeamSection: FC<{
     role: string;
     onRole: (key: string) => void;
     filters: Filters;
-}> = ({ data, loading, role, onRole, filters }) => {
+    /** Abrir el detalle de una persona (al tocarla en una alerta), cuando ya cargó su rol. */
+    focus?: { role: string; id: number; name: string } | null;
+    onFocused?: () => void;
+}> = ({ data, loading, role, onRole, filters, focus, onFocused }) => {
     const [open, setOpen] = useState<TeamRow | null>(null);
     const r = data.role;
+
+    useEffect(() => {
+        if (!focus || loading || r.key !== focus.role) return;
+        setOpen(r.rows.find((x) => x.id === focus.id)
+            ?? { id: focus.id, name: focus.name, group: null, values: {}, previous: null, low_data: false, flags: [] });
+        onFocused?.();
+    }, [focus, loading, r, onFocused]);
     const filtered = Boolean(filters.shop || filters.city || filters.product);
     const { missing, unmeasured } = data.coverage;
 
@@ -107,7 +130,7 @@ export const TeamSection: FC<{
                 <Panel><Empty text={`Nadie de ${r.label.toLowerCase()} tuvo actividad en este período.`} /></Panel>
             ) : (
                 <>
-                    <Ranking key={r.key} role={r} />
+                    <Ranking key={r.key} role={r} maturing={data.maturing} />
                     <Panel sx={{ minWidth: 0 }}>
                         <BoxTitle title="Uno por uno" subtitle={`Las flechas comparan con ${data.previous.label.toLowerCase()}. Toca una fila para ver su detalle.`} />
                         <TeamTable key={r.key} data={r} maturing={data.maturing} compareLabel={data.previous.label}

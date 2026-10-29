@@ -1,11 +1,13 @@
 // src/components/owner-panel/TeamTable.tsx
 // Panel del dueño › Equipo: la tabla "uno por uno" de un rol, con cada KPI contra el período anterior. Las columnas y su
 // explicación vienen del backend (Metrics\Team), así que sirve igual para cualquier rol, también los que se agreguen.
+// Si el dueño puso una meta (Metas y límites), debajo del nombre de la columna dice cuál es y quien no llega sale en
+// amarillo o rojo.
 import React, { FC, useState } from "react";
 import { Box, Chip, Table, TableBody, TableCell, TableHead, TableRow, TableSortLabel, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { Theme, alpha } from "@mui/material/styles";
 import { Explain } from "./Explain";
-import { TeamColumn, TeamRow, TeamTable as TableData, TeamValues, formatValue, sortTeam, teamChange } from "./ownerPanel";
+import { AlertLevel, TeamColumn, TeamRow, TeamTable as TableData, TeamValues, formatValue, sortTeam, teamChange } from "./ownerPanel";
 
 const oneDecimal = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 1 });
 
@@ -22,13 +24,18 @@ export const TeamChange: FC<{ col: TeamColumn; value: number | null | undefined;
     );
 };
 
-const Cell: FC<{ col: TeamColumn; values: TeamValues; previous: TeamValues | null | undefined; maturing: boolean; compareLabel: string; flagged: boolean; bold?: boolean }> = ({ col, values, previous, maturing, compareLabel, flagged, bold }) => {
+/** El fondo de una celda: rojo o amarillo si no llega a su meta; amarillo clarito si está marcada (el doble del promedio). */
+const cellBg = (goal: "ok" | AlertLevel | undefined, flagged: boolean) =>
+    goal === "red" ? (t: Theme) => alpha(t.palette.error.main, 0.16)
+        : goal === "yellow" || flagged ? (t: Theme) => alpha(t.palette.warning.main, goal === "yellow" ? 0.24 : 0.18) : undefined;
+
+const Cell: FC<{ col: TeamColumn; values: TeamValues; previous: TeamValues | null | undefined; maturing: boolean; compareLabel: string; flagged: boolean; goal?: "ok" | AlertLevel; bold?: boolean }> = ({ col, values, previous, maturing, compareLabel, flagged, goal, bold }) => {
     const v = values[col.key] ?? null;
     const before = previous?.[col.key];
     return (
         <TableCell align="right" title={previous && !col.now ? `${compareLabel}: ${formatValue(before ?? null, col.format)}` : undefined}
-            sx={{ bgcolor: flagged ? (t) => alpha(t.palette.warning.main, 0.18) : undefined, verticalAlign: "top" }}>
-            <Typography variant="body2" fontWeight={bold ? 800 : 600} sx={{ whiteSpace: "nowrap" }}>{formatValue(v, col.format)}</Typography>
+            sx={{ bgcolor: cellBg(goal, flagged), verticalAlign: "top" }}>
+            <Typography variant="body2" fontWeight={bold ? 800 : 600} sx={{ whiteSpace: "nowrap", color: goal === "red" ? "error.main" : undefined }}>{formatValue(v, col.format)}</Typography>
             <Box sx={{ minHeight: 18 }}><TeamChange col={col} value={v} before={before} maturing={maturing} /></Box>
         </TableCell>
     );
@@ -69,6 +76,11 @@ export const TeamTable: FC<{
                                         <Typography variant="caption" fontWeight={800} sx={{ lineHeight: 1.2 }}>{col.label}</Typography>
                                     </TableSortLabel>
                                 </Explain>
+                                {col.goal && (
+                                    <Typography variant="caption" color="text.secondary" component="div" sx={{ lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                                        {col.better === "lower" ? "máx." : "meta"} {formatValue(col.goal.value, col.format)}
+                                    </Typography>
+                                )}
                             </TableCell>
                         ))}
                     </TableRow>
@@ -84,7 +96,7 @@ export const TeamTable: FC<{
                             </TableCell>
                             {data.columns.map((col) => (
                                 <Cell key={col.key} col={col} values={r.values} previous={r.previous} maturing={maturing} compareLabel={compareLabel}
-                                    flagged={r.flags.includes(col.key)} />
+                                    flagged={r.flags.includes(col.key)} goal={r.goal_levels?.[col.key]} />
                             ))}
                         </TableRow>
                     ))}
