@@ -20,7 +20,7 @@ export const PRESETS: { key: Preset; label: string }[] = [
 export const VIEWS: { key: ViewKey; label: string; soon?: boolean }[] = [
     { key: "sales", label: "Ventas" },
     { key: "money", label: "Dinero" },
-    { key: "funnel", label: "Embudo", soon: true },
+    { key: "funnel", label: "Embudo" },
     { key: "losses", label: "Pérdidas", soon: true },
     { key: "team", label: "Equipo", soon: true },
 ];
@@ -32,7 +32,7 @@ export type Filters = { preset: Preset; from: string; to: string; shop: string; 
 
 export type PeriodInfo = { preset: string; label: string; from: string; to: string; until: string; days: number; compare_label?: string };
 
-export type MetricFormat = "count" | "money" | "percent";
+export type MetricFormat = "count" | "money" | "percent" | "hours";
 
 export type MetricCardData = {
     key: string; label: string; help: string; detail: string | null; format: MetricFormat;
@@ -101,8 +101,22 @@ const query = (f: Filters) => {
     return qs.toString();
 };
 
+export type FunnelStep = {
+    key: "created" | "assigned" | "confirmed" | "on_route" | "delivered"; label: string; help: string; count: number;
+    of_created: number | null; of_previous: number | null; median_hours: number | null; timed: number;
+    stayed: { cancelled: number; rejected: number; open: number; total: number } | null;
+};
+
+export type FunnelResponse = SectionBase & {
+    relation: string | null;
+    steps: FunnelStep[];
+    previous_steps: { key: string; of_created: number | null }[];
+    help: string;
+};
+
 export const fetchSales = (f: Filters) => api<SalesResponse>(`/owner-panel/sales?${query(f)}`);
 export const fetchMoney = (f: Filters) => api<MoneyResponse>(`/owner-panel/money?${query(f)}`);
+export const fetchFunnel = (f: Filters) => api<FunnelResponse>(`/owner-panel/funnel?${query(f)}`);
 
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -122,8 +136,18 @@ export const pointLabel = (date: string, granularity: Granularity) =>
 const intFmt = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 });
 export const count = (v: number | null | undefined) => (v === null || v === undefined ? "—" : intFmt.format(v));
 
+const oneDecimal = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 1 });
+
+/** Un tiempo en horas, como lo dice una persona: "40 min", "3,5 h", "2,1 días". */
+export const duration = (hours: number | null | undefined) => {
+    if (hours === null || hours === undefined) return "—";
+    if (hours < 1) return `${Math.round(hours * 60)} min`;
+    if (hours < 48) return `${oneDecimal.format(hours)} h`;
+    return `${oneDecimal.format(hours / 24)} días`;
+};
+
 export const formatValue = (v: number | null, format: MetricFormat) =>
-    format === "money" ? money(v) : format === "percent" ? pct(v) : count(v);
+    format === "money" ? money(v) : format === "percent" ? pct(v) : format === "hours" ? duration(v) : count(v);
 
 /** Fecha corta para los gráficos: "26/10". */
 export const shortDay = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}`;
