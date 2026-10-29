@@ -19,6 +19,7 @@ type Props = {
     onDismiss: (item: CalendarItem) => void;
     onUndo: (item: CalendarItem) => void;
     onEdit: (item: CalendarItem) => void;
+    onPay: (item: CalendarItem, recurringId: number) => void;
 };
 
 export const DayList: FC<Props> = ({ date, today, items, busy, compact, onAdd, ...actions }) => {

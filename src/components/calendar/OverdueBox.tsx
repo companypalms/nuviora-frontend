@@ -16,6 +16,7 @@ type Props = {
     onDismiss: (item: CalendarItem) => void;
     onUndo: (item: CalendarItem) => void;
     onEdit: (item: CalendarItem) => void;
+    onPay: (item: CalendarItem, recurringId: number) => void;
 };
 
 const VISIBLE = 4;

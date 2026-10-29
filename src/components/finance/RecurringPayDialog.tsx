@@ -8,13 +8,14 @@ import { toast } from "react-toastify";
 import { MoneyFields, MoneyValue } from "./MoneyFields";
 import { FinanceOptions, RecurringExpense, accountsFor, api, day, errorMessage, inCurrency, original, todayCaracas } from "./finance";
 
-type Props = { recurring: RecurringExpense | null; options: FinanceOptions; onClose: () => void; onSaved: () => void };
+/** due: el vencimiento que se paga (el calendario abre la ventana con el del día); si no se dice, el primero sin pagar. */
+type Props = { recurring: RecurringExpense | null; options: FinanceOptions; onClose: () => void; onSaved: () => void; due?: string };
 
 export const RecurringPayDialog: React.FC<Props> = (props) => (props.recurring ? <RecurringPayForm key={props.recurring.id} {...props} recurring={props.recurring} /> : null);
 
-const RecurringPayForm: React.FC<Props & { recurring: RecurringExpense }> = ({ recurring, options, onClose, onSaved }) => {
+const RecurringPayForm: React.FC<Props & { recurring: RecurringExpense }> = ({ recurring, options, onClose, onSaved, due: wanted }) => {
     const unpaid = recurring.due.filter((d) => !d.paid);
-    const first = unpaid[0] ?? null;
+    const first = unpaid.find((d) => d.due_date === wanted) ?? unpaid[0] ?? null;
     const [due, setDue] = useState(first?.due_date ?? "");
     const [money, setMoney] = useState<MoneyValue>({ amount: first ? String(first.amount) : "", currency: first?.currency ?? "USD", rate: "" });
     const [paidAt, setPaidAt] = useState(todayCaracas());

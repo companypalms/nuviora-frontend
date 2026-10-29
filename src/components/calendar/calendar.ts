@@ -17,8 +17,14 @@ export type NoteFields = {
 /** source "auto": se tildó sola (el sistema vio que ya está hecho; "note" dice por qué). */
 export type ItemMark = { status: "done" | "dismissed"; note: string | null; source: string; by: string | null; at: string | null };
 
-/** Un botón de un recordatorio: va a una página ("link") o lo marca como hecho ("mark", como "Están bien" de la tasa). */
-export type ItemAction = { label: string; link?: string; mark?: "done" };
+/**
+ * Un botón de un recordatorio: va a una página ("link"), lo marca como hecho ("mark", como "Están bien" de la tasa) o
+ * registra el pago de un gasto fijo de Finanzas ("pay": el gasto recurrente, con la ventana de pago de Finanzas).
+ */
+export type ItemAction = { label: string; link?: string; mark?: "done"; pay?: number };
+
+/** El detalle de un pago de la semana: cada vendedora o agencia, su monto y una nota (de qué sale, en qué estado está). */
+export type ItemLine = { label: string; value: string; note: string | null };
 
 /** Una cosa del calendario en un día: una nota del dueño o un recordatorio del sistema. */
 export type CalendarItem = {
@@ -34,7 +40,7 @@ export type CalendarItem = {
     help: string | null;
     /** Todo en una frase ("Pago: Editores. El 15/11 cae domingo: se adelantó al sábado."). */
     text: string;
-    status: ItemStatus; accumulates: boolean; auto: boolean; link: string | null; actions: ItemAction[];
+    status: ItemStatus; accumulates: boolean; auto: boolean; link: string | null; actions: ItemAction[]; lines: ItemLine[];
     note_id: number | null; note_fields: NoteFields | null; mark: ItemMark | null;
 };
 
@@ -69,6 +75,8 @@ export const saveCalendarSettings = (rules: Record<string, { on: boolean; weekda
 export const isRoutine = (i: CalendarItem) => i.group === "daily";
 /** Se tildó sola: no se puede deshacer (el sistema la vuelve a mirar). */
 export const isAutoDone = (i: CalendarItem) => i.mark?.source === "auto";
+/** El gasto fijo que se paga con "Registrar pago", si lo tiene. */
+export const payTarget = (i: CalendarItem) => i.actions.find((a) => a.pay)?.pay ?? null;
 
 /* ── Fechas "AAAA-MM-DD" (al mediodía, para no pelear con las zonas horarias) ── */
 

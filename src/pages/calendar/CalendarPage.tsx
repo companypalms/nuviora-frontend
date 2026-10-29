@@ -2,7 +2,8 @@
 // El calendario del dueño (Etapa 3): el mes con lo que toca cada día y, al lado, el día elegido para tildar y anotar.
 // Arriba, lo atrasado. En el celular, la semana en lista. Solo el Admin (la ruta y el backend). Trae las notas del dueño y
 // los recordatorios del sistema (la rutina de todos los días, las revisiones de la semana y del mes, las metas), que se
-// encienden y apagan en "Recordatorios fijos". Los pagos llegan en el paso 3.
+// encienden y apagan en "Recordatorios fijos", y los pagos: los gastos fijos de Finanzas (con "Registrar pago", la misma
+// ventana de Finanzas), las vendedoras los lunes y las agencias los miércoles.
 import React, { useCallback, useEffect, useState } from "react";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -19,6 +20,8 @@ import { DayList } from "../../components/calendar/DayList";
 import { OverdueBox } from "../../components/calendar/OverdueBox";
 import { NoteDialog } from "../../components/calendar/NoteDialog";
 import { RemindersDialog } from "../../components/calendar/RemindersDialog";
+import { RecurringPayDialog } from "../../components/finance/RecurringPayDialog";
+import { FinanceOptions, RecurringExpense, api } from "../../components/finance/finance";
 import {
     CalendarItem, NoteFields, RangeResponse, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, markItem, monthLabel,
     monthStart, monthWeeks, mondayOf, shiftMonth, todayCaracas, unmarkItem,
@@ -39,6 +42,7 @@ export const CalendarPage: React.FC = () => {
     const [busy, setBusy] = useState<string | null>(null);
     const [dialog, setDialog] = useState<{ id: number | null; fields: NoteFields } | null>(null);
     const [remindersOpen, setRemindersOpen] = useState(false);
+    const [paying, setPaying] = useState<{ recurring: RecurringExpense; options: FinanceOptions; due: string } | null>(null);
 
     // En la computadora se pide el mes entero (con las semanas de los bordes); en el celular, la semana elegida
     const weeks = monthWeeks(month);
@@ -70,6 +74,19 @@ export const CalendarPage: React.FC = () => {
         onDismiss: (i: CalendarItem) => run(i, () => markItem(i, "dismissed")),
         onUndo: (i: CalendarItem) => run(i, () => unmarkItem(i)),
         onEdit: (i: CalendarItem) => { if (i.note_id && i.note_fields) setDialog({ id: i.note_id, fields: i.note_fields }); },
+        // "Registrar pago" de un gasto fijo: la misma ventana de Finanzas, con el vencimiento de ese día ya elegido
+        onPay: async (i: CalendarItem, recurringId: number) => {
+            setBusy(keyOf(i));
+            try {
+                const [options, list] = await Promise.all([
+                    api<FinanceOptions>("/finance/options"),
+                    api<{ recurring: RecurringExpense[] }>("/finance/recurring-expenses"),
+                ]);
+                const recurring = list.recurring.find((r) => r.id === recurringId);
+                if (!recurring) throw new Error("Ese gasto ya no está en Finanzas. Actualiza la página.");
+                setPaying({ recurring, options, due: i.due_date });
+            } catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
+        },
     };
     const add = (date: string) => setDialog({ id: null, fields: emptyNote(date) });
 
@@ -145,6 +162,15 @@ export const CalendarPage: React.FC = () => {
             </Box>
             <NoteDialog open={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); setTick((t) => t + 1); }} />
             <RemindersDialog open={remindersOpen} onClose={() => setRemindersOpen(false)} onSaved={() => { setRemindersOpen(false); setTick((t) => t + 1); }} />
+            {paying && (
+                <RecurringPayDialog
+                    recurring={paying.recurring}
+                    options={paying.options}
+                    due={paying.due}
+                    onClose={() => setPaying(null)}
+                    onSaved={() => { setPaying(null); setTick((t) => t + 1); }}
+                />
+            )}
         </Layout>
     );
 };
