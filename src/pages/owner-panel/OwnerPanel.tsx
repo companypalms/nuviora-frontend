@@ -87,12 +87,13 @@ export const OwnerPanel: React.FC = () => {
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
 
-    // Las alertas no dependen de los filtros: se piden al entrar y cada vez que el panel se actualiza
+    // Las alertas miran el período y los filtros de arriba (pedido del dueño): se piden de nuevo al cambiarlos y al actualizar
     useEffect(() => {
+        if (dateError) return;
         let alive = true;
-        fetchAlerts().then((r) => { if (alive) setAlerts(r); }).catch((e) => toast.error(e.message));
+        fetchAlerts(filters).then((r) => { if (alive) setAlerts(r); }).catch((e) => toast.error(e.message));
         return () => { alive = false; };
-    }, [tick]);
+    }, [filters, tick, dateError]);
 
     // El panel recuerda las secciones prendidas, el período (no las fechas elegidas a mano) y el rol de Equipo
     useEffect(() => {

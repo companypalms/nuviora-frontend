@@ -1,6 +1,7 @@
 // src/components/owner-panel/AlertsBar.tsx
 // Las alertas arriba del panel del dueño (diccionario §6): el sistema avisa solo, en amarillo o rojo, con los límites que
-// puso el dueño en "Metas y límites". No dependen de los filtros. Es una lista compacta (pedido del dueño: que no ocupe
+// puso el dueño en "Metas y límites". Miran el período y los filtros de arriba, como todo el panel (el dinero sin entregar
+// es lo de ahora mismo); quien todavía puede llegar a su meta sale en gris. Es una lista compacta (pedido del dueño: que no ocupe
 // tanto): una línea por alerta con un punto de color; se ven las 3 primeras y el resto se despliega. Tocar una alerta lleva
 // a la sección (y a los días) donde está el problema; tocar a una persona, a su detalle. La ⓘ explica cómo se calcula.
 import React, { FC, KeyboardEvent, useState } from "react";
@@ -109,24 +110,26 @@ export const AlertsBar: FC<{
         return (
             <Stack direction="row" alignItems="center" gap={0.75} sx={{ color: "success.main" }}>
                 <CheckCircleOutlineRoundedIcon fontSize="small" />
-                <Typography variant="body2" fontWeight={700}>Todo en orden: ninguna alerta</Typography>
+                <Typography variant="body2" fontWeight={700}>Todo en orden: ninguna alerta · {data.period}</Typography>
                 <Typography variant="caption" color="text.secondary">· revisado a las {data.updated_at}</Typography>
             </Stack>
         );
     }
 
     const reds = data.alerts.filter((a) => a.level === "red").length;
-    const yellows = data.alerts.length - reds;
+    const yellows = data.alerts.filter((a) => a.level === "yellow").length;
+    const grays = data.alerts.length - reds - yellows;
     const shown = all ? data.alerts : data.alerts.slice(0, VISIBLE);
     const hidden = data.alerts.length - shown.length;
 
     return (
         <Panel sx={{ p: 0, overflow: "hidden" }}>
             <Stack direction="row" alignItems="center" gap={1.25} flexWrap="wrap" sx={{ px: { xs: 1.5, sm: 2 }, py: 1, borderBottom: "1px solid", borderColor: "divider" }}>
-                <NotificationsActiveRoundedIcon sx={{ fontSize: 18, color: reds ? "error.main" : "warning.main" }} />
-                <Typography variant="subtitle2" fontWeight={800}>Alertas</Typography>
+                <NotificationsActiveRoundedIcon sx={{ fontSize: 18, color: reds ? "error.main" : yellows ? "warning.main" : "text.secondary" }} />
+                <Typography variant="subtitle2" fontWeight={800}>Alertas · {data.period}</Typography>
                 {reds > 0 && <Count n={reds} color={theme.palette.error.main} label={reds === 1 ? "roja" : "rojas"} />}
                 {yellows > 0 && <Count n={yellows} color={theme.palette.warning.main} label={yellows === 1 ? "amarilla" : "amarillas"} />}
+                {grays > 0 && <Count n={grays} color={theme.palette.text.secondary} label={grays === 1 ? "puede llegar" : "pueden llegar"} />}
                 <Box sx={{ flexGrow: 1 }} />
                 <Typography variant="caption" color="text.secondary">Revisado {data.updated_at}</Typography>
             </Stack>

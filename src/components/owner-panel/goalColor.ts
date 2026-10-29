@@ -3,7 +3,7 @@
 import { useTheme } from "@mui/material";
 import { AlertLevel, GoalStatus } from "./ownerPanel";
 
-/** Verde si se cumple o va bien, amarillo si va atrasada, rojo si no llegó, gris si todavía no se sabe. */
+/** Verde si se cumple o va bien, amarillo si va atrasada, rojo si no llegó, gris si todavía no se sabe o todavía puede llegar. */
 export const useGoalColor = () => {
     const t = useTheme();
     return (s: GoalStatus | "ok" | AlertLevel) =>

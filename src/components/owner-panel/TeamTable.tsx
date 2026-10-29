@@ -24,10 +24,14 @@ export const TeamChange: FC<{ col: TeamColumn; value: number | null | undefined;
     );
 };
 
-/** El fondo de una celda: rojo o amarillo si no llega a su meta; amarillo clarito si está marcada (el doble del promedio). */
+/**
+ * El fondo de una celda: rojo o amarillo si ya no llega a su meta; gris si está abajo pero todavía puede llegar con lo que
+ * tiene en camino; amarillo clarito si está marcada (el doble del promedio).
+ */
 const cellBg = (goal: "ok" | AlertLevel | undefined, flagged: boolean) =>
     goal === "red" ? (t: Theme) => alpha(t.palette.error.main, 0.16)
-        : goal === "yellow" || flagged ? (t: Theme) => alpha(t.palette.warning.main, goal === "yellow" ? 0.24 : 0.18) : undefined;
+        : goal === "yellow" || flagged ? (t: Theme) => alpha(t.palette.warning.main, goal === "yellow" ? 0.24 : 0.18)
+            : goal === "pending" ? (t: Theme) => alpha(t.palette.text.secondary, 0.1) : undefined;
 
 const Cell: FC<{ col: TeamColumn; values: TeamValues; previous: TeamValues | null | undefined; maturing: boolean; compareLabel: string; flagged: boolean; goal?: "ok" | AlertLevel; bold?: boolean }> = ({ col, values, previous, maturing, compareLabel, flagged, goal, bold }) => {
     const v = values[col.key] ?? null;

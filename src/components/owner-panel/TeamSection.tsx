@@ -17,9 +17,10 @@ const list = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join
 
 /**
  * El ranking con barras por el número que se elija. Los de pocos datos van al final, en gris y sin puesto. Si el número
- * tiene meta del dueño, la rayita es la meta y quien no llega sale en amarillo o rojo (no mientras se sigue entregando).
+ * tiene meta del dueño, la rayita es la meta; quien ya no llega sale en amarillo o rojo, y quien todavía puede llegar con
+ * lo que tiene en camino, en gris.
  */
-const Ranking: FC<{ role: TeamRoleData; maturing: boolean }> = ({ role, maturing }) => {
+const Ranking: FC<{ role: TeamRoleData }> = ({ role }) => {
     const [key, setKey] = useState(role.rank_by);
     const goalColor = useGoalColor();
     const col = role.columns.find((c) => c.key === key) ?? role.columns[0];
@@ -40,8 +41,8 @@ const Ranking: FC<{ role: TeamRoleData; maturing: boolean }> = ({ role, maturing
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1.5 }}>
                 Todos juntos: <b>{formatValue(role.totals[col.key] ?? null, col.format)}</b>. Con menos de {role.base.min} {role.base.label} van al final, en gris («pocos datos»).
                 {col.goal && (
-                    <> La rayita es tu {col.better === "lower" ? "máximo" : "meta"} (<b>{formatValue(col.goal.value, col.format)}</b>)
-                        {maturing && col.matures ? ": este período todavía se está entregando, por eso nadie sale en amarillo ni rojo todavía." : "; quien no llega sale en amarillo o rojo."}</>
+                    <> La rayita es tu {col.better === "lower" ? "máximo" : "meta"} (<b>{formatValue(col.goal.value, col.format)}</b>): en amarillo o rojo,
+                        quien ya no llega aunque se le entregue lo que tiene en camino; en gris, quien todavía puede llegar.</>
                 )}
             </Typography>
             <Stack spacing={1.25}>
@@ -65,7 +66,8 @@ const Ranking: FC<{ role: TeamRoleData; maturing: boolean }> = ({ role, maturing
                             </Stack>
                             <Box sx={{ position: "relative", height: 8, borderRadius: 4, bgcolor: "action.hover", mt: 0.5 }}>
                                 <Box sx={{ height: "100%", width: `${width(v)}%`, borderRadius: 4,
-                                    bgcolor: r.low_data ? "grey.500" : goal === "red" || goal === "yellow" ? goalColor(goal) : flagged ? "warning.main" : "primary.main" }} />
+                                    bgcolor: r.low_data ? "grey.500" : goal === "red" || goal === "yellow" ? goalColor(goal)
+                                        : goal === "pending" ? "grey.400" : flagged ? "warning.main" : "primary.main" }} />
                                 {tick !== null && <Box sx={{ position: "absolute", left: `calc(${tick}% - 1px)`, top: -3, bottom: -3, width: 2, borderRadius: 1, bgcolor: "text.primary" }} />}
                             </Box>
                         </Box>
@@ -130,7 +132,7 @@ export const TeamSection: FC<{
                 <Panel><Empty text={`Nadie de ${r.label.toLowerCase()} tuvo actividad en este período.`} /></Panel>
             ) : (
                 <>
-                    <Ranking key={r.key} role={r} maturing={data.maturing} />
+                    <Ranking key={r.key} role={r} />
                     <Panel sx={{ minWidth: 0 }}>
                         <BoxTitle title="Uno por uno" subtitle={`Las flechas comparan con ${data.previous.label.toLowerCase()}. Toca una fila para ver su detalle.`} />
                         <TeamTable key={r.key} data={r} maturing={data.maturing} compareLabel={data.previous.label}

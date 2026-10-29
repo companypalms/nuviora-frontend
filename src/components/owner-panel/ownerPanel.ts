@@ -70,18 +70,20 @@ export type CardGoal = {
     text: string;
 };
 
-export type AlertLevel = "yellow" | "red";
+/** pending: está abajo de su meta pero todavía puede llegar con lo que tiene en camino (gris). */
+export type AlertLevel = "yellow" | "red" | "pending";
 
 /** text: lo entero (para el cursor); short: lo corto, para la línea de la alerta. */
 export type AlertItem = { id: number | null; name: string | null; level: AlertLevel; value: number; text: string; short: string };
 
 export type PanelAlert = {
     type: string; level: AlertLevel; title: string; help: string; section: ViewKey; role: string | null; items: AlertItem[];
-    /** Los días que miró la alerta (null: es lo de ahora mismo). */
-    period: { preset: Preset; from?: string; to?: string } | null;
+    /** Los días que miró la alerta, si no son los del panel (hoy siempre son los del panel). */
+    period?: { preset: Preset; from?: string; to?: string } | null;
 };
 
-export type AlertsResponse = { configured: boolean; alerts: PanelAlert[]; window: string | null; updated_at: string };
+/** Las alertas del período y con los filtros elegidos ("period": "Este mes"); el dinero sin entregar es lo de ahora. */
+export type AlertsResponse = { configured: boolean; alerts: PanelAlert[]; period: string; updated_at: string };
 
 export type TeamGoal = { value: number | null; red: number | null; alert: boolean; people: { id: number; value: number }[] };
 export type AlertLimits = { yellow: number | null; red: number | null; on: boolean };
@@ -124,7 +126,7 @@ export type GoalsSummary = {
     reference?: { label: string; business: Record<string, string> };
 };
 
-export const fetchAlerts = () => api<AlertsResponse>("/owner-panel/alerts");
+export const fetchAlerts = (f: Filters) => api<AlertsResponse>(`/owner-panel/alerts?${query(f)}`);
 export const fetchGoalsSummary = () => api<GoalsSummary>("/owner-panel/goals/summary");
 export const fetchGoals = () => api<GoalsResponse>("/owner-panel/goals");
 export const saveGoals = (c: Pick<GoalsConfig, "months" | "team" | "alerts">) => api<GoalsResponse>("/owner-panel/goals", "PUT", c);
@@ -253,8 +255,11 @@ export type TeamRow = {
     /** No llega al mínimo de su rol: va al final del ranking, en gris. */
     low_data: boolean;
     flags: string[];
-    /** KPI => si llega a su meta ("ok") o queda en amarillo o rojo. Sin marca: pocos datos o todavía se está entregando. */
+    /** KPI => si llega a su meta ("ok"), ya no llega (amarillo o rojo) o todavía puede llegar ("pending"). Sin marca: pocos datos. */
     goal_levels?: Record<string, "ok" | AlertLevel>;
+    /** Lo mejor que puede llegar a ser cada KPI si se entrega lo que tiene en camino, y cuántos pedidos tiene en camino. */
+    best?: Record<string, number | null>;
+    open?: number | null;
 };
 
 export type TeamTable = {
