@@ -15,7 +15,6 @@ import { Profile } from './pages/auth/Profile';
 import { WhatsAppPage } from './pages/whatsapp/WhatsAppPage';
 import { WhatsAppCrmPage } from './pages/whatsapp-crm/WhatsAppCrmPage';
 import { Orders } from './pages/Orders';
-import { Currency } from './pages/currency/Currency';
 import { Users } from './pages/users/Users';
 import { DeliverersPage } from './pages/deliverers/Deliverers';
 import { CancellationsReview } from './pages/orders/cancellations/CancellationsReview';
@@ -27,8 +26,7 @@ import { Shops } from './pages/shops/Shops';
 import { Metrics } from './pages/Metrics';
 import { BusinessMetrics } from './pages/BusinessMetrics';
 import { Cities } from './pages/Cities';
-import { CompanyAccounts } from './pages/admin/CompanyAccounts';
-import { Banks } from './pages/admin/Banks';
+import { RatesAndPayments } from './pages/admin/RatesAndPayments';
 import { PendingVueltos } from './pages/admin/PendingVueltos';
 import { ChangeApprovals } from './pages/admin/ChangeApprovals';
 import { ReceiptReview } from './pages/admin/ReceiptReview';
@@ -117,7 +115,7 @@ function App() {
           <Route path="/whatsapp" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Vendedor']}><WhatsAppCrmPage /></RequireRole>} />
 
           <Route path="/deliverers" element={<RequireRole allowedRoles={['Admin']}><DeliverersPage /></RequireRole>} />
-          <Route path="/currency" element={<RequireRole allowedRoles={['Admin']}><Currency /></RequireRole>} />
+          <Route path="/currency" element={<RedirectToSection to="/admin/tasa-y-pagos" section="tasa" />} />
           <Route path="/users" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Users /></RequireRole>} />
 
           {/* Unified Inventory Dashboard */}
@@ -139,8 +137,9 @@ function App() {
           <Route path="/metrics" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Metrics /></RequireRole>} />
           <Route path="/business-metrics" element={<RequireRole allowedRoles={['Admin']}><BusinessMetrics /></RequireRole>} />
           <Route path="/cities" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><Cities /></RequireRole>} />
-          <Route path="/admin/company-accounts" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><CompanyAccounts /></RequireRole>} />
-          <Route path="/admin/banks" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Banks /></RequireRole>} />
+          <Route path="/admin/tasa-y-pagos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><RatesAndPayments /></RequireRole>} />
+          <Route path="/admin/company-accounts" element={<RedirectToSection to="/admin/tasa-y-pagos" section="cuentas" />} />
+          <Route path="/admin/banks" element={<RedirectToSection to="/admin/tasa-y-pagos" section="bancos" />} />
           <Route path="/admin/pending-vueltos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><PendingVueltos /></RequireRole>} />
           <Route path="/admin/vueltos-por-validar" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ChangeApprovals /></RequireRole>} />
           <Route path="/admin/comprobantes" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ReceiptReview /></RequireRole>} />

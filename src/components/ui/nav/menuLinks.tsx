@@ -16,7 +16,7 @@ import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 import {
     AccessTimeRounded, AccountBalanceRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
-    InsertDriveFileRounded, MapRounded, PaymentRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
+    InsertDriveFileRounded, MapRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, Diversity3Rounded, PaymentsRounded, ImageSearchRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded,
@@ -76,9 +76,6 @@ export const MENU_LINKS: NavLink[] = [
     { section: "dinero", text: "Cierres / Servicios", icon: <RequestQuoteRounded />, link: "/cierres", roles: ["Agencia"], keywords: "cierre semanal subir excel carreras pago" },
     { section: "dinero", text: "Ganancias globales", icon: <BarChartRoundedIcon />, link: "/earnings", roles: ["Admin"], keywords: "comisiones pagos liquidacion agencias vendedoras" },
     { section: "dinero", text: "Mis ganancias", icon: <SavingsRoundedIcon />, link: "/me/earnings", roles: ["Vendedor", "Repartidor", "Gerente"], keywords: "comisiones pagos" },
-    { section: "dinero", text: "Tasa de dólar", icon: <AttachMoneyRoundedIcon />, link: "/currency", roles: ["Admin"], keywords: "bcv binance euro tasas cambio" },
-    { section: "dinero", text: "Cuentas Empresa", icon: <PaymentRounded />, link: "/admin/company-accounts", roles: ["Admin", "Gerente"], keywords: "banco pago movil cuentas zelle" },
-    { section: "dinero", text: "Bancos", icon: <AccountBalanceRounded />, link: "/admin/banks", roles: ["Admin", "Gerente"], keywords: "banco codigos" },
 
     // Reportes
     { section: "reportes", text: "Métricas", icon: <PollRounded />, link: "/metrics", roles: ["Admin", "Gerente"], keywords: "estadisticas reportes graficos" },
@@ -93,6 +90,9 @@ export const MENU_LINKS: NavLink[] = [
     { section: "config", text: "Repartidores", icon: <EngineeringRoundedIcon />, link: "/deliverers", roles: ["Admin"], keywords: "motorizados delivery" },
     { section: "config", text: "Ciudades y Agencias", icon: <MapRounded />, link: "/cities", roles: ["Admin", "Gerente"], keywords: "agencias reparto porcentajes cupo" },
     { section: "config", text: "Tarifas de delivery", icon: <RouteRounded />, link: "/admin/tarifas-delivery", roles: ["Admin"], keywords: "agencias carreras tarifario kilometros distancia google routes almacenes coordenadas cierre" },
+    { section: "config", text: "Tasa y pagos", icon: <AttachMoneyRoundedIcon />, link: "/admin/tasa-y-pagos", roles: ["Admin"], keywords: "tasa dolar bcv binance euro tasas cambio cuentas empresa banco pago movil zelle bancos codigos" },
+    // El Gerente no ve la tasa: solo cuentas y bancos
+    { section: "config", text: "Cuentas y bancos", icon: <AccountBalanceRounded />, link: "/admin/tasa-y-pagos", roles: ["Gerente"], keywords: "cuentas empresa banco pago movil zelle bancos codigos" },
     { section: "config", text: "Integraciones", icon: <SettingsEthernetRounded />, link: "/admin/integraciones", roles: ["Admin"], keywords: "plantillas whatsapp mensajes meta ads conexiones facebook business manager bm token cuentas publicitarias clasificar campañas objetivos cpa reglas webhooks n8n biblioteca medios imagenes archivos fotos videos" },
     // El Gerente solo tiene la pestaña de la biblioteca, así que la ve con su nombre de siempre
     { section: "config", text: "Biblioteca de Medios", icon: <InsertDriveFileRounded />, link: "/admin/integraciones", roles: ["Gerente"], keywords: "imagenes archivos fotos videos" },

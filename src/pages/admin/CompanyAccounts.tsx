@@ -38,7 +38,7 @@ import {
     CancelRounded,
     CopyAllRounded
 } from '@mui/icons-material';
-import { Layout } from '../../components/ui/Layout';
+import { PageLayout } from '../../components/ui/SectionTabsPage';
 import { DescripcionDeVista } from '../../components/ui/content/DescripcionDeVista';
 import { request } from '../../common/request';
 import { IResponse } from '../../interfaces/response-type';
@@ -66,7 +66,7 @@ const IconRenderer = ({ iconName, color = 'inherit' }: { iconName: string | null
     }
 };
 
-export const CompanyAccounts: React.FC = () => {
+export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid, user } = useValidateSession();
     const [accounts, setAccounts] = useState<ICompanyAccount[]>([]);
     const [loading, setLoading] = useState(false);
@@ -238,7 +238,7 @@ export const CompanyAccounts: React.FC = () => {
     if (loadingSession || !isValid || !user.token) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: 2 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
                     <Box sx={{ flex: 1 }}>
@@ -501,6 +501,6 @@ export const CompanyAccounts: React.FC = () => {
                     </DialogActions>
                 </Dialog>
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };

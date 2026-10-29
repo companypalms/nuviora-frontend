@@ -2,7 +2,7 @@ import { Box, Grid, Toolbar, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { ButtonCustom, TextFieldCustom } from "../../components/custom";
 import { Loading } from "../../components/ui/content/Loading";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { useUserStore } from "../../store/user/UserStore";
 import { NumericFormat } from "react-number-format";
 import { request } from "../../common/request";
@@ -24,7 +24,7 @@ const initialFormValues = {
     binance_usd: 0,
 };
 
-export const Currency = () => {
+export const Currency = ({ isEmbedded }: { isEmbedded?: boolean }) => {
     const user = useUserStore((state) => state.user);
     const validateToken = useUserStore((state) => state.validateToken);
 
@@ -108,7 +108,7 @@ export const Currency = () => {
         new Date(currency.updated_at).toDateString() === new Date().toDateString();
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Toolbar />
             <Typography fontWeight={"bold"} variant="h4">
                 Tasas de cambio
@@ -293,6 +293,6 @@ export const Currency = () => {
                     </Formik>
                 </Box>
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };
