@@ -12,7 +12,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { Loading } from "../../components/ui/content/Loading";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -429,7 +429,7 @@ const MembersDialog: React.FC<{
 
 /* ─────────────────────────── Página ─────────────────────────── */
 
-export const SalesGroups: React.FC = () => {
+export const SalesGroups: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [data, setData] = useState<SalesGroupsData | null>(null);
     const [loading, setLoading] = useState(false);
@@ -468,7 +468,7 @@ export const SalesGroups: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
                 <DescripcionDeVista
                     title="Grupos de venta"
@@ -550,6 +550,6 @@ export const SalesGroups: React.FC = () => {
                 onClose={() => setMembersOf(null)}
                 onSaved={(d) => { setData(d); setMembersOf(null); }}
             />
-        </Layout>
+        </PageLayout>
     );
 };

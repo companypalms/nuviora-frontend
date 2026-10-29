@@ -46,8 +46,7 @@ import { PurchaseOrders } from './pages/inventory/PurchaseOrders';
 import { QaSuitePage } from './pages/admin/QaSuitePage';
 import { OrdersExportPage } from './pages/admin/OrdersExportPage';
 import { StockExportPage } from './pages/admin/StockExportPage';
-import { RoundRobinControl } from './pages/round-robin/RoundRobinControl';
-import { SalesGroups } from './pages/sales-groups/SalesGroups';
+import { Distribution } from './pages/round-robin/Distribution';
 import { MyGroup } from './pages/my-group/MyGroup';
 import { CityInventory } from './pages/inventory/CityInventory';
 import { WeeklyReportPage } from './pages/my-group/WeeklyReportPage';
@@ -165,8 +164,8 @@ function App() {
           <Route path="/admin/qa-suite" element={<RequireRole allowedRoles={['Admin']}><QaSuitePage /></RequireRole>} />
           <Route path="/admin/orders-export" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><OrdersExportPage /></RequireRole>} />
           <Route path="/admin/stock-export" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><StockExportPage /></RequireRole>} />
-          <Route path="/round-robin" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><RoundRobinControl /></RequireRole>} />
-          <Route path="/grupos-de-venta" element={<RequireRole allowedRoles={['Admin', 'Master']}><SalesGroups /></RequireRole>} />
+          <Route path="/round-robin" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><Distribution /></RequireRole>} />
+          <Route path="/grupos-de-venta" element={<RedirectToSection to="/round-robin" section="grupos" />} />
           {/* La Líder es una Vendedor; la página y el servidor comprueban que lidere un grupo. El Admin la mira con ?grupo= (solo lectura) */}
           <Route path="/inventario-ciudades" element={<RequireRole allowedRoles={['Vendedor', 'Admin', 'Gerente', 'Master']}><CityInventory /></RequireRole>} />
           <Route path="/mi-grupo" element={<RequireRole allowedRoles={['Vendedor', 'Admin', 'Master']}><MyGroup /></RequireRole>} />

@@ -17,7 +17,7 @@ import {
     AccessTimeRounded, AccountBalanceRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
     InsertDriveFileRounded, MapRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
-    AssessmentRounded, Diversity3Rounded, PaymentsRounded, ImageSearchRounded, InsightsRounded, RequestQuoteRounded,
+    AssessmentRounded, PaymentsRounded, ImageSearchRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded,
 } from "@mui/icons-material";
 
@@ -53,8 +53,8 @@ export const MENU_LINKS: NavLink[] = [
 
     // Ventas y reparto
     { section: "ventas", text: "Logística propia", icon: <CellTowerRounded />, link: "/logistica", roles: ["Admin", "Master", "Operador logístico"], keywords: "torre de control centro despacho riders motorizados rondas carabobo valencia operador turno" },
-    { section: "ventas", text: "Reparto de órdenes", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "round robin asignar reasignar vendedoras porcentajes roster" },
-    { section: "ventas", text: "Grupos de venta", icon: <Diversity3Rounded />, link: "/grupos-de-venta", roles: ["Admin", "Master"], keywords: "lider lideres equipos vendedoras" },
+    // El Gerente ve solo la pestaña "Hoy"; "Grupos y %" es de Admin y Master
+    { section: "ventas", text: "Reparto", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "reparto de ordenes round robin asignar reasignar vendedoras porcentajes roster grupos de venta lider lideres equipos" },
     { section: "ventas", text: "Órdenes canceladas", icon: <DoNotDisturbAltRoundedIcon />, link: "/orders/cancelled", roles: ["Admin", "Gerente"], keywords: "canceladas rechazadas" },
 
     // Inventario

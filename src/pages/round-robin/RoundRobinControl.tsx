@@ -12,7 +12,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { Loading } from "../../components/ui/content/Loading";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -108,7 +108,7 @@ const ShopCard: React.FC<{ shop: OverviewShop; onReset: (id: number) => void; re
     </Paper>
 );
 
-export const RoundRobinControl: React.FC = () => {
+export const RoundRobinControl: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const navigate = useNavigate();
     const role = useUserStore((s) => s.user.role?.description);
@@ -145,14 +145,15 @@ export const RoundRobinControl: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={2}>
                 <DescripcionDeVista
                     title="Reparto de órdenes"
                     description="Cómo se están repartiendo hoy las órdenes nuevas en cada tienda"
                 />
                 <Box display="flex" gap={1} flexWrap="wrap">
-                    {(role === "Admin" || role === "Master") && (
+                    {/* Dentro de la página Reparto ya está la pestaña "Grupos y %" */}
+                    {!isEmbedded && (role === "Admin" || role === "Master") && (
                         <Button variant="outlined" size="small" startIcon={<GroupsRounded />} onClick={() => navigate("/grupos-de-venta")}>
                             Grupos y %
                         </Button>
@@ -202,6 +203,6 @@ export const RoundRobinControl: React.FC = () => {
                 onClose={() => setReassignOpen(false)}
                 onDone={() => { setReassignOpen(false); fetchData(); }}
             />
-        </Layout>
+        </PageLayout>
     );
 };
