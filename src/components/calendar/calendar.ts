@@ -14,20 +14,35 @@ export type NoteFields = {
     title: string; details: string | null; date: string; time: string | null; kind: NoteKind; repeat: Repeat; repeat_until: string | null;
 };
 
+/** source "auto": se tildó sola (el sistema vio que ya está hecho; "note" dice por qué). */
 export type ItemMark = { status: "done" | "dismissed"; note: string | null; source: string; by: string | null; at: string | null };
 
-/** Una cosa del calendario en un día (una nota del dueño o, desde el paso 2, un recordatorio del sistema). */
+/** Un botón de un recordatorio: va a una página ("link") o lo marca como hecho ("mark", como "Están bien" de la tasa). */
+export type ItemAction = { label: string; link?: string; mark?: "done" };
+
+/** Una cosa del calendario en un día: una nota del dueño o un recordatorio del sistema. */
 export type CalendarItem = {
     item_key: string;
     /** El día en que se muestra; due_date es el que le tocaba (distinto si se corrió por un domingo). */
     date: string; due_date: string;
-    type: ItemType; source: "owner" | "assistant" | "system";
+    type: ItemType;
+    /** "daily": la rutina de todos los días (tasa, conciliación, por aprobar, inventario, últimos 3 días). */
+    group: "daily" | null;
+    source: "owner" | "assistant" | "system";
     title: string; details: string | null; time: string | null; repeat_label: string;
+    /** Por qué importa (los recordatorios del sistema). */
+    help: string | null;
     /** Todo en una frase ("Pago: Editores. El 15/11 cae domingo: se adelantó al sábado."). */
     text: string;
-    status: ItemStatus; accumulates: boolean; auto: boolean; link: string | null;
+    status: ItemStatus; accumulates: boolean; auto: boolean; link: string | null; actions: ItemAction[];
     note_id: number | null; note_fields: NoteFields | null; mark: ItemMark | null;
 };
+
+/** Un recordatorio del sistema en la ventana "Recordatorios fijos". */
+export type ReminderSetting = {
+    key: string; title: string; help: string; type: ItemType; schedule: string; auto: boolean; on: boolean; weekday: number | null;
+};
+export type CalendarSettings = { rules: ReminderSetting[]; weekdays: Record<string, string> };
 
 export type RangeResponse = { from: string; to: string; today: string; started_on: string; days: Record<string, CalendarItem[]> };
 export type TodayResponse = {
@@ -46,6 +61,14 @@ export const markItem = (item: CalendarItem, status: "done" | "dismissed", note?
     api<{ message: string }>("/calendar/marks", "POST", { item_key: item.item_key, due_date: item.due_date, status, note: note || null });
 export const unmarkItem = (item: CalendarItem) =>
     api<{ message: string }>("/calendar/marks", "DELETE", { item_key: item.item_key, due_date: item.due_date });
+export const fetchCalendarSettings = () => api<CalendarSettings>("/calendar/settings");
+export const saveCalendarSettings = (rules: Record<string, { on: boolean; weekday?: number }>) =>
+    api<CalendarSettings & { message: string }>("/calendar/settings", "PUT", { rules });
+
+/** La rutina de todos los días va aparte, debajo de lo propio del día. */
+export const isRoutine = (i: CalendarItem) => i.group === "daily";
+/** Se tildó sola: no se puede deshacer (el sistema la vuelve a mirar). */
+export const isAutoDone = (i: CalendarItem) => i.mark?.source === "auto";
 
 /* ── Fechas "AAAA-MM-DD" (al mediodía, para no pelear con las zonas horarias) ── */
 

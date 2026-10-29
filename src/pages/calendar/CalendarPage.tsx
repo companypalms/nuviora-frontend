@@ -1,13 +1,15 @@
 // src/pages/calendar/CalendarPage.tsx
 // El calendario del dueño (Etapa 3): el mes con lo que toca cada día y, al lado, el día elegido para tildar y anotar.
-// Arriba, lo atrasado. En el celular, la semana en lista. Solo el Admin (la ruta y el backend). Por ahora son las notas
-// del dueño; los pagos, las tareas de todos los días y las revisiones del sistema llegan en los próximos pasos.
+// Arriba, lo atrasado. En el celular, la semana en lista. Solo el Admin (la ruta y el backend). Trae las notas del dueño y
+// los recordatorios del sistema (la rutina de todos los días, las revisiones de la semana y del mes, las metas), que se
+// encienden y apagan en "Recordatorios fijos". Los pagos llegan en el paso 3.
 import React, { useCallback, useEffect, useState } from "react";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
 import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
@@ -16,6 +18,7 @@ import { MonthGrid } from "../../components/calendar/MonthGrid";
 import { DayList } from "../../components/calendar/DayList";
 import { OverdueBox } from "../../components/calendar/OverdueBox";
 import { NoteDialog } from "../../components/calendar/NoteDialog";
+import { RemindersDialog } from "../../components/calendar/RemindersDialog";
 import {
     CalendarItem, NoteFields, RangeResponse, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, markItem, monthLabel,
     monthStart, monthWeeks, mondayOf, shiftMonth, todayCaracas, unmarkItem,
@@ -35,6 +38,7 @@ export const CalendarPage: React.FC = () => {
     const [tick, setTick] = useState(0);
     const [busy, setBusy] = useState<string | null>(null);
     const [dialog, setDialog] = useState<{ id: number | null; fields: NoteFields } | null>(null);
+    const [remindersOpen, setRemindersOpen] = useState(false);
 
     // En la computadora se pide el mes entero (con las semanas de los bordes); en el celular, la semana elegida
     const weeks = monthWeeks(month);
@@ -90,7 +94,7 @@ export const CalendarPage: React.FC = () => {
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1280, mx: "auto" }}>
                 <DescripcionDeVista
                     title="Calendario"
-                    description="Tus tareas, pagos y notas de cada día. Toca un día para ver qué hay, tildar lo que ya hiciste o anotar algo nuevo."
+                    description="Lo que tienes que hacer cada día: tu rutina, las revisiones de números, tus pagos y tus notas. Toca un día para ver qué hay, tildar lo que ya hiciste o anotar algo nuevo."
                 />
                 <Stack spacing={2}>
                     {todayData && <OverdueBox items={todayData.overdue} busy={busy} {...actions} />}
@@ -111,6 +115,11 @@ export const CalendarPage: React.FC = () => {
                             </Stack>
                             <Stack direction="row" alignItems="center" gap={1.5}>
                                 {todayData && <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>{todayData.text}</Typography>}
+                                <Tooltip title="Recordatorios fijos: apagar los que no quieras y elegir el día de la revisión semanal">
+                                    <Button size="small" variant="outlined" startIcon={<TuneRoundedIcon />} onClick={() => setRemindersOpen(true)}>
+                                        {phone ? "Fijos" : "Recordatorios fijos"}
+                                    </Button>
+                                </Tooltip>
                                 <Button variant="contained" size="small" startIcon={<AddRoundedIcon />} onClick={() => add(selected)}>Anotar</Button>
                             </Stack>
                         </Stack>
@@ -135,6 +144,7 @@ export const CalendarPage: React.FC = () => {
                 </Stack>
             </Box>
             <NoteDialog open={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); setTick((t) => t + 1); }} />
+            <RemindersDialog open={remindersOpen} onClose={() => setRemindersOpen(false)} onSaved={() => { setRemindersOpen(false); setTick((t) => t + 1); }} />
         </Layout>
     );
 };

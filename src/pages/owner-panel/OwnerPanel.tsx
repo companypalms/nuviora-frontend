@@ -59,17 +59,30 @@ function useSection<T>(enabled: boolean, filters: Filters, ready: boolean, tick:
     return { data, loading };
 }
 
+/** "?desde=AAAA-MM-DD&hasta=AAAA-MM-DD": las fechas con las que llega desde el calendario (las revisiones de números). */
+const linkedDates = (params: URLSearchParams): { from: string; to: string } | null => {
+    const from = params.get("desde") ?? "";
+    const to = params.get("hasta") ?? "";
+    const ymd = /^\d{4}-\d{2}-\d{2}$/;
+    return ymd.test(from) && ymd.test(to) ? { from, to } : null;
+};
+
 export const OwnerPanel: React.FC = () => {
     const prefs = useMemo(loadPrefs, []);
     const today = todayCaracas();
-    const [filters, setFilters] = useState<Filters>({ preset: prefs.preset, from: daysBefore(today, 6), to: today, shop: "", city: "", product: "" });
+    // "?metas=1": se llega desde "Poner metas" del Dashboard o del calendario y abre la ventana de metas
+    const [params, setParams] = useSearchParams();
+    const [filters, setFilters] = useState<Filters>(() => {
+        const linked = linkedDates(params);
+        return linked
+            ? { preset: "custom", from: linked.from, to: linked.to, shop: "", city: "", product: "" }
+            : { preset: prefs.preset, from: daysBefore(today, 6), to: today, shop: "", city: "", product: "" };
+    });
     const [views, setViews] = useState<ViewKey[]>(prefs.views);
     const [teamRole, setTeamRole] = useState(prefs.teamRole);
     const [options, setOptions] = useState<PanelOptions | null>(null);
     const [tick, setTick] = useState(0);
     const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
-    // "?metas=1": se llega desde "Poner metas" del Dashboard y abre la ventana de metas
-    const [params, setParams] = useSearchParams();
     const [goalsOpen, setGoalsOpen] = useState(params.get("metas") === "1");
     const [focus, setFocus] = useState<{ role: string; id: number; name: string } | null>(null);
 
