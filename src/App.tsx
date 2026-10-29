@@ -15,8 +15,7 @@ import { Profile } from './pages/auth/Profile';
 import { WhatsAppPage } from './pages/whatsapp/WhatsAppPage';
 import { WhatsAppCrmPage } from './pages/whatsapp-crm/WhatsAppCrmPage';
 import { Orders } from './pages/Orders';
-import { Users } from './pages/users/Users';
-import { DeliverersPage } from './pages/deliverers/Deliverers';
+import { UsersAndDeliverers } from './pages/users/UsersAndDeliverers';
 import { CancellationsReview } from './pages/orders/cancellations/CancellationsReview';
 // import { Roster } from './pages/roster/Roster';
 import { WarehouseInventory } from './pages/inventory/WarehouseInventory';
@@ -112,9 +111,9 @@ function App() {
           {/* WhatsApp CRM v2 — Lógica de permisos nueva */}
           <Route path="/whatsapp" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Vendedor']}><WhatsAppCrmPage /></RequireRole>} />
 
-          <Route path="/deliverers" element={<RequireRole allowedRoles={['Admin']}><DeliverersPage /></RequireRole>} />
+          <Route path="/deliverers" element={<RedirectToSection to="/users" section="repartidores" />} />
           <Route path="/currency" element={<RedirectToSection to="/admin/tasa-y-pagos" section="tasa" />} />
-          <Route path="/users" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Users /></RequireRole>} />
+          <Route path="/users" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><UsersAndDeliverers /></RequireRole>} />
 
           {/* Unified Inventory Dashboard */}
           <Route path="/inventory" element={<RequireRole allowedRoles={['Admin', 'Agencia']}><InventoryDashboard /></RequireRole>} />

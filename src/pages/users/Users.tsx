@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useUserStore } from "../../store/user/UserStore";
 import { Loading } from "../../components/ui/content/Loading";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { TypographyCustom } from "../../components/custom";
 import { UsersDataTable } from "../../components/users/UsersDataTable";
@@ -37,14 +37,14 @@ const useGetUsers = (url: string) => {
 
     return { data, setData, errors, getData }
 }
-export const Users = () => {
+export const Users: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { data, setData, errors, getData } = useGetUsers('/users');
     const { loadingSession, isValid, user } = useValidateSession();
     const [openAddUser, setOpenAddUser] = useState(false);
 
     if (loadingSession || !isValid || !user.token) return <Loading />;
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <DescripcionDeVista title={"Usuarios"} description={"En esta vista podras consultar los usuarios registrados"} />
                 <Button
@@ -75,7 +75,7 @@ export const Users = () => {
                     getData();
                 }}
             />
-        </Layout >
+        </PageLayout>
     )
 }
 

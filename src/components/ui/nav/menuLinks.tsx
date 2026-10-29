@@ -3,7 +3,6 @@
 // opciones en una sola lista no encontraba nada).
 import { ReactNode } from "react";
 import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
-import EngineeringRoundedIcon from "@mui/icons-material/EngineeringRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
@@ -85,8 +84,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "reportes", text: "Exportar Órdenes", icon: <FileDownloadRounded />, link: "/admin/orders-export", roles: ["Admin", "Gerente"], keywords: "excel descargar" },
 
     // Configuración
-    { section: "config", text: "Usuarios", icon: <PeopleAltRounded />, link: "/users", roles: ["Admin", "Gerente"], keywords: "vendedoras empleados roles contraseña agencias" },
-    { section: "config", text: "Repartidores", icon: <EngineeringRoundedIcon />, link: "/deliverers", roles: ["Admin"], keywords: "motorizados delivery" },
+    // La pestaña Repartidores es solo del Admin; el Gerente ve la lista de usuarios como siempre
+    { section: "config", text: "Usuarios", icon: <PeopleAltRounded />, link: "/users", roles: ["Admin", "Gerente"], keywords: "vendedoras empleados roles contraseña agencias repartidores motorizados delivery" },
     // El Gerente ve las pestañas Tiendas y Ciudades; Tarifas es solo del Admin
     { section: "config", text: "Tiendas, ciudades y agencias", icon: <StorefrontRounded />, link: "/admin/tiendas-y-ciudades", roles: ["Admin", "Gerente"], keywords: "tiendas shopify nuviora solo brillo meloon vendedoras ciudades agencias reparto porcentajes cupo tarifas delivery carreras tarifario kilometros distancia google routes almacenes coordenadas cierre" },
     { section: "config", text: "Tasa y pagos", icon: <AttachMoneyRoundedIcon />, link: "/admin/tasa-y-pagos", roles: ["Admin"], keywords: "tasa dolar bcv binance euro tasas cambio cuentas empresa banco pago movil zelle bancos codigos" },

@@ -14,12 +14,12 @@ import { ButtonCustom, TextFieldCustom } from "../../components/custom";
 import { IResponse } from "../../interfaces/response-type";
 import { DelivererFormDialog } from "../../components/deliverers/DelivererFormDialog";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { Loading } from "../../components/ui/content/Loading";
 
-export const DeliverersPage: React.FC = () => {
+export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid, user } = useValidateSession();
     const [rows, setRows] = useState<any[]>([]);
     const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number } | null>(null);
@@ -100,7 +100,7 @@ export const DeliverersPage: React.FC = () => {
 
     if (loadingSession || !isValid || !user.token) return <Loading />;
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <DescripcionDeVista title={"Repartidores"} description={"Vista para consultar repartidores, agregar repartidores"} />
             <Box sx={{ p: 3 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -186,6 +186,6 @@ export const DeliverersPage: React.FC = () => {
                     onConfirm={doDelete}
                 />
             </Box>
-        </Layout>
+        </PageLayout>
     );
 };
