@@ -21,7 +21,7 @@ export const VIEWS: { key: ViewKey; label: string; soon?: boolean }[] = [
     { key: "sales", label: "Ventas" },
     { key: "money", label: "Dinero" },
     { key: "funnel", label: "Embudo" },
-    { key: "losses", label: "Pérdidas", soon: true },
+    { key: "losses", label: "Pérdidas" },
     { key: "team", label: "Equipo", soon: true },
 ];
 
@@ -117,6 +117,40 @@ export type FunnelResponse = SectionBase & {
 export const fetchSales = (f: Filters) => api<SalesResponse>(`/owner-panel/sales?${query(f)}`);
 export const fetchMoney = (f: Filters) => api<MoneyResponse>(`/owner-panel/money?${query(f)}`);
 export const fetchFunnel = (f: Filters) => api<FunnelResponse>(`/owner-panel/funnel?${query(f)}`);
+
+export type CountRow = { key?: string; label: string; count: number };
+
+export type LatestReason = { order_number: string; cancelled_at: string; category: string; stage: string; who: string; reason: string };
+
+export type LossesResponse = SectionBase & {
+    reasons: { rows: CountRow[]; help: string };
+    stages: { rows: CountRow[]; help: string };
+    who: { rows: CountRow[]; help: string };
+    novelties: { rows: CountRow[]; help: string };
+    latest: { rows: LatestReason[]; help: string };
+};
+
+export type InsightsAnalysis = {
+    resumen: string;
+    hallazgos: { titulo: string; detalle: string; pedidos_aprox: number; gravedad: "alta" | "media" | "baja" }[];
+    mejoras: { accion: string; como: string; responsable: string; impacto: "alto" | "medio" | "bajo" }[];
+    vendedoras: { nombre: string; observacion: string }[];
+};
+
+export type InsightsResponse = {
+    status: "ok" | "few" | "unavailable" | "error";
+    message?: string;
+    analyzed: number;
+    written: number;
+    generated_at?: string;
+    cached?: boolean;
+    example?: boolean;
+    analysis?: InsightsAnalysis;
+};
+
+export const fetchLosses = (f: Filters) => api<LossesResponse>(`/owner-panel/losses?${query(f)}`);
+export const fetchInsights = (f: Filters, force = false) =>
+    api<InsightsResponse>(`/owner-panel/losses/insights?${query(f)}${force ? "&force=1" : ""}`);
 
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];

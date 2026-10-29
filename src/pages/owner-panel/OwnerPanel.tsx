@@ -10,9 +10,10 @@ import { OwnerFilters } from "../../components/owner-panel/OwnerFilters";
 import { SalesSection } from "../../components/owner-panel/SalesSection";
 import { MoneySection } from "../../components/owner-panel/MoneySection";
 import { FunnelSection } from "../../components/owner-panel/FunnelSection";
+import { LossesSection } from "../../components/owner-panel/LossesSection";
 import { PeriodSummary } from "../../components/owner-panel/parts";
 import {
-    Filters, PanelOptions, ViewKey, fetchFunnel, fetchMoney, fetchOptions, fetchSales, loadPrefs, savePrefs,
+    Filters, PanelOptions, ViewKey, fetchFunnel, fetchLosses, fetchMoney, fetchOptions, fetchSales, loadPrefs, savePrefs,
 } from "../../components/owner-panel/ownerPanel";
 import { todayCaracas } from "../../components/finance/finance";
 
@@ -64,9 +65,10 @@ export const OwnerPanel: React.FC = () => {
     const sales = useSection(views.includes("sales"), filters, !dateError, tick, fetchSales);
     const money = useSection(views.includes("money"), filters, !dateError, tick, fetchMoney);
     const funnel = useSection(views.includes("funnel"), filters, !dateError, tick, fetchFunnel);
+    const losses = useSection(views.includes("losses"), filters, !dateError, tick, fetchLosses);
     // El período y el aviso de lo que se sigue entregando son los mismos para todas las secciones: se muestran una vez
     const summary = (views.includes("sales") ? sales.data : null) ?? (views.includes("money") ? money.data : null)
-        ?? (views.includes("funnel") ? funnel.data : null);
+        ?? (views.includes("funnel") ? funnel.data : null) ?? (views.includes("losses") ? losses.data : null);
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
 
@@ -113,6 +115,9 @@ export const OwnerPanel: React.FC = () => {
                     {views.includes("sales") && (sales.data ? <SalesSection data={sales.data} loading={sales.loading} /> : calculating)}
                     {views.includes("money") && (money.data ? <MoneySection data={money.data} loading={money.loading} /> : calculating)}
                     {views.includes("funnel") && (funnel.data ? <FunnelSection data={funnel.data} loading={funnel.loading} /> : calculating)}
+                    {views.includes("losses") && (losses.data
+                        ? <LossesSection data={losses.data} loading={losses.loading} filters={filters} ready={!dateError} />
+                        : calculating)}
                 </Stack>
             </Box>
         </Layout>
