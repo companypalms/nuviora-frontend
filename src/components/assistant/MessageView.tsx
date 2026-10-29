@@ -1,11 +1,13 @@
 // src/components/assistant/MessageView.tsx
-// Un mensaje del chat del asistente: la pregunta del dueño a la derecha; la respuesta a la izquierda, con su texto
+// Un mensaje del chat del asistente: la pregunta del dueño a la derecha (con sus fotos, PDF o Excel, que se abren como
+// en el chat interno); la respuesta a la izquierda, con su texto
 // (negritas, listas y tablas: react-markdown, sin HTML) y debajo las tarjetas y gráficas. Mientras piensa, qué revisa.
 import React, { FC } from "react";
 import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AttachmentView } from "../internal-chat/chat/AttachmentView";
 import { ChatMessage } from "./assistant";
 import { DisplayBlocks } from "./DisplayBlocks";
 
@@ -30,11 +32,20 @@ const Text: FC<{ text: string }> = ({ text }) => (
 
 export const MessageView: FC<{ message: ChatMessage }> = ({ message }) => {
     if (message.role === "user") {
+        const files = message.attachments ?? [];
         return (
-            <Stack alignItems="flex-end">
-                <Box sx={{ maxWidth: { xs: "88%", sm: "75%" }, bgcolor: "primary.main", color: "primary.contrastText", px: 1.75, py: 1, borderRadius: "16px 16px 4px 16px" }}>
-                    <Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 15 }}>{message.text}</Typography>
-                </Box>
+            <Stack alignItems="flex-end" spacing={0.5}>
+                {files.length > 0 && (
+                    // Las fotos se ven chicas (se amplían al tocarlas); el PDF y el Excel, como tarjeta
+                    <Stack direction="row" gap={0.75} flexWrap="wrap" justifyContent="flex-end" sx={{ maxWidth: { xs: "88%", sm: "75%" }, "& img": { maxHeight: 180, maxWidth: 220 } }}>
+                        {files.map((a) => <AttachmentView key={a.url} attachment={a} mine={false} />)}
+                    </Stack>
+                )}
+                {message.text && (
+                    <Box sx={{ maxWidth: { xs: "88%", sm: "75%" }, bgcolor: "primary.main", color: "primary.contrastText", px: 1.75, py: 1, borderRadius: "16px 16px 4px 16px" }}>
+                        <Typography sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 15 }}>{message.text}</Typography>
+                    </Box>
+                )}
                 {message.time && <Typography variant="caption" color="text.disabled" sx={{ mt: 0.25 }}>{message.time}</Typography>}
             </Stack>
         );

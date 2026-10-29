@@ -23,9 +23,11 @@ interface Props {
     items: PendingFile[];
     sending: boolean;
     onRemove: (id: string) => void;
+    /** El aviso debajo de los archivos; sin él, el del chat interno (van uno por uno). */
+    hint?: string | null;
 }
 
-export const PendingFiles: FC<Props> = ({ items, sending, onRemove }) => (
+export const PendingFiles: FC<Props> = ({ items, sending, onRemove, hint }) => (
     <Box sx={{ mb: 1 }}>
         <Stack direction="row" spacing={1} sx={{ overflowX: "auto", pb: 0.5 }} role="list" aria-label="Archivos por enviar">
             {items.map((item) => (
@@ -64,10 +66,10 @@ export const PendingFiles: FC<Props> = ({ items, sending, onRemove }) => (
                 </Tooltip>
             ))}
         </Stack>
-        {items.length > 1 && (
+        {hint === undefined ? items.length > 1 && (
             <Typography variant="caption" color="text.secondary">
                 {items.length} archivos: se envían uno por uno; el texto va con el primero.
             </Typography>
-        )}
+        ) : hint && <Typography variant="caption" color="text.secondary">{hint}</Typography>}
     </Box>
 );
