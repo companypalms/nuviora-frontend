@@ -17,7 +17,7 @@ import {
     AccessTimeRounded, AccountBalanceRounded, FactCheckRounded, FileDownloadRounded, HistoryRounded,
     InsertDriveFileRounded, MapRounded, RouteRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
-    AssessmentRounded, PaymentsRounded, ImageSearchRounded, InsightsRounded, RequestQuoteRounded,
+    AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded,
 } from "@mui/icons-material";
 
@@ -49,6 +49,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "principal", text: "Órdenes", icon: <LocalShippingRoundedIcon />, link: "/orders", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "pedidos ventas kanban" },
     { section: "principal", text: "WhatsApp CRM", icon: <WhatsAppIcon />, link: "/whatsapp", roles: ["Admin", "Gerente", "Vendedor"], keywords: "chat mensajes clientes conversaciones", newTab: true },
     { section: "principal", text: "Chat interno", icon: <ForumRoundedIcon />, link: "/internal-chat", roles: ["Admin", "Gerente", "Master", "Vendedor", "Agencia"], keywords: "mensajes equipo agencias", newTab: true },
+    // Comprobantes, vueltos por validar y vueltos por pagar; el Master no ve "Vueltos por pagar"
+    { section: "principal", text: "Por aprobar", icon: <FactCheckRounded />, link: "/por-aprobar", roles: ["Admin", "Gerente", "Master"], keywords: "comprobantes por revisar capture pago movil foto ia verificar validar billetes referencia vueltos por validar cambio pago mixto aprobar agencia vueltos pendientes pagar" },
     { section: "principal", text: "Mi grupo", icon: <GroupsRoundedIcon />, link: "/mi-grupo", roles: ["Vendedor"], leaderOnly: true, keywords: "lider equipo vendedoras" },
 
     // Ventas y reparto
@@ -66,9 +68,6 @@ export const MENU_LINKS: NavLink[] = [
 
     // Dinero
     { section: "dinero", text: "Finanzas", icon: <AccountBalanceWalletRounded />, link: "/finanzas", roles: ["Admin"], keywords: "gastos recurrentes editor shopify chatgpt rentabilidad contabilidad egresos comprobante" },
-    { section: "dinero", text: "Comprobantes por revisar", icon: <ImageSearchRounded />, link: "/admin/comprobantes", roles: ["Admin", "Gerente", "Master"], keywords: "comprobante capture pago movil foto ia verificar validar billetes referencia" },
-    { section: "dinero", text: "Vueltos por validar", icon: <FactCheckRounded />, link: "/admin/vueltos-por-validar", roles: ["Admin", "Gerente", "Master"], keywords: "vuelto cambio pago mixto aprobar agencia" },
-    { section: "dinero", text: "Vueltos Pendientes", icon: <ReceiptLongRounded />, link: "/admin/pending-vueltos", roles: ["Admin", "Gerente"], keywords: "vuelto cambio pagar pago movil" },
     { section: "dinero", text: "Vueltos de mi grupo", icon: <ReceiptLongRounded />, link: "/mi-grupo/vueltos", roles: ["Vendedor"], leaderOnly: true, keywords: "vuelto cambio pagar" },
     { section: "dinero", text: "Cierres de agencias", icon: <RequestQuoteRounded />, link: "/admin/cierres-agencias", roles: ["Admin"], keywords: "cierre semanal agencias carreras excel discrepancias pagar delivery pyp dalgo rapi2" },
     { section: "dinero", text: "Cierres / Servicios", icon: <RequestQuoteRounded />, link: "/cierres", roles: ["Agencia"], keywords: "cierre semanal subir excel carreras pago" },

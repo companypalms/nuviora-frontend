@@ -48,9 +48,10 @@ const clientName = (order: any) =>
 
 type VueltoGroup = { id: number; name: string; leader_id: number | null; leader: string | null };
 
-/** La líder con vista simple no tiene menú lateral: se le da una barra con "volver". */
-const Shell: React.FC<{ lite: boolean; children: React.ReactNode }> = ({ lite, children }) => {
+/** La líder con vista simple no tiene menú lateral: se le da una barra con "volver". Dentro de "Por aprobar" no lleva marco. */
+const Shell: React.FC<{ lite: boolean; isEmbedded?: boolean; children: React.ReactNode }> = ({ lite, isEmbedded, children }) => {
     const navigate = useNavigate();
+    if (isEmbedded) return <>{children}</>;
     if (!lite) return <Layout>{children}</Layout>;
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: 1 }}>
@@ -62,7 +63,7 @@ const Shell: React.FC<{ lite: boolean; children: React.ReactNode }> = ({ lite, c
     );
 };
 
-export const PendingVueltos: React.FC = () => {
+export const PendingVueltos: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [orders, setOrders] = useState<any[]>([]);
     const [banks, setBanks] = useState<any[]>([]);
@@ -166,7 +167,7 @@ export const PendingVueltos: React.FC = () => {
     }, {})).sort((a, b) => (a.group ? 0 : 1) - (b.group ? 0 : 1) || b.bs - a.bs);
 
     return (
-        <Shell lite={isLite}>
+        <Shell lite={isLite} isEmbedded={isEmbedded}>
             <Box sx={{ p: 2 }}>
                 <DescripcionDeVista
                     title={scope === 'group' ? `Vueltos de mi grupo${myGroup ? ` · ${myGroup.name}` : ''}` : 'Vueltos Pendientes'}

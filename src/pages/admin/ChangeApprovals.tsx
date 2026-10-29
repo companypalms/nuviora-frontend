@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { CheckCircleRounded, CancelRounded, RefreshRounded, StoreRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { Loading } from "../../components/ui/content/Loading";
 import { OrderDialog } from "../../components/orders/OrderDialog";
@@ -55,7 +55,7 @@ const Row: React.FC<{ label: React.ReactNode; value: React.ReactNode; strong?: b
     </Box>
 );
 
-export const ChangeApprovals: React.FC = () => {
+export const ChangeApprovals: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [orders, setOrders] = useState<Pending[]>([]);
     const [loading, setLoading] = useState(false);
@@ -109,7 +109,7 @@ export const ChangeApprovals: React.FC = () => {
     if (loadingSession || !isValid) return <Loading />;
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -263,6 +263,6 @@ export const ChangeApprovals: React.FC = () => {
                     }}
                 />
             )}
-        </Layout>
+        </PageLayout>
     );
 };

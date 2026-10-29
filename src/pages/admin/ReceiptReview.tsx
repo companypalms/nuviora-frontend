@@ -8,7 +8,7 @@ import {
 import { CheckCircleRounded, RefreshRounded } from "@mui/icons-material";
 import moment from "moment";
 import { toast } from "react-toastify";
-import { Layout } from "../../components/ui/Layout";
+import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { Loading } from "../../components/ui/content/Loading";
 import { OrderDialog } from "../../components/orders/OrderDialog";
@@ -33,7 +33,7 @@ const FILTERS: { value: Filter; label: string }[] = [
     { value: "error", label: "Sin revisar" },
 ];
 
-export const ReceiptReview: React.FC = () => {
+export const ReceiptReview: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid } = useValidateSession();
     const [rows, setRows] = useState<Row[]>([]);
     const [mode, setMode] = useState("off");
@@ -69,7 +69,7 @@ export const ReceiptReview: React.FC = () => {
     const shown = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
     return (
-        <Layout>
+        <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -176,6 +176,6 @@ export const ReceiptReview: React.FC = () => {
                     }}
                 />
             )}
-        </Layout>
+        </PageLayout>
     );
 };

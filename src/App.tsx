@@ -26,8 +26,7 @@ import { BusinessMetrics } from './pages/BusinessMetrics';
 import { ShopsAndCities } from './pages/admin/ShopsAndCities';
 import { RatesAndPayments } from './pages/admin/RatesAndPayments';
 import { PendingVueltos } from './pages/admin/PendingVueltos';
-import { ChangeApprovals } from './pages/admin/ChangeApprovals';
-import { ReceiptReview } from './pages/admin/ReceiptReview';
+import { PendingApprovals } from './pages/admin/PendingApprovals';
 import { Reconciliation } from './pages/admin/Reconciliation';
 import { ReconciliationDay } from './pages/admin/ReconciliationDay';
 import { Finance } from './pages/admin/Finance';
@@ -137,9 +136,10 @@ function App() {
           <Route path="/admin/tasa-y-pagos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><RatesAndPayments /></RequireRole>} />
           <Route path="/admin/company-accounts" element={<RedirectToSection to="/admin/tasa-y-pagos" section="cuentas" />} />
           <Route path="/admin/banks" element={<RedirectToSection to="/admin/tasa-y-pagos" section="bancos" />} />
-          <Route path="/admin/pending-vueltos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><PendingVueltos /></RequireRole>} />
-          <Route path="/admin/vueltos-por-validar" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ChangeApprovals /></RequireRole>} />
-          <Route path="/admin/comprobantes" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ReceiptReview /></RequireRole>} />
+          <Route path="/por-aprobar" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><PendingApprovals /></RequireRole>} />
+          <Route path="/admin/comprobantes" element={<RedirectToSection to="/por-aprobar" section="comprobantes" />} />
+          <Route path="/admin/vueltos-por-validar" element={<RedirectToSection to="/por-aprobar" section="validar" />} />
+          <Route path="/admin/pending-vueltos" element={<RedirectToSection to="/por-aprobar" section="pagar" />} />
           {/* Conciliación de pagos digitales (documento de Fran del 2026-10-06): solo el Administrador (§29) */}
           <Route path="/conciliacion" element={<RequireRole allowedRoles={['Admin']}><Reconciliation /></RequireRole>} />
           <Route path="/conciliacion/:date" element={<RequireRole allowedRoles={['Admin']}><ReconciliationDay /></RequireRole>} />
