@@ -30,6 +30,7 @@ import { Reconciliation } from './pages/admin/Reconciliation';
 import { ReconciliationDay } from './pages/admin/ReconciliationDay';
 import { Finance } from './pages/admin/Finance';
 import { OwnerPanel } from './pages/owner-panel/OwnerPanel';
+import { CalendarPage } from './pages/calendar/CalendarPage';
 import { AgencyClosures } from './pages/admin/AgencyClosures';
 import { MyClosures } from './pages/agency/MyClosures';
 import { MetaAdsDashboard } from './pages/admin/MetaAdsDashboard';
@@ -151,6 +152,8 @@ function App() {
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />
           {/* Panel del dueño (Etapa 2, guias/DICCIONARIO-METRICAS.md): solo el Administrador */}
           <Route path="/panel-dueno" element={<RequireRole allowedRoles={['Admin']}><OwnerPanel /></RequireRole>} />
+          {/* Calendario del dueño (Etapa 3): pagos, tareas y notas de cada día. Solo el Administrador */}
+          <Route path="/calendario" element={<RequireRole allowedRoles={['Admin']}><CalendarPage /></RequireRole>} />
           {/* Módulo 5 de Fran: reabastecimiento, solo Admin (§3). Es una pestaña del Inventario; esta dirección la abre */}
           <Route path="/reabastecimiento" element={<RequireRole allowedRoles={['Admin']}><InventoryDashboard /></RequireRole>} />
           <Route path="/admin/cierres-agencias" element={<RequireRole allowedRoles={['Admin']}><AgencyClosures /></RequireRole>} />

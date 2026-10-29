@@ -17,7 +17,7 @@ import {
     InsertDriveFileRounded, MapRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
-    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded,
+    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -47,6 +47,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "principal", text: "Dashboard", icon: <DashboardRoundedIcon />, link: "/dashboard", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "inicio resumen home panel" },
     // Etapa 2: los números del negocio con las reglas de guias/DICCIONARIO-METRICAS.md
     { section: "principal", text: "Panel del dueño", icon: <InsightsRounded />, link: "/panel-dueno", roles: ["Admin"], keywords: "metricas kpi indicadores ventas efectividad entregados ticket tablero numeros graficos" },
+    // Etapa 3: pagos, tareas, revisiones y notas de cada día
+    { section: "principal", text: "Calendario", icon: <CalendarMonthRounded />, link: "/calendario", roles: ["Admin"], keywords: "agenda recordatorios tareas pagos pendientes notas fechas vencimientos anotar" },
     { section: "principal", text: "Órdenes", icon: <LocalShippingRoundedIcon />, link: "/orders", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "pedidos ventas kanban" },
     { section: "principal", text: "WhatsApp CRM", icon: <WhatsAppIcon />, link: "/whatsapp", roles: ["Admin", "Gerente", "Vendedor"], keywords: "chat mensajes clientes conversaciones", newTab: true },
     { section: "principal", text: "Chat interno", icon: <ForumRoundedIcon />, link: "/internal-chat", roles: ["Admin", "Gerente", "Master", "Vendedor", "Agencia"], keywords: "mensajes equipo agencias", newTab: true },

@@ -1,0 +1,45 @@
+// src/components/calendar/DayList.tsx
+// Lo de un día del calendario: su fecha, el botón "Anotar" y la lista para tildar. Es el panel de al lado del mes y, en el
+// celular, cada día de la semana.
+import React, { FC } from "react";
+import { Button, Chip, IconButton, Stack, Typography } from "@mui/material";
+import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import { CalendarItem, cap, longDate, weekdayOf } from "./calendar";
+import { CalendarItemRow } from "./CalendarItemRow";
+
+type Props = {
+    date: string;
+    today: string;
+    items: CalendarItem[];
+    busy: string | null;
+    compact?: boolean;
+    onAdd: (date: string) => void;
+    onToggle: (item: CalendarItem) => void;
+    onDismiss: (item: CalendarItem) => void;
+    onUndo: (item: CalendarItem) => void;
+    onEdit: (item: CalendarItem) => void;
+};
+
+export const DayList: FC<Props> = ({ date, today, items, busy, compact, onAdd, ...actions }) => {
+    const sunday = weekdayOf(date) === 7;
+    return (
+        <Stack spacing={1}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                <Stack direction="row" alignItems="center" gap={1} sx={{ minWidth: 0 }}>
+                    <Typography variant={compact ? "subtitle2" : "subtitle1"} fontWeight={800}>{cap(longDate(date))}</Typography>
+                    {date === today && <Chip size="small" color="primary" label="Hoy" sx={{ height: 20 }} />}
+                </Stack>
+                {compact
+                    ? <IconButton size="small" color="primary" aria-label={`Anotar el ${longDate(date)}`} onClick={() => onAdd(date)}><AddRoundedIcon fontSize="small" /></IconButton>
+                    : <Button size="small" startIcon={<AddRoundedIcon />} onClick={() => onAdd(date)} sx={{ flexShrink: 0 }}>Anotar</Button>}
+            </Stack>
+            {sunday && items.length === 0 && <Typography variant="caption" color="text.disabled">Domingo: no se trabaja.</Typography>}
+            {!sunday && items.length === 0 && (
+                <Typography variant="body2" color="text.secondary">{compact ? "Nada." : "Nada anotado para este día."}</Typography>
+            )}
+            {items.map((item) => (
+                <CalendarItemRow key={`${item.item_key}-${item.due_date}`} item={item} busy={busy === `${item.item_key}-${item.due_date}`} {...actions} />
+            ))}
+        </Stack>
+    );
+};
