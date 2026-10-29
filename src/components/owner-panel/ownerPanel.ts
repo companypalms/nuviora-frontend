@@ -86,8 +86,12 @@ export type AlertsResponse = { configured: boolean; alerts: PanelAlert[]; window
 export type TeamGoal = { value: number | null; red: number | null; alert: boolean; people: { id: number; value: number }[] };
 export type AlertLimits = { yellow: number | null; red: number | null; on: boolean };
 
+/** Metas del negocio de un mes: ventas, ganancia y efectividad (null = sin meta). */
+export type MonthGoals = Record<string, number | null>;
+
 export type GoalsConfig = {
-    business: Record<string, number | null>;
+    /** Las metas del negocio de cada mes: "2026-10" => metas. Un mes sin ninguna meta no aparece. */
+    months: Record<string, MonthGoals>;
     team: Record<string, TeamGoal>;
     alerts: Record<string, AlertLimits>;
     updated_by: string | null;
@@ -96,23 +100,34 @@ export type GoalsConfig = {
 
 export type GoalDef = { label: string; format: MetricFormat; better: Better; help: string; role?: string | null; title?: string };
 
+/** Tus números del mes anterior (para poner las metas de un mes), en textos cortos para debajo de cada casilla. */
+export type GoalReference = {
+    month: string; label: string; business: Record<string, string>; team: Record<string, string>; alerts: Record<string, string>;
+};
+
+/** Un mes cuyas metas se pueden poner: el que corre y el siguiente. "previous": el mes de antes (para copiar sus metas). */
+export type GoalMonth = { key: string; name: string; current: boolean; previous: string };
+
 export type GoalsResponse = {
     config: GoalsConfig;
     catalog: { business: Record<string, GoalDef>; team: Record<string, GoalDef>; alerts: Record<string, GoalDef> };
     people: { sellers: Option[]; agencies: Option[] };
-    references: { label: string; business: Record<string, string>; team: Record<string, string>; alerts: Record<string, string> };
+    months: GoalMonth[];
+    /** Por cada mes que se puede poner, los números de su mes anterior. */
+    references: Record<string, GoalReference>;
 };
 
-/** Las metas del negocio de este mes, para la franja de arriba del Dashboard del Admin. */
+/** Las metas del negocio del mes que corre, para la franja de arriba del Dashboard del Admin. Sin metas: la referencia. */
 export type GoalsSummary = {
     configured: boolean; month: string; updated_at: string;
     cards: Pick<MetricCardData, "key" | "label" | "help" | "detail" | "format" | "value" | "neutral" | "goal">[];
+    reference?: { label: string; business: Record<string, string> };
 };
 
 export const fetchAlerts = () => api<AlertsResponse>("/owner-panel/alerts");
 export const fetchGoalsSummary = () => api<GoalsSummary>("/owner-panel/goals/summary");
 export const fetchGoals = () => api<GoalsResponse>("/owner-panel/goals");
-export const saveGoals = (c: Pick<GoalsConfig, "business" | "team" | "alerts">) => api<GoalsResponse>("/owner-panel/goals", "PUT", c);
+export const saveGoals = (c: Pick<GoalsConfig, "months" | "team" | "alerts">) => api<GoalsResponse>("/owner-panel/goals", "PUT", c);
 
 /** Lo que tienen en común las respuestas de todas las secciones. */
 export type SectionBase = {
@@ -297,6 +312,9 @@ export const fetchInsights = (f: Filters, force = false) =>
     api<InsightsResponse>(`/owner-panel/losses/insights?${query(f)}${force ? "&force=1" : ""}`);
 
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/** "2026-11" => "noviembre". */
+export const monthName = (ym: string) => MONTHS[Number(ym.slice(5, 7)) - 1] ?? ym;
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
 /** Lo que dice el cursor sobre una barra: "lunes 26/10", "Semana del 19/10" u "octubre 2026". */

@@ -1,7 +1,8 @@
 // src/components/owner-panel/GoalsDialog.tsx
-// "Metas y límites" del panel del dueño (diccionario §6): las metas del negocio (por mes), las de cada vendedora y agencia
-// (con excepciones por persona) y desde dónde avisa cada alerta, en amarillo y en rojo. Solo el Admin. Qué es cada cosa
-// y "tus números" de referencia vienen del backend (GoalRules); una casilla vacía es "sin meta".
+// "Metas y límites" del panel del dueño (diccionario §6): las metas del negocio de cada mes (el que corre y el siguiente,
+// para dejarlas listas; con los números del mes anterior de referencia y un botón para copiar las del mes anterior), las de
+// cada vendedora y agencia (con excepciones por persona) y desde dónde avisa cada alerta, en amarillo y en rojo. Solo el
+// Admin. Qué es cada cosa y "tus números" vienen del backend (GoalRules); una casilla vacía es "sin meta".
 import React, { FC, ReactNode, useEffect, useState } from "react";
 import {
     Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, IconButton, InputAdornment,
@@ -9,29 +10,38 @@ import {
 } from "@mui/material";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { toast } from "react-toastify";
 import { Explain } from "./Explain";
-import { GoalDef, GoalsConfig, GoalsResponse, MetricFormat, Option, fetchGoals, saveGoals } from "./ownerPanel";
+import { GoalDef, GoalsResponse, MetricFormat, Option, fetchGoals, monthName, saveGoals } from "./ownerPanel";
+
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const lower = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 
 /** Lo que se escribe en cada casilla (texto, para poder dejarla vacía). */
 type Num = string;
 type TeamForm = { value: Num; red: Num; alert: boolean; people: { id: number; value: Num }[] };
 type AlertForm = { yellow: Num; red: Num; on: boolean };
-type Form = { business: Record<string, Num>; team: Record<string, TeamForm>; alerts: Record<string, AlertForm> };
+/** months: las metas del negocio de los meses que se pueden poner (el que corre y el siguiente). */
+type Form = { months: Record<string, Record<string, Num>>; team: Record<string, TeamForm>; alerts: Record<string, AlertForm> };
 
 const str = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
 const num = (v: Num) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const map = <T, U>(o: Record<string, T>, f: (v: T) => U) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, f(v)])) as Record<string, U>;
 
-const toForm = (c: GoalsConfig): Form => ({
-    business: map(c.business, str),
-    team: map(c.team, (g) => ({ value: str(g.value), red: str(g.red), alert: g.alert, people: g.people.map((p) => ({ id: p.id, value: str(p.value) })) })),
-    alerts: map(c.alerts, (a) => ({ yellow: str(a.yellow), red: str(a.red), on: a.on })),
-});
+const toForm = (r: GoalsResponse): Form => {
+    const c = r.config;
+    const empty = map(r.catalog.business, () => "");
+    return {
+        months: Object.fromEntries(r.months.map((m) => [m.key, { ...empty, ...map<number | null, Num>(c.months[m.key] ?? {}, str) }])),
+        team: map(c.team, (g) => ({ value: str(g.value), red: str(g.red), alert: g.alert, people: g.people.map((p) => ({ id: p.id, value: str(p.value) })) })),
+        alerts: map(c.alerts, (a) => ({ yellow: str(a.yellow), red: str(a.red), on: a.on })),
+    };
+};
 
 const fromForm = (f: Form) => ({
-    business: map(f.business, num),
+    months: map(f.months, (b) => map(b, num)),
     team: map(f.team, (g) => ({
         value: num(g.value), red: num(g.red), alert: g.alert,
         people: g.people.filter((p) => p.value.trim() !== "").map((p) => ({ id: p.id, value: num(p.value) as number })),
@@ -152,6 +162,7 @@ export const GoalsDialog: FC<{ open: boolean; onClose: () => void; onSaved: () =
     const mobile = useMediaQuery(theme.breakpoints.down("sm"));
     const [data, setData] = useState<GoalsResponse | null>(null);
     const [form, setForm] = useState<Form | null>(null);
+    const [month, setMonth] = useState("");
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
 
@@ -160,7 +171,7 @@ export const GoalsDialog: FC<{ open: boolean; onClose: () => void; onSaved: () =
         let alive = true;
         setErrors({});
         fetchGoals()
-            .then((r) => { if (alive) { setData(r); setForm(toForm(r.config)); } })
+            .then((r) => { if (alive) { setData(r); setForm(toForm(r)); setMonth(r.months[0]?.key ?? ""); } })
             .catch((e) => toast.error(e.message));
         return () => { alive = false; };
     }, [open]);
@@ -172,7 +183,7 @@ export const GoalsDialog: FC<{ open: boolean; onClose: () => void; onSaved: () =
         try {
             const r = await saveGoals(fromForm(form));
             setData(r);
-            setForm(toForm(r.config));
+            setForm(toForm(r));
             toast.success("Metas y límites guardados");
             onSaved();
             onClose();
@@ -186,8 +197,24 @@ export const GoalsDialog: FC<{ open: boolean; onClose: () => void; onSaved: () =
     };
 
     const c = data?.catalog;
-    const refs = data?.references;
+    const selected = data?.months.find((m) => m.key === month);
+    // Vendedoras, agencias y alertas no son por mes: su referencia es el mes anterior al que corre
+    const refs = data && data.months[0] ? data.references[data.months[0].key] : undefined;
+    const monthRefs = data && selected ? data.references[selected.key] : undefined;
     const teamOf = (role: string) => (c ? Object.entries(c.team).filter(([, d]) => d.role === role) : []);
+    const filled = (b: Record<string, Num> | undefined) => Boolean(b && Object.values(b).some((v) => v.trim() !== ""));
+
+    /** Las metas del mes anterior para copiarlas: las que se están escribiendo (si ese mes también se puede poner) o las guardadas. */
+    const previousGoals = (): Record<string, Num> | null => {
+        if (!data || !selected || !form) return null;
+        if (form.months[selected.previous]) return filled(form.months[selected.previous]) ? form.months[selected.previous] : null;
+        const saved = data.config.months[selected.previous];
+        return saved ? map(saved, str) : null;
+    };
+    const copyPrevious = () => {
+        const prev = previousGoals();
+        if (form && selected && prev) setForm({ ...form, months: { ...form.months, [selected.key]: { ...prev } } });
+    };
 
     return (
         <Dialog open={open} onClose={saving ? undefined : onClose} fullScreen={mobile} maxWidth="md" fullWidth scroll="paper">
@@ -197,21 +224,41 @@ export const GoalsDialog: FC<{ open: boolean; onClose: () => void; onSaved: () =
                 <IconButton onClick={onClose} disabled={saving} sx={{ position: "absolute", right: 8, top: 8 }} aria-label="Cerrar"><CloseRoundedIcon /></IconButton>
             </DialogTitle>
             <DialogContent dividers>
-                {!form || !c || !refs ? <LinearProgress /> : (
+                {!form || !c || !refs || !selected || !monthRefs ? <LinearProgress /> : (
                     <Stack spacing={3}>
-                        <Alert severity="info" variant="outlined" sx={{ py: 0.25 }}>
-                            Debajo de cada casilla, de referencia: {refs.label.charAt(0).toLowerCase()}{refs.label.slice(1)}
-                        </Alert>
-
-                        <Section title="Del negocio" subtitle="Por mes. Para Hoy, Últimos 7 días, etc., el panel la reparte por día. Se ve en las tarjetas de Ventas y Dinero.">
-                            {Object.entries(c.business).map(([key, def]) => (
-                                <Stack key={key} direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1}>
-                                    <Label def={def} reference={refs.business[key]} />
-                                    <NumberField label={def.format === "money" ? "Meta del mes" : "Meta"} value={form.business[key]} format={def.format}
-                                        error={errors[`business.${key}`]} onChange={(v) => setForm({ ...form, business: { ...form.business, [key]: v } })} />
+                        <Box>
+                            <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 1.5 }}>
+                                {data.months.map((m) => (
+                                    <Chip key={m.key} color={m.key === month ? "primary" : "default"} variant={m.key === month ? "filled" : "outlined"}
+                                        onClick={() => setMonth(m.key)}
+                                        label={`${cap(m.name)} · ${m.current ? "este mes" : "el próximo"}${filled(form.months[m.key]) ? "" : " · sin metas"}`} />
+                                ))}
+                            </Stack>
+                            <Section title={`Metas de ${selected.name}`}
+                                subtitle={`Solo para ${selected.name}: cada mes tiene las suyas. Para Hoy, Últimos 7 días, etc., el panel las reparte por día. Se ven en el Dashboard y en las tarjetas de Ventas y Dinero.`}>
+                                <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1}
+                                    sx={{ p: 1.25, borderRadius: 2, bgcolor: "action.hover" }}>
+                                    <Typography variant="body2" color="text.secondary">De referencia, debajo de cada casilla: {lower(monthRefs.label)}</Typography>
+                                    <Button size="small" startIcon={<ContentCopyRoundedIcon />} disabled={!previousGoals()} onClick={copyPrevious}
+                                        sx={{ textTransform: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+                                        Copiar las de {monthName(selected.previous)}
+                                    </Button>
                                 </Stack>
-                            ))}
-                        </Section>
+                                {Object.entries(c.business).map(([key, def]) => (
+                                    <Stack key={key} direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} gap={1}>
+                                        <Label def={{ ...def, label: def.label.replace("del mes", `de ${selected.name}`) }} reference={monthRefs.business[key]} />
+                                        <NumberField label={def.format === "money" ? `Meta de ${selected.name}` : "Meta"} value={form.months[month][key]} format={def.format}
+                                            error={errors[`months.${month}.${key}`]}
+                                            onChange={(v) => setForm({ ...form, months: { ...form.months, [month]: { ...form.months[month], [key]: v } } })} />
+                                    </Stack>
+                                ))}
+                            </Section>
+                        </Box>
+
+                        <Divider />
+                        <Alert severity="info" variant="outlined" sx={{ py: 0.25 }}>
+                            Lo de abajo no es por mes: queda hasta que lo cambies. De referencia, debajo de cada casilla: {lower(refs.label)}
+                        </Alert>
 
                         <Divider />
                         <Section title="Vendedoras" subtitle="En Equipo, quien quede por debajo sale en amarillo o rojo; y si lo prendes, también te avisa arriba.">

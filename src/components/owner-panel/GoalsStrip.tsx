@@ -1,9 +1,11 @@
 // src/components/owner-panel/GoalsStrip.tsx
-// "Tus metas del mes" arriba del Dashboard del Admin (pedido del dueño: verlas cada vez que entra). Son las mismas barras
-// del Panel del dueño con "Este mes" y sin filtros (OwnerPanel::goalsSummary). Si todavía no puso metas, una línea que
-// lleva a ponerlas. Si algo falla, no muestra nada: el Dashboard sigue igual.
+// "Tus metas del mes" arriba del Dashboard del Admin (pedido del dueño: verlas cada vez que entra). Son las metas del mes
+// que corre, con las mismas barras del Panel del dueño con "Este mes" y sin filtros (OwnerPanel::goalsSummary). Si todavía
+// no puso las metas de este mes (cada mes empieza sin metas), un aviso con sus números del mes anterior y el botón para
+// ponerlas: es el recordatorio hasta que exista el calendario. Si algo falla, no muestra nada: el Dashboard sigue igual.
 import React, { FC, useEffect, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import FlagRoundedIcon from "@mui/icons-material/FlagRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { useNavigate } from "react-router-dom";
@@ -31,12 +33,26 @@ export const GoalsStrip: FC = () => {
     if (!data) return null;
 
     if (!data.configured || data.cards.length === 0) {
+        const ref = data.reference;
         return (
-            <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" sx={{ color: "text.secondary" }}>
-                <FlagRoundedIcon fontSize="small" />
-                <Typography variant="body2">Pon tus metas del mes y aquí verás cada día cuánto llevas.</Typography>
-                <Button size="small" onClick={() => navigate("/panel-dueno?metas=1")} sx={{ textTransform: "none" }}>Poner metas</Button>
-            </Stack>
+            <Panel sx={(t) => ({ p: { xs: 1.5, sm: 2 }, borderLeft: `4px solid ${t.palette.warning.main}`, bgcolor: alpha(t.palette.warning.main, 0.06) })}>
+                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} gap={1.5}>
+                    <FlagRoundedIcon sx={{ color: "warning.main", display: { xs: "none", sm: "block" } }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle1" fontWeight={800}>Todavía no pusiste tus metas de {data.month}</Typography>
+                        {ref ? (
+                            <Typography variant="body2" color="text.secondary">
+                                De referencia, {ref.label.charAt(0).toLowerCase()}{ref.label.slice(1)} {Object.values(ref.business).join(" ")}
+                            </Typography>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">Pon tus metas y aquí verás cada día cuánto llevas.</Typography>
+                        )}
+                    </Box>
+                    <Button variant="contained" color="warning" onClick={() => navigate("/panel-dueno?metas=1")} sx={{ textTransform: "none", whiteSpace: "nowrap", alignSelf: { xs: "flex-start", sm: "center" } }}>
+                        Poner metas de {data.month}
+                    </Button>
+                </Stack>
+            </Panel>
         );
     }
 
