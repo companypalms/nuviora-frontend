@@ -61,7 +61,6 @@ import { DailyRatesDialog } from "../../components/orders/DailyRatesDialog";
 // Import other mandatory dialogs for logic to work
 import { CancelOrderDialog } from "../../components/orders/CancelOrderDialog";
 import { PostponeOrderDialog } from "../../components/orders/PostponeOrderDialog";
-import { ReviewCancellationDialog } from "../../components/orders/ReviewCancellationDialog";
 import { ReviewDeliveryDialog } from "../../components/orders/ReviewDeliveryDialog";
 import { ReminderDialog } from "../../components/orders/ReminderDialog";
 import { AssignDelivererDialog } from "../../components/orders/AssignDelivererDialog";
@@ -96,14 +95,10 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
         user,
         openCancel, setOpenCancel,
         openPostpone, setOpenPostpone,
-        openApprove, setOpenApprove,
-        openReject, setOpenReject,
         loadingReview,
         newLocation,
         handleClose: internalHandleClose,
         sendLocation,
-        approveCancellation,
-        rejectCancellation,
         changeStatus,
         handleChangeNewLocation,
         updateOrder,
@@ -665,8 +660,6 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
             {/* 4. NECESSARY DIALOGS - Hidden Logic */}
             {/* We must include these for the logic hooks to work properly */}
             <ReminderDialog open={openReminder} onClose={() => setOpenReminder(false)} onSave={setReminder} />
-            <ReviewCancellationDialog open={openApprove} onClose={() => setOpenApprove(false)} title="Aprobar cancelación" confirmText="Aprobar" onConfirm={approveCancellation} loading={loadingReview} />
-            <ReviewCancellationDialog open={openReject} onClose={() => setOpenReject(false)} title="Rechazar cancelación" confirmText="Rechazar" onConfirm={rejectCancellation} loading={loadingReview} />
             <ReviewDeliveryDialog open={openApproveDelivery} onClose={() => setOpenApproveDelivery(false)} title="Aprobar Entrega" confirmText="Aprobar Entrega" onConfirm={approveDelivery} loading={loadingReview} />
             <ReviewDeliveryDialog open={openRejectDelivery} onClose={() => setOpenRejectDelivery(false)} title="Rechazar Entrega" confirmText="Rechazar" onConfirm={rejectDelivery} loading={loadingReview} />
             <ReviewDeliveryDialog open={openApproveLocation} onClose={() => setOpenApproveLocation(false)} title="Aprobar Cambio de Ubicación" confirmText="Aprobar" onConfirm={approveLocation} loading={loadingReview} />

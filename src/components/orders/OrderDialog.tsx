@@ -7,7 +7,6 @@ import { darken, lighten } from "@mui/material/styles";
 import { useOrderDialogLogic } from "../../hooks/useOrderDialogLogic";
 import { CancelOrderDialog } from "./CancelOrderDialog";
 import { PostponeOrderDialog } from "./PostponeOrderDialog";
-import { ReviewCancellationDialog } from "./ReviewCancellationDialog";
 import { ReviewDeliveryDialog } from "./ReviewDeliveryDialog";
 import { ReminderDialog } from "./ReminderDialog";
 import { AssignDelivererDialog } from "./AssignDelivererDialog";
@@ -85,14 +84,10 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
         openCancel, setOpenCancel,
 
         openPostpone, setOpenPostpone,
-        openApprove, setOpenApprove,
-        openReject, setOpenReject,
         loadingReview,
         newLocation,
         handleClose,
         sendLocation,
-        approveCancellation,
-        rejectCancellation,
         changeStatus,
         handleChangeNewLocation,
         updateOrder,
@@ -1057,8 +1052,6 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
 
                 {/* 🛠️ OTROS DIALOGS (MANTENIENDO LÓGICA) */}
                 <ReminderDialog open={openReminder} onClose={() => setOpenReminder(false)} onSave={setReminder} />
-                <ReviewCancellationDialog open={openApprove} onClose={() => setOpenApprove(false)} title="Aprobar cancelación" confirmText="Aprobar" onConfirm={approveCancellation} loading={loadingReview} />
-                <ReviewCancellationDialog open={openReject} onClose={() => setOpenReject(false)} title="Rechazar cancelación" confirmText="Rechazar" onConfirm={rejectCancellation} loading={loadingReview} />
                 <ReviewDeliveryDialog open={openApproveDelivery} onClose={() => setOpenApproveDelivery(false)} title="Aprobar Entrega" confirmText="Aprobar Entrega" onConfirm={approveDelivery} loading={loadingReview} />
                 <ReviewDeliveryDialog open={openRejectDelivery} onClose={() => setOpenRejectDelivery(false)} title="Rechazar Entrega" confirmText="Rechazar" onConfirm={rejectDelivery} loading={loadingReview} />
                 <ReviewDeliveryDialog open={openApproveLocation} onClose={() => setOpenApproveLocation(false)} title="Aprobar Cambio de Ubicación" confirmText="Aprobar" onConfirm={approveLocation} loading={loadingReview} />

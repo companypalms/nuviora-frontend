@@ -24,8 +24,6 @@ export const useOrderDialogLogic = (
 
     const [openCancel, setOpenCancel] = useState(false);
     const [openPostpone, setOpenPostpone] = useState(false);
-    const [openApprove, setOpenApprove] = useState(false);
-    const [openReject, setOpenReject] = useState(false);
     const [openApproveDelivery, setOpenApproveDelivery] = useState(false);
     const [openRejectDelivery, setOpenRejectDelivery] = useState(false);
     const [openApproveLocation, setOpenApproveLocation] = useState(false);
@@ -104,69 +102,6 @@ export const useOrderDialogLogic = (
         }
     };
 
-    const approveCancellation = async (note: string) => {
-        if (!selectedOrder) return;
-        setLoadingReview(true);
-        try {
-            const pending = (selectedOrder.cancellations ?? []).find((c: any) => c.status === "pending");
-            if (!pending) {
-                toast.error("No hay solicitud pendiente");
-                return;
-            }
-            const body = new URLSearchParams();
-            if (note.trim()) body.append("response_note", note.trim());
-
-            const { status, response }: IResponse = await request(
-                `/orders/cancellations/${pending.id}/approve`,
-                "PUT",
-                body
-            );
-            if (status >= 200 && status < 300) {
-                const data = await response.json();
-                updateOrderInColumns(data.order);
-                toast.success("Cancelación aprobada ✅");
-                setOpenApprove(false);
-            } else {
-                toast.error(await serverMessage(response, "No se pudo aprobar ❌"));
-            }
-        } catch {
-            toast.error("Error al aprobar 🚨");
-        } finally {
-            setLoadingReview(false);
-        }
-    };
-
-    const rejectCancellation = async (note: string) => {
-        if (!selectedOrder) return;
-        setLoadingReview(true);
-        try {
-            const pending = (selectedOrder.cancellations ?? []).find((c: any) => c.status === "pending");
-            if (!pending) {
-                toast.error("No hay solicitud pendiente");
-                return;
-            }
-            const body = new URLSearchParams();
-            if (note.trim()) body.append("response_note", note.trim());
-
-            const { status, response }: IResponse = await request(
-                `/orders/cancellations/${pending.id}/reject`,
-                "PUT",
-                body
-            );
-            if (status >= 200 && status < 300) {
-                const data = await response.json();
-                updateOrderInColumns(data.order);
-                toast.success("Cancelación rechazada ❎");
-                setOpenReject(false);
-            } else {
-                toast.error(await serverMessage(response, "No se pudo rechazar ❌"));
-            }
-        } catch {
-            toast.error("Error al rechazar 🚨");
-        } finally {
-            setLoadingReview(false);
-        }
-    };
 
     const changeStatus = async (status: string, extraData: any = null) => {
         if (!selectedOrder) return;
@@ -644,16 +579,12 @@ export const useOrderDialogLogic = (
 
         openCancel, setOpenCancel,
         openPostpone, setOpenPostpone,
-        openApprove, setOpenApprove,
-        openReject, setOpenReject,
         loadingReview,
         openAssignDeliverer, setOpenAssignDeliverer,
         openAssign, setOpenAssign,
         newLocation,
         handleClose,
         sendLocation,
-        approveCancellation,
-        rejectCancellation,
         changeStatus,
         handleChangeNewLocation,
         updateOrder: updateOrderInColumns,

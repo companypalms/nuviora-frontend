@@ -12,7 +12,6 @@ import { useUserStore } from './store/user/UserStore';
 import { RequireRole } from './components/auth/RequireRole';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/auth/Profile';
-import { WhatsAppPage } from './pages/whatsapp/WhatsAppPage';
 import { WhatsAppCrmPage } from './pages/whatsapp-crm/WhatsAppCrmPage';
 import { Orders } from './pages/Orders';
 import { UsersAndDeliverers } from './pages/users/UsersAndDeliverers';
@@ -36,12 +35,10 @@ import { MetaAdsDashboard } from './pages/admin/MetaAdsDashboard';
 import { MetaCreativePage } from './pages/admin/MetaCreativePage';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
-import { Javascript } from '@mui/icons-material';
 import { Integrations } from './pages/admin/Integrations';
 import { RedirectToSection } from './components/ui/SectionTabsPage';
 import { DeliveredHoursReport } from './pages/admin/DeliveredHoursReport';
 import { PurchaseOrders } from './pages/inventory/PurchaseOrders';
-import { QaSuitePage } from './pages/admin/QaSuitePage';
 import { OrdersExportPage } from './pages/admin/OrdersExportPage';
 import { StockExportPage } from './pages/admin/StockExportPage';
 import { Distribution } from './pages/round-robin/Distribution';
@@ -102,10 +99,11 @@ function App() {
             </RequireRole>
           } />
 
+          {/* Fuera del menú desde 2026-10-29 (se cancela directo): queda para resolver solicitudes viejas del sistema real */}
           <Route path="/orders/cancelled" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><CancellationsReview /></RequireRole>} />
-          
-          {/* Vistas Centralizadas */}
-          <Route path="/whatsapp-old" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Vendedor']}><WhatsAppPage /></RequireRole>} />
+
+          {/* El WhatsApp viejo se quitó (2026-10-29): su dirección lleva al CRM */}
+          <Route path="/whatsapp-old" element={<Navigate to="/whatsapp" replace />} />
 
           {/* WhatsApp CRM v2 — Lógica de permisos nueva */}
           <Route path="/whatsapp" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Vendedor']}><WhatsAppCrmPage /></RequireRole>} />
@@ -162,7 +160,8 @@ function App() {
           <Route path="/admin/media-explorer" element={<RedirectToSection to="/admin/integraciones" section="medios" />} />
           <Route path="/tracking-report" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><OrderTrackingReport /></RequireRole>} />
           <Route path="/admin/delivered-hours-report" element={<RequireRole allowedRoles={['Admin']}><DeliveredHoursReport /></RequireRole>} />
-          <Route path="/admin/qa-suite" element={<RequireRole allowedRoles={['Admin']}><QaSuitePage /></RequireRole>} />
+          {/* La Suite QA se quitó (2026-10-29): sus pruebas cambiaban órdenes reales */}
+          <Route path="/admin/qa-suite" element={<Navigate to="/dashboard" replace />} />
           <Route path="/admin/orders-export" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><OrdersExportPage /></RequireRole>} />
           <Route path="/admin/stock-export" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><StockExportPage /></RequireRole>} />
           <Route path="/round-robin" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><Distribution /></RequireRole>} />
