@@ -46,6 +46,7 @@ type Data = {
     statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>;
     last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null } | null;
     editors: EditorOption[];
+    landing_tests?: { product_id: number; code: string | null; landing: string | null; published_at: string | null; max_days: number }[];
 };
 const RUN_STATUS: Record<string, string> = { ok: "redactados por la IA", example: "con una plantilla (en esta PC no hay IA)", no_ai: "con una plantilla (la IA no está configurada)",
     error: "con una plantilla (la IA falló)" };
@@ -417,6 +418,13 @@ export const MetaQueuePage: React.FC = () => {
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
                 <DescripcionDeVista title="Cola y banca" backPath="/meta-ads"
                     description="Los encargos de creativos de cada producto: tus reglas los proponen cada mañana y la IA los redacta; los apruebas, el sistema les da su número único (B#### y C####), el editor líder los reparte y revisa, y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
+                {(data.landing_tests ?? []).length > 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        <b>Tests de landing en curso</b> (nunca creativo y landing a la vez):{" "}
+                        {data.landing_tests!.map((t) => `${t.code} en ${data.products.find((p) => p.id === t.product_id)?.name ?? "el producto"} (${t.landing ?? "landing"}) desde el ${dateTime(t.published_at)}`).join("; ")}.
+                        {" "}No cambies los anuncios que llevan a esa landing; los batches nuevos van en su propio ad set.
+                    </Alert>
+                )}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
                         {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Banca por producto: {s.bank_min}–{s.bank_max}.

@@ -14,6 +14,7 @@ import { WhatsAppBell } from "../notifications/WhatsAppBell";
 import { InternalChatBell } from "../notifications/InternalChatBell";
 import { CalendarBell } from "../notifications/CalendarBell";
 import { EditorBell } from "../notifications/EditorBell";
+import { LandingEditorBell } from "../notifications/LandingEditorBell";
 import { MENU_LINKS, NavLink, SECTIONS } from "./menuLinks";
 import { useMenuPrefs } from "./useMenuPrefs";
 import { SideBarItem } from "./SideBarItem";
@@ -152,6 +153,7 @@ export const SideBar = () => {
                     </Tooltip>
                     <CalendarBell />
                     <EditorBell />
+                    <LandingEditorBell />
                     <WhatsAppBell />
                     <InternalChatBell />
                     <NotificationBell />

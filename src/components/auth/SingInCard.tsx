@@ -47,6 +47,8 @@ export const SignInCard = () => {
                     window.location.href = '/logistica';
                 } else if (['Editor líder', 'Editor de video'].includes(currentUser.role?.description ?? '')) {
                     window.location.href = '/editor';
+                } else if (currentUser.role?.description === 'Editor de landings') {
+                    window.location.href = '/editor-landings';
                 } else {
                     window.location.href = '/dashboard';
                 }

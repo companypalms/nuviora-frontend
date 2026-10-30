@@ -18,7 +18,7 @@ import {
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
-    VideoLibraryRounded, EmojiEventsRounded,
+    VideoLibraryRounded, EmojiEventsRounded, WebRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -28,7 +28,7 @@ export type NavLink = {
     icon: ReactNode;
     link: string;
     section: SectionId;
-    roles?: string[]; // descriptions: 'Admin' | 'Gerente' | 'Vendedor' | 'Repartidor' | 'Agencia' | 'Master' | 'Editor líder' | 'Editor de video'…
+    roles?: string[]; // descriptions: 'Admin' | 'Gerente' | 'Vendedor' | 'Repartidor' | 'Agencia' | 'Master' | 'Editor líder' | 'Editor de video' | 'Editor de landings'…
     leaderOnly?: boolean; // solo si la usuaria lidera un grupo de venta
     keywords?: string; // otras palabras con las que se busca
     newTab?: boolean;
@@ -49,6 +49,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
     { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar aprobar devolver editores videos banca" },
     { section: "principal", text: "Mis resultados", icon: <EmojiEventsRounded />, link: "/editor/resultados", roles: ["Editor líder", "Editor de video"], keywords: "indicadores kpi ganadores cpa compras a tiempo devueltos equipo" },
+    // Paso 6b: el editor de landings solo ve sus encargos de landing
+    { section: "principal", text: "Mis encargos de landing", icon: <WebRounded />, link: "/editor-landings", roles: ["Editor de landings"], keywords: "landings shopify pagina vista previa publicar test" },
     { section: "principal", text: "Dashboard", icon: <DashboardRoundedIcon />, link: "/dashboard", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "inicio resumen home panel" },
     // Etapa 4: lo que estaba en el Dashboard del Admin antes de que quedara con sus metas, lo de hoy y su asistente
     { section: "principal", text: "Resumen del día", icon: <TodayRounded />, link: "/resumen-del-dia", roles: ["Admin"], keywords: "numeros de hoy pendientes vueltos deficit stock bajo sin agencia asignar agencias ciudades sin registrar validaciones conciliacion equipo pagos por metodo kpi" },

@@ -229,6 +229,14 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["landing_min_clicks", "Opinar de la visita con al menos", "clics"], ["landing_min_visits", "Opinar de la compra con al menos", "visitas"],
         ],
     },
+    {
+        title: "Encargos y tests de landing", help: "El test compara los mismos anuncios antes y después de publicar.", fields: [
+            ["landing_due_days", "Plazo de un encargo al aprobarlo", "días"], ["landing_test_before_days", "Antes: los días anteriores a publicar", "días"],
+            ["landing_test_min_days", "Después: al menos", "días"], ["landing_test_max_days", "Después: como mucho", "días"],
+            ["landing_test_min_purchases", "Muestra de cada lado: compras", "compras"], ["landing_test_min_visits", "Muestra de cada lado: visitas", "visitas"],
+            ["landing_test_win_pct", "Gana o pierde si la compra cambia", "%"],
+        ],
+    },
 ];
 
 const NumberField: React.FC<{ k: string; label: string; unit?: string; value: number; initial: number; onSave: (k: string, v: number) => void }> = ({ k, label, unit, value, initial, onSave }) => {

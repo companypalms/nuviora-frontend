@@ -3,19 +3,23 @@
 // los anuncios que llevaban a ella cada día: % de visita (visitas ÷ clics), % de compra (compras ÷ visitas) y CPA contra
 // C, por ángulo y por ciudad, y lo que dicen los números (lenta, no habla del ángulo, cuál compra mejor). El dueño les pone
 // nombre y ángulo. Solo lectura: no cambia nada en Meta ni en Shopify.
+// Paso 6b: la pestaña "Encargos" (los encargos de landing) y "Pedir cambio" en cada landing, con lo que dicen sus números.
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Alert, Box, Button, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, Stack, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+    Alert, Box, Button, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Paper, Stack, Tab, Table, TableBody,
+    TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Tooltip, Typography,
 } from "@mui/material";
-import { EditRounded, ExpandLessRounded, ExpandMoreRounded, InsightsRounded, OpenInNewRounded, SettingsRounded } from "@mui/icons-material";
-import { Link as RouterLink } from "react-router-dom";
+import { BuildRounded, EditRounded, ExpandLessRounded, ExpandMoreRounded, InsightsRounded, OpenInNewRounded, SettingsRounded } from "@mui/icons-material";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { Loading } from "../../components/ui/content/Loading";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt, shortDay } from "../../components/meta-ads/metaAds";
+import { TaskFormDialog } from "../../components/meta-ads/landingTasks";
+import { TaskDraft } from "../../components/meta-ads/landingTasksShared";
+import { LandingTasksPanel } from "./MetaLandingTasks";
 
 type Totals = { spend: number; impressions: number; link_clicks: number; visits: number; purchases: number };
 type LMetrics = { visit: number | null; conversion: number | null; ctr: number | null; cpa: number | null; cpa_vs_c: number | null };
@@ -25,6 +29,7 @@ type LandingRow = Block & {
     id: number; url: string; label: string; name: string | null; angle_code: string | null; angle_name: string | null; notes: string | null;
     first_seen_at: string | null; ads: number; ads_active: number; findings: Finding[]; level: Finding["level"] | null;
     angles: (Block & { code: string | null; name: string })[]; cities: (Block & { city: string })[];
+    task: { id: number; code: string | null; status: string; status_label: string; result: string | null } | null; suggested_kind: string;
 };
 type Data = {
     products: { id: number; name: string }[]; product_id: number | null;
@@ -40,6 +45,7 @@ const LEVEL: Record<Finding["level"], { severity: "error" | "warning" | "info" |
     info: { severity: "info", dot: "#0288d1" }, green: { severity: "success", dot: "#2e7d32" },
 };
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
+const EMPTY_ASK: TaskDraft = { product_id: "", landing_id: "", kind: "angle", angle_code: "", observed: "", hypothesis: "", change: "", keep: "", notes: "" };
 const nf1 = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 1 });
 const nf2 = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 2 });
 const int = new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 });
@@ -101,7 +107,7 @@ const BreakdownTable: React.FC<{ title: string; rows: (Block & { name: string })
     </Box>
 );
 
-const LandingCard: React.FC<{ l: LandingRow; s?: Data["settings"]; onEdit: (l: LandingRow) => void }> = ({ l, s, onEdit }) => {
+const LandingCard: React.FC<{ l: LandingRow; s?: Data["settings"]; onEdit: (l: LandingRow) => void; onAsk: (l: LandingRow) => void; onTasks: () => void }> = ({ l, s, onEdit, onAsk, onTasks }) => {
     const [open, setOpen] = useState(false);
     const hasData = l.totals.link_clicks > 0 || l.totals.spend > 0;
     return (
@@ -119,6 +125,11 @@ const LandingCard: React.FC<{ l: LandingRow; s?: Data["settings"]; onEdit: (l: L
                 {l.url}{l.first_seen_at ? ` · vista por primera vez el ${dateTime(l.first_seen_at)}` : ""}
             </Typography>
             {l.notes && <Typography variant="body2" sx={{ mb: 1.5, whiteSpace: "pre-wrap" }}>{l.notes}</Typography>}
+            {l.task && (
+                <Alert severity="info" sx={{ mb: 1.5 }} action={<Button color="inherit" size="small" onClick={onTasks}>Ver</Button>}>
+                    <b>{l.task.code ?? "Encargo propuesto"} · {l.task.status_label}</b>{l.task.result ? `: ${l.task.result}` : ". Mientras tanto no se pide otro cambio de esta landing."}
+                </Alert>
+            )}
             <Stats b={l} ads={`${l.ads_active} de ${l.ads}`} s={s} />
             {l.findings.length > 0 && (
                 <Stack spacing={1} sx={{ mt: 1.5 }}>
@@ -126,6 +137,8 @@ const LandingCard: React.FC<{ l: LandingRow; s?: Data["settings"]; onEdit: (l: L
                 </Stack>
             )}
             {!hasData && <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>Sin datos en este rango.</Typography>}
+            {!l.task && <Button size="small" variant={l.findings.some((f) => f.level !== "green" && f.level !== "info") ? "contained" : "outlined"} startIcon={<BuildRounded />}
+                sx={{ mt: 1.5, mr: 1 }} onClick={() => onAsk(l)}>Pedir cambio</Button>}
             {hasData && (
                 <>
                     <Button size="small" sx={{ mt: 1 }} onClick={() => setOpen((o) => !o)} endIcon={open ? <ExpandLessRounded /> : <ExpandMoreRounded />}>
@@ -185,6 +198,10 @@ export const MetaLandingsPage: React.FC = () => {
     const [range, setRange] = useState("last_30d");
     const [data, setData] = useState<Data | null>(null);
     const [editing, setEditing] = useState<LandingRow | null>(null);
+    const [ask, setAsk] = useState<TaskDraft | null>(null);
+    const [params, setParams] = useSearchParams();
+    const tab = params.get("tab") === "encargos" ? "encargos" : "landings";
+    const setTab = (v: string) => setParams((p) => { if (v === "encargos") p.set("tab", v); else p.delete("tab"); return p; });
 
     const load = useCallback(() => {
         const q = new URLSearchParams({ range });
@@ -196,6 +213,10 @@ export const MetaLandingsPage: React.FC = () => {
 
     if (loadingSession || !isValid || !data) return <Loading />;
     const s = data.settings;
+    const askFor = (l: LandingRow) => setAsk({
+        product_id: data.product_id ?? "", landing_id: l.id, kind: l.suggested_kind, angle_code: l.angle_code ?? "",
+        observed: l.findings.filter((f) => f.level !== "green").map((f) => f.text).join("\n"), hypothesis: "", change: "", keep: "", notes: "",
+    });
 
     return (
         <Layout>
@@ -206,8 +227,14 @@ export const MetaLandingsPage: React.FC = () => {
                     <Button size="small" component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
                     <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads?tab=rules">Reglas</Button>
                 </Stack>
+                <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", mb: 2 }}>
+                    <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile>
+                        <Tab value="landings" label="Landings" />
+                        <Tab value="encargos" label="Encargos" />
+                    </Tabs>
+                </Paper>
 
-                {data.products.length === 0 ? (
+                {tab === "encargos" ? <LandingTasksPanel productId={data.product_id} /> : data.products.length === 0 ? (
                     <Alert severity="info">Todavía no hay landings. Aparecen solas cuando la sincronización con Meta lee a dónde lleva cada anuncio.</Alert>
                 ) : (
                     <>
@@ -240,7 +267,7 @@ export const MetaLandingsPage: React.FC = () => {
                         )}
                         <Stack spacing={2}>
                             {(data.landings ?? []).length === 0 && <Alert severity="info">Este producto todavía no tiene landings.</Alert>}
-                            {(data.landings ?? []).map((l) => <LandingCard key={l.id} l={l} s={s} onEdit={setEditing} />)}
+                            {(data.landings ?? []).map((l) => <LandingCard key={l.id} l={l} s={s} onEdit={setEditing} onAsk={askFor} onTasks={() => setTab("encargos")} />)}
                         </Stack>
                         {s && (
                             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 2 }}>
@@ -252,6 +279,9 @@ export const MetaLandingsPage: React.FC = () => {
                 )}
             </Box>
             <EditDialog l={editing} angles={data.angles ?? []} onClose={() => setEditing(null)} onSaved={load} />
+            <TaskFormDialog open={!!ask} initial={ask ?? EMPTY_ASK} products={data.products}
+                landings={(data.landings ?? []).map((l) => ({ id: l.id, product_id: data.product_id ?? 0, label: l.label, url: l.url, angle_code: l.angle_code }))}
+                onClose={() => setAsk(null)} onSaved={load} />
         </Layout>
     );
 };

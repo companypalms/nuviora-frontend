@@ -42,6 +42,8 @@ import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
+import { LandingEditorPage } from './pages/editor/LandingEditorPage';
+import { LANDING_EDITOR_ROLE } from './components/meta-ads/landingTasksShared';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
 import { Integrations } from './pages/admin/Integrations';
@@ -83,6 +85,8 @@ function App() {
   const isOperator = useUserStore((s) => s.user.role?.description === 'Operador logístico');
   // Los editores tampoco: su pantalla son sus encargos (Etapa 5, paso 5a)
   const isEditor = useUserStore((s) => EDITOR_ROLES.includes(s.user.role?.description ?? ''));
+  // Ni el editor de landings: su pantalla son sus encargos de landing (paso 6b)
+  const isLandingEditor = useUserStore((s) => s.user.role?.description === LANDING_EDITOR_ROLE);
 
   return (
     <ThemeProvider theme={theme}>
@@ -98,7 +102,7 @@ function App() {
 
           <Route path="/dashboard" element={
             <RequireRole>
-              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : isEditor ? <Navigate to="/editor" replace /> : <Dashboard />}
+              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : isEditor ? <Navigate to="/editor" replace /> : isLandingEditor ? <Navigate to="/editor-landings" replace /> : <Dashboard />}
             </RequireRole>
           } />
 
@@ -162,6 +166,7 @@ function App() {
           <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
+          <Route path="/editor-landings" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingEditorPage /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
           <Route path="/admin/tarifas-delivery" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tarifas" />} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />
