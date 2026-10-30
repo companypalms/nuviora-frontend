@@ -16,8 +16,15 @@ import { MetricCell, RuleChips } from "../../components/meta-ads/MetaWidgets";
 import { MetaReportTable } from "../../components/meta-ads/MetaReportTable";
 import { MetaChart } from "../../components/meta-ads/MetaChart";
 
+/** Lo que dice el anuncio y a dónde lleva (paso 1a de la Etapa 5). */
+type AdDetails = {
+    title: string | null; body: string | null; image_url: string | null; video_length: number | null;
+    landing_urls: string[]; url_tags: string[]; synced: boolean;
+};
+
 type Detail = {
     creative: { id: number; tracking_id: string; type: string | null; status: string | null; status_changed_at: string | null };
+    details?: AdDetails;
     summary: ReportRow | null;
     ads: ReportRow[];
     range: RangeInfo;
@@ -84,7 +91,8 @@ export const MetaCreativePage: React.FC = () => {
                                         <Box><Typography variant="caption" color="text.secondary">Reproducciones</Typography><Typography variant="body2">{fmt.num(s.totals.video_plays)}</Typography></Box>
                                         <Box><Typography variant="caption" color="text.secondary">De 3 segundos</Typography><Typography variant="body2">{fmt.num(s.totals.video_3s_plays)}</Typography></Box>
                                         <Box><Typography variant="caption" color="text.secondary">ThruPlays</Typography><Typography variant="body2">{fmt.num(s.totals.thruplays)}</Typography></Box>
-                                        <Box><Typography variant="caption" color="text.secondary">Tiempo medio</Typography><Typography variant="body2">{fmt.secs(s.metrics.avg_watch_time)}</Typography></Box>
+                                        <Box><Typography variant="caption" color="text.secondary">Tiempo medio</Typography><Typography variant="body2">{fmt.secs(s.metrics.avg_watch_time)}
+                                            {data.details?.video_length && s.metrics.avg_watch_time !== null ? ` de ${fmt.secs(data.details.video_length)} (${fmt.pct(s.metrics.avg_watch_time / data.details.video_length * 100)})` : ""}</Typography></Box>
                                     </>
                                 )}
                             </Stack>
@@ -109,6 +117,32 @@ export const MetaCreativePage: React.FC = () => {
                         </>
                     )}
                 </Paper>
+
+                {data.details && (
+                    <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2, mt: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Lo que dice el anuncio</Typography>
+                        {!data.details.synced ? (
+                            <Typography variant="body2" color="text.secondary">Todavía no llegó de Meta: aparece en la próxima sincronización.</Typography>
+                        ) : (
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                {data.details.image_url && (
+                                    <Box component="img" src={data.details.image_url} alt="" sx={{ width: 120, height: 120, objectFit: "cover", borderRadius: 2, flexShrink: 0 }} />
+                                )}
+                                <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+                                    {data.details.title && <Typography variant="body2" fontWeight={700}>{data.details.title}</Typography>}
+                                    {data.details.body && <Typography variant="body2" sx={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{data.details.body}</Typography>}
+                                    {data.details.video_length !== null && <Typography variant="caption" color="text.secondary">Duración del video: {fmt.secs(data.details.video_length)}</Typography>}
+                                    <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                                        Lleva a: {data.details.landing_urls.length ? data.details.landing_urls.join(" · ") : "—"}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                                        Parámetros de URL: {data.details.url_tags.length ? data.details.url_tags.join(" · ") : "no lleva (sin UTM)"}
+                                    </Typography>
+                                </Stack>
+                            </Stack>
+                        )}
+                    </Paper>
+                )}
 
                 <Box sx={{ mt: 2 }}>
                     <MetaChart query={query} compare={filters.compare} isVideo={isVideo} canSeeSpend={canSeeSpend} title={data.creative.tracking_id} />

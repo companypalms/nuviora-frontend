@@ -101,7 +101,7 @@ export type Totals = {
 };
 
 export type Metrics = {
-    cpa: number | null; ctr: number | null; link_ctr: number | null; cpc: number | null; link_cpc: number | null; cpm: number | null;
+    cpa: number | null; ctr: number | null; unique_ctr: number | null; link_ctr: number | null; cpc: number | null; link_cpc: number | null; cpm: number | null;
     frequency: number | null; lpv_rate: number | null; conversion_rate: number | null; hook_rate: number | null; hold_rate: number | null;
     retention: { p25: number | null; p50: number | null; p75: number | null; p95: number | null; p100: number | null } | null;
     avg_watch_time: number | null;
@@ -168,6 +168,7 @@ export const RANGES: { key: string; label: string }[] = [
  */
 export const CHART_METRICS: { key: string; label: string; kind: "money" | "pct" | "num" | "freq"; lower?: boolean; video?: boolean }[] = [
     { key: "cpa", label: "CPA", kind: "money", lower: true },
+    { key: "unique_ctr", label: "CTR único", kind: "pct" },
     { key: "link_ctr", label: "CTR (enlace)", kind: "pct" },
     { key: "cpm", label: "CPM", kind: "money", lower: true },
     { key: "link_cpc", label: "CPC (enlace)", kind: "money", lower: true },
@@ -249,6 +250,7 @@ export const COLUMNS: { key: string; label: string; kind: "money" | "pct" | "num
     { key: "spend", label: "Gasto", kind: "money", financial: true },
     { key: "purchases", label: "Purchases", kind: "num" },
     { key: "cpa", label: "CPA", kind: "money", lower: true },
+    { key: "unique_ctr", label: "CTR único", kind: "pct" },
     { key: "link_ctr", label: "CTR enlace", kind: "pct" },
     { key: "link_cpc", label: "CPC enlace", kind: "money", lower: true },
     { key: "cpm", label: "CPM", kind: "money", lower: true },
