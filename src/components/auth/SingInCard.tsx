@@ -45,6 +45,8 @@ export const SignInCard = () => {
                     window.location.href = '/ordenes';
                 } else if (currentUser.role?.description === 'Operador logístico') {
                     window.location.href = '/logistica';
+                } else if (['Editor líder', 'Editor de video'].includes(currentUser.role?.description ?? '')) {
+                    window.location.href = '/editor';
                 } else {
                     window.location.href = '/dashboard';
                 }

@@ -3,6 +3,8 @@
 // se crea (o lo proponen las reglas, en el paso 4b), el dueño lo aprueba y el sistema le da su número único B#### y a cada
 // pieza su C####. "En test" y "Testeado" se ponen solos con lo que trae Meta. Nada de esto toca Meta: los nombres los
 // pone el dueño, y "Copiar encargo" solo copia el texto para el editor.
+// Paso 5a: los editores tienen sus pantallas (Mis encargos y Encargos del equipo); aquí el dueño ve quién tiene cada
+// encargo y sus entregas, y también asigna y revisa (las entregas del editor líder, solo aquí).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Menu, MenuItem, Paper,
@@ -10,7 +12,7 @@ import {
 } from "@mui/material";
 import {
     AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, CheckRounded, ContentCopyRounded, DeleteOutlineRounded, EditRounded, ExpandLessRounded,
-    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded,
+    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded, OpenInNewRounded, RateReviewRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -19,9 +21,11 @@ import { Loading } from "../../components/ui/content/Loading";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
+import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
+import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
-type Piece = { id?: number; code?: string | null; change: string | null; format: string | null };
+type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
 type Verdict = { city: string | null; key: string; label: string };
 type Batch = {
     id: number; code: string | null; product_id: number; product: string; status: Status; status_label: string; status_at: string | null; status_by: string | null;
@@ -31,7 +35,7 @@ type Batch = {
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
     result: { verdicts: Verdict[]; spend: number; purchases: number; cpa: number | null } | null; learning: string | null; pieces: Piece[];
     meta_names: { adset: string | null; ads: string[] }; brief: string;
-};
+} & EditorFields;
 type ProductRow = {
     id: number; name: string; active_campaigns: number; bank: number; ready: number;
     urgency: { level: number; label: string; to_order: string; needed: string } | null;
@@ -41,6 +45,7 @@ type Data = {
     settings: { batch_pieces: number; due_days: number; bank_min: number; bank_max: number; video_editors: number; capacity: number };
     statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>;
     last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null } | null;
+    editors: EditorOption[];
 };
 const RUN_STATUS: Record<string, string> = { ok: "redactados por la IA", example: "con una plantilla (en esta PC no hay IA)", no_ai: "con una plantilla (la IA no está configurada)",
     error: "con una plantilla (la IA falló)" };
@@ -226,8 +231,11 @@ const BatchCard: React.FC<{
     const [reason, setReason] = useState("");
     const [busy, setBusy] = useState(false);
     const [manualCopy, setManualCopy] = useState(false);
+    const [review, setReview] = useState(false);
     const numbered = b.code !== null;
-    const targets = (numbered ? MANUAL : (["discarded", "proposed"] as Status[])).filter((s) => canMove(b.status, s, numbered));
+    const pending = b.deliveries.find((d) => d.review === "pending") ?? null;
+    const targets = (numbered ? MANUAL : (["discarded", "proposed"] as Status[])).filter((s) => canMove(b.status, s, numbered))
+        .filter((s) => !(b.status === "review" && pending) || s === "bank" || s === "discarded");
 
     const setStatus = async (status: Status, why?: string) => {
         setBusy(true);
@@ -259,6 +267,12 @@ const BatchCard: React.FC<{
                 <Chip size="small" color={STATUS_COLOR[b.status]} label={b.status_label} />
                 {b.source === "rules" && <Chip size="small" variant="outlined" color="secondary" label="Propuesto por tus reglas" />}
                 {b.urgency && <Chip size="small" color={URGENCY_COLOR[b.urgency]} variant="outlined" label={`U${b.urgency}`} />}
+                {numbered && QUEUE.includes(b.status) && (
+                    <Chip size="small" variant="outlined" color={b.editor ? "default" : "warning"} label={b.editor ? `Editor: ${b.editor}` : "Sin editor"} />
+                )}
+                {b.overdue && <Chip size="small" color="error" label={`Atrasado (era para el ${dueLabel(b.due_date)})`} />}
+                {b.returned && <Chip size="small" color="warning" variant="outlined" label={`Devuelto (${b.returned.version})`} />}
+                {pending && <Chip size="small" color="secondary" label={`${pending.version} por revisar`} />}
             </Stack>
             {b.hypothesis && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Hipótesis:</b> {b.hypothesis}</Typography>}
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
@@ -271,6 +285,7 @@ const BatchCard: React.FC<{
                     {b.pieces.map((p, i) => (
                         <Typography key={p.id ?? i} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
                             {p.code && <b>{p.code} </b>}{p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
+                            {p.link && <> · <a href={p.link} target="_blank" rel="noopener noreferrer">video <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></a></>}
                         </Typography>
                     ))}
                 </Box>
@@ -290,9 +305,16 @@ const BatchCard: React.FC<{
             )}
             {b.learning && <Typography variant="body2" sx={{ mt: 0.5 }}><b>Aprendizaje:</b> {b.learning}</Typography>}
             {b.discard_reason && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}><b>Descartado:</b> {b.discard_reason}</Typography>}
+            <DeliveriesList deliveries={b.deliveries} />
             <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                 {b.status === "proposed" && (
                     <Button size="small" variant="contained" startIcon={busy ? <CircularProgress size={14} /> : <CheckRounded />} disabled={busy} onClick={approve}>Aprobar</Button>
+                )}
+                {b.can.review && (
+                    <Button size="small" variant="contained" color="secondary" startIcon={<RateReviewRounded />} onClick={() => setReview(true)}>Revisar entrega</Button>
+                )}
+                {b.can.assign && (
+                    <AssignButton<Batch> editors={data.editors} current={b.editor_id} url={`/meta/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={onChanged} />
                 )}
                 <Button size="small" startIcon={<EditRounded />} onClick={onEdit}>{b.status === "tested" || b.status === "discarded" ? "Aprendizaje" : "Editar"}</Button>
                 <Button size="small" startIcon={<ContentCopyRounded />} onClick={copy}>Copiar encargo</Button>
@@ -313,6 +335,7 @@ const BatchCard: React.FC<{
                     </MenuItem>
                 ))}
             </Menu>
+            <ReviewDialog<Batch> open={review} title={b.code ?? "el encargo"} delivery={pending} url={`/meta/queue/${b.id}/review`} onClose={() => setReview(false)} onDone={onChanged} />
             <Dialog open={manualCopy} onClose={() => setManualCopy(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Copia el encargo</DialogTitle>
                 <DialogContent>
@@ -393,7 +416,7 @@ export const MetaQueuePage: React.FC = () => {
         <Layout>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
                 <DescripcionDeVista title="Cola y banca" backPath="/meta-ads"
-                    description="Los encargos de creativos de cada producto: tus reglas los proponen cada mañana y la IA los redacta; los apruebas, el sistema les da su número único (B#### y C####) y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
+                    description="Los encargos de creativos de cada producto: tus reglas los proponen cada mañana y la IA los redacta; los apruebas, el sistema les da su número único (B#### y C####), el editor líder los reparte y revisa, y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
                         {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Banca por producto: {s.bank_min}–{s.bank_max}.
@@ -433,8 +456,8 @@ export const MetaQueuePage: React.FC = () => {
                     {byStatus.proposed.length > 0 || byStatus.queue.length + byStatus.bank.length + byStatus.testing.length + byStatus.closed.length > 0 ? null
                         : <Alert severity="info">Todavía no hay encargos. Tus reglas los proponen cada mañana a las 7:00 ("Proponer ahora" para no esperar), o crea uno con "Nuevo encargo".</Alert>}
                     {section("Para aprobar", "Al aprobar, el sistema le da su número y entra al final de la cola.", byStatus.proposed, "Nada para aprobar.")}
-                    {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen.", byStatus.queue, "La cola está vacía.", true)}
-                    {section("En banca", "Listos para lanzar. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}
+                    {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen. Las entregas del editor líder las revisas tú.", byStatus.queue, "La cola está vacía.", true)}
+                    {section("En banca", "Listos para lanzar: \"Copiar encargo\" trae el enlace de cada video. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}
                     {section("En test", "Ya están en Meta. Cuando tus reglas les dan un veredicto en cada ciudad, pasan solos a Testeado.", byStatus.testing, "Nada en test.")}
                     <Paper elevation={0} sx={card}>
                         <Button size="small" onClick={() => setHistory(!history)} endIcon={history ? <ExpandLessRounded /> : <ExpandMoreRounded />} sx={{ textTransform: "none", fontWeight: 700 }}>

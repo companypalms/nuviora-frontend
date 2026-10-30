@@ -16,7 +16,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 type Estado = 'activos' | 'desactivados';
 type Picked = { id: number; name: string; deactivated_at?: string | null; deactivation_reason?: string | null };
 
-const ROLES = ['Vendedor', 'Agencia', 'Repartidor', 'Operador logístico', 'Gerente', 'Master', 'Admin'];
+const ROLES = ['Vendedor', 'Agencia', 'Repartidor', 'Operador logístico', 'Editor líder', 'Editor de video', 'Gerente', 'Master', 'Admin'];
 
 const fullName = (u: any) => `${u.names ?? ''} ${u.surnames ?? ''}`.trim();
 

@@ -38,6 +38,8 @@ import { MetaAdsDashboard } from './pages/admin/MetaAdsDashboard';
 import { MetaCreativePage } from './pages/admin/MetaCreativePage';
 import { MetaAnalysisPage } from './pages/admin/MetaAnalysisPage';
 import { MetaQueuePage } from './pages/admin/MetaQueuePage';
+import { EditorPage } from './pages/editor/EditorPage';
+import { EDITOR_ROLES } from './components/meta-ads/editorShared';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
 import { Integrations } from './pages/admin/Integrations';
@@ -77,6 +79,8 @@ function App() {
   const isLite = useUserStore((s) => s.user.is_lite_view);
   // El operador logístico no tiene dashboard: su pantalla es la torre de control
   const isOperator = useUserStore((s) => s.user.role?.description === 'Operador logístico');
+  // Los editores tampoco: su pantalla son sus encargos (Etapa 5, paso 5a)
+  const isEditor = useUserStore((s) => EDITOR_ROLES.includes(s.user.role?.description ?? ''));
 
   return (
     <ThemeProvider theme={theme}>
@@ -92,7 +96,7 @@ function App() {
 
           <Route path="/dashboard" element={
             <RequireRole>
-              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : <Dashboard />}
+              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : isEditor ? <Navigate to="/editor" replace /> : <Dashboard />}
             </RequireRole>
           } />
 
@@ -152,6 +156,8 @@ function App() {
           <Route path="/meta-ads/creativos/:id" element={<RequireRole allowedRoles={['Admin']}><MetaCreativePage /></RequireRole>} />
           <Route path="/meta-ads/analisis" element={<RequireRole allowedRoles={['Admin']}><MetaAnalysisPage /></RequireRole>} />
           <Route path="/meta-ads/cola" element={<RequireRole allowedRoles={['Admin']}><MetaQueuePage /></RequireRole>} />
+          <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
+          <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
           <Route path="/admin/tarifas-delivery" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tarifas" />} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />

@@ -17,7 +17,8 @@ import {
     InsertDriveFileRounded, MapRounded, PeopleAltRounded, PollRounded, ReceiptLongRounded,
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
-    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded,
+    AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
+    VideoLibraryRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -27,7 +28,7 @@ export type NavLink = {
     icon: ReactNode;
     link: string;
     section: SectionId;
-    roles?: string[]; // descriptions: 'Admin' | 'Gerente' | 'Vendedor' | 'Repartidor' | 'Agencia' | 'Master'
+    roles?: string[]; // descriptions: 'Admin' | 'Gerente' | 'Vendedor' | 'Repartidor' | 'Agencia' | 'Master' | 'Editor líder' | 'Editor de video'…
     leaderOnly?: boolean; // solo si la usuaria lidera un grupo de venta
     keywords?: string; // otras palabras con las que se busca
     newTab?: boolean;
@@ -44,6 +45,9 @@ export const SECTIONS: { id: SectionId; title: string; icon: ReactNode }[] = [
 
 export const MENU_LINKS: NavLink[] = [
     // Principal
+    // Etapa 5, paso 5a: los editores de video solo ven sus encargos (y el líder, los del equipo)
+    { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
+    { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar aprobar devolver editores videos banca" },
     { section: "principal", text: "Dashboard", icon: <DashboardRoundedIcon />, link: "/dashboard", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "inicio resumen home panel" },
     // Etapa 4: lo que estaba en el Dashboard del Admin antes de que quedara con sus metas, lo de hoy y su asistente
     { section: "principal", text: "Resumen del día", icon: <TodayRounded />, link: "/resumen-del-dia", roles: ["Admin"], keywords: "numeros de hoy pendientes vueltos deficit stock bajo sin agencia asignar agencias ciudades sin registrar validaciones conciliacion equipo pagos por metodo kpi" },
