@@ -14,11 +14,11 @@ type Preview = {
 
 type Props = {
     open: boolean;
-    agency: RoutingAgency | null;
+    agency: Pick<RoutingAgency, 'id' | 'names'> | null;
     /** Solo el administrador puede pasarlas aunque las otras estén en su máximo. */
     canForce: boolean;
     onClose: () => void;
-    onSaved: (data: AgencyRouting) => void;
+    onSaved?: (data: AgencyRouting) => void;
 };
 
 /**
@@ -59,7 +59,7 @@ export const AgencyReassignDialog: FC<Props> = ({ open, agency, canForce, onClos
         setSaving(false);
         if (res.ok) {
             toast.success(res.message);
-            onSaved(res.data.routing);
+            onSaved?.(res.data.routing);
             onClose();
         } else {
             toast.error(res.message);

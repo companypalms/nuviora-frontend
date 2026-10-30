@@ -1,19 +1,20 @@
 // src/pages/DeliverersPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Box, Paper, Typography, IconButton, TextField, Divider, Tooltip,
+    Box, Paper, IconButton, Tooltip, Chip, FormControlLabel, Switch,
     Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Pagination
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { HowToRegRounded, PersonOffRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { request } from "../../common/request";
 import { ButtonCustom, TextFieldCustom } from "../../components/custom";
 import { IResponse } from "../../interfaces/response-type";
 import { DelivererFormDialog } from "../../components/deliverers/DelivererFormDialog";
-import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { DeactivateUserDialog } from "../../components/users/DeactivateUserDialog";
+import { ReactivateUserDialog } from "../../components/users/ReactivateUserDialog";
 import { PageLayout } from "../../components/ui/SectionTabsPage";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -30,13 +31,15 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
     const [openForm, setOpenForm] = useState(false);
     const [editing, setEditing] = useState<any | null>(null);
 
-    const [openConfirm, setOpenConfirm] = useState(false);
-    const [toDelete, setToDelete] = useState<any | null>(null);
+    // "Eliminar" ahora desactiva (paso 6): antes borraba la cuenta, y con ella sus ganancias y su stock
+    const [showInactive, setShowInactive] = useState(false);
+    const [toDeactivate, setToDeactivate] = useState<{ id: number; name: string } | null>(null);
+    const [toReactivate, setToReactivate] = useState<{ id: number; name: string; deactivated_at?: string | null } | null>(null);
 
     const fetchData = async (p = 1, search = "") => {
         setLoading(true);
         try {
-            const url = `/users/deliverers?search=${encodeURIComponent(search)}&page=${p}`;
+            const url = `/users/deliverers?search=${encodeURIComponent(search)}&page=${p}${showInactive ? "&include_inactive=1" : ""}`;
             const { status, response }: IResponse = await request(url, "GET");
             if (status) {
                 const data = await response.json();
@@ -54,7 +57,7 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
 
     useEffect(() => {
         fetchData(page, q);
-    }, [page]);
+    }, [page, showInactive]);
 
     const handleSearch = () => {
         setPage(1);
@@ -75,27 +78,11 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
         fetchData(page, q);
     };
 
-    const askDelete = (row: any) => {
-        setToDelete(row);
-        setOpenConfirm(true);
-    };
-
-    const doDelete = async () => {
-        if (!toDelete) return;
-        try {
-            const { status }: IResponse = await request(`/users/deliverers/${toDelete.id}`, "DELETE");
-            if (status) {
-                toast.success("Repartidor eliminado");
-                fetchData(page, q);
-            } else {
-                toast.error("No se pudo eliminar");
-            }
-        } catch {
-            toast.error("Error eliminando repartidor");
-        } finally {
-            setOpenConfirm(false);
-            setToDelete(null);
-        }
+    const nameOf = (r: any) => `${r.names} ${r.surnames ?? ""}`.trim();
+    const onChanged = () => {
+        setToDeactivate(null);
+        setToReactivate(null);
+        fetchData(page, q);
     };
 
     if (loadingSession || !isValid || !user.token) return <Loading />;
@@ -103,10 +90,14 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
         <PageLayout isEmbedded={isEmbedded}>
             <DescripcionDeVista title={"Repartidores"} description={"Vista para consultar repartidores, agregar repartidores"} />
             <Box sx={{ p: 3 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, gap: 1, flexWrap: "wrap" }}>
                     <ButtonCustom variant={'contained'} startIcon={<AddRoundedIcon />} onClick={handleOpenCreate}>
                         Nuevo repartidor
                     </ButtonCustom>
+                    <FormControlLabel
+                        control={<Switch checked={showInactive} onChange={(e) => { setShowInactive(e.target.checked); setPage(1); }} />}
+                        label="Ver desactivados"
+                    />
                 </Box>
 
                 <Paper sx={{ p: 2, mb: 2 }}>
@@ -133,8 +124,11 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
                         </TableHead>
                         <TableBody>
                             {rows.map((r) => (
-                                <TableRow key={r.id} hover>
-                                    <TableCell>{`${r.names} ${r.surnames ?? ""}`}</TableCell>
+                                <TableRow key={r.id} hover sx={r.deactivated_at ? { opacity: 0.7 } : undefined}>
+                                    <TableCell>
+                                        {nameOf(r)}
+                                        {r.deactivated_at && <Chip size="small" label="Desactivado" sx={{ ml: 1 }} />}
+                                    </TableCell>
                                     <TableCell>{r.email}</TableCell>
                                     <TableCell>{new Date(r.created_at).toLocaleDateString()}</TableCell>
                                     <TableCell align="right">
@@ -143,11 +137,19 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
                                                 <EditRoundedIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
-                                        <Tooltip title="Eliminar">
-                                            <IconButton size="small" color="error" onClick={() => askDelete(r)}>
-                                                <DeleteRoundedIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
+                                        {r.deactivated_at ? (
+                                            <Tooltip title="Reactivar">
+                                                <IconButton size="small" color="success" onClick={() => setToReactivate({ id: r.id, name: nameOf(r), deactivated_at: r.deactivated_at })}>
+                                                    <HowToRegRounded fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip title="Desactivar">
+                                                <IconButton size="small" color="error" onClick={() => setToDeactivate({ id: r.id, name: nameOf(r) })}>
+                                                    <PersonOffRounded fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -178,12 +180,17 @@ export const DeliverersPage: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded 
                     editing={editing}
                 />
 
-                <ConfirmDialog
-                    open={openConfirm}
-                    title="Eliminar repartidor"
-                    message={`¿Seguro que deseas eliminar a ${toDelete ? toDelete.names : ""}?`}
-                    onClose={() => setOpenConfirm(false)}
-                    onConfirm={doDelete}
+                <DeactivateUserDialog
+                    open={toDeactivate !== null}
+                    user={toDeactivate}
+                    onClose={() => setToDeactivate(null)}
+                    onDone={onChanged}
+                />
+                <ReactivateUserDialog
+                    open={toReactivate !== null}
+                    user={toReactivate}
+                    onClose={() => setToReactivate(null)}
+                    onDone={onChanged}
                 />
             </Box>
         </PageLayout>

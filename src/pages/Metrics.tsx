@@ -76,7 +76,7 @@ export const Metrics = () => {
             const [shopsRes, citiesRes, agenciesRes] = await Promise.all([
                 request("/shops", "GET"),
                 request("/cities", "GET"),
-                request("/users/role/Agencia", "GET")
+                request("/users/role/Agencia?include_inactive=1", "GET") // filtro: también las desactivadas (paso 6)
             ]);
             if (shopsRes.status) {
                 const data = await shopsRes.response.json();

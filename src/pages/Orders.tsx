@@ -77,8 +77,9 @@ export const Orders = () => {
         try {
             const [citiesRes, agenciesRes, sellersRes] = await Promise.all([
                 request("/cities", "GET"),
-                request("/users/role/Agencia", "GET"),
-                request("/users/role/Vendedor", "GET")
+                // Filtros: también las cuentas desactivadas, para encontrar sus órdenes (paso 6)
+                request("/users/role/Agencia?include_inactive=1", "GET"),
+                request("/users/role/Vendedor?include_inactive=1", "GET")
             ]);
             if (citiesRes.status) setCities(await citiesRes.response.json());
             if (agenciesRes.status) {

@@ -93,6 +93,11 @@ export const useUserStore = create<State>((set, get) => ({
                     return { status: true, message }
                 case 401:
                     return { status: false, message: 'Datos incorrectos' }
+                case 403: {
+                    // Cuenta desactivada (paso 6): el servidor dice por qué
+                    const { message: denied } = await response.json().catch(() => ({ message: '' }));
+                    return { status: false, message: denied || 'Tu cuenta no puede entrar. Habla con el administrador.' }
+                }
                 default:
                     return { status: false, message: 'Ocurrio un error interno del servidor, intente mas tarde' }
             }

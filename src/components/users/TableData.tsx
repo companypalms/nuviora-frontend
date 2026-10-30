@@ -1,4 +1,4 @@
-import { TableRow, TableCell, IconButton, SelectChangeEvent, Box, Stack, Switch } from "@mui/material";
+import { TableRow, TableCell, IconButton, SelectChangeEvent, Box, Stack, Switch, Tooltip, Typography } from "@mui/material";
 import moment from "moment";
 import { ChangeEvent, ReactNode, useState } from "react";
 import EditRounded from "@mui/icons-material/EditRounded";
@@ -7,17 +7,24 @@ import { UserType } from "../../interfaces/user-type";
 import { errorArrayLaravelTransformToString } from "../../lib/functions";
 import { request } from "../../common/request";
 import { IResponse } from "../../interfaces/response-type";
-import { CancelRounded, CheckRounded, KeyRounded } from "@mui/icons-material";
+import { CancelRounded, CheckRounded, HowToRegRounded, KeyRounded, PersonOffRounded } from "@mui/icons-material";
 import { TextFieldCustom, ButtonCustom } from "../custom";
 import { useUserStore } from "../../store/user/UserStore";
+import { PROTECTED_ROLES, shortDate } from "./accounts";
 
 
 type InitialValues = Omit<UserType, 'id' | 'created_at' | 'updated_at' | 'closing_date' | 'observations'>
 
 interface DataProps {
     data: any;
+    /** En la lista de desactivadas: cuándo, por qué y quién (paso 6). */
+    showDeactivation?: boolean;
+    canManage?: boolean;
+    isSelf?: boolean;
+    onDeactivate?: () => void;
+    onReactivate?: () => void;
 }
-export const TableData = ({ data }: DataProps) => {
+export const TableData = ({ data, showDeactivation = false, canManage = false, isSelf = false, onDeactivate, onReactivate }: DataProps) => {
     const user = useUserStore(state => state.user);
     const initialValues: InitialValues = {
         names: data.names,
@@ -107,6 +114,17 @@ export const TableData = ({ data }: DataProps) => {
         }
     };
 
+    const roleName: string = data.role?.description ?? '';
+    // Admin, Master y la cuenta de Shopify no se desactivan, ni uno mismo (el servidor también lo revisa)
+    const canDeactivate = canManage && !isSelf && !PROTECTED_ROLES.includes(roleName);
+    const roleCell = <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{roleName}</TableCell>;
+    const deactivationCell = showDeactivation ? (
+        <TableCell sx={{ textAlign: 'center', minWidth: 180 }}>
+            <Typography variant="body2">{shortDate(data.deactivated_at)}{data.deactivator ? ` · ${data.deactivator.names}` : ''}</Typography>
+            {data.deactivation_reason && <Typography variant="caption" color="text.secondary">{data.deactivation_reason}</Typography>}
+        </TableCell>
+    ) : null;
+
     return (
         <>
             {editing ?
@@ -114,6 +132,8 @@ export const TableData = ({ data }: DataProps) => {
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.id}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}><TextFieldCustom name="names" onChange={handleChange} value={values.names} /></TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}><TextFieldCustom name="surnames" onChange={handleChange} value={values.surnames} /></TableCell>
+                    {roleCell}
+                    {deactivationCell}
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}><TextFieldCustom name="phone" onChange={handleChange} value={values.phone} /></TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}><TextFieldCustom name="email" onChange={handleChange} value={values.email} /></TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}><TextFieldCustom name="address" onChange={handleChange} value={values.address} /></TableCell>
@@ -182,6 +202,8 @@ export const TableData = ({ data }: DataProps) => {
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.id}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.names}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.surnames}</TableCell>
+                        {roleCell}
+                        {deactivationCell}
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.phone}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.email}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{info.address}</TableCell>
@@ -202,6 +224,21 @@ export const TableData = ({ data }: DataProps) => {
                             <IconButton onClick={toggleEdit}>
                                 <EditRounded />
                             </IconButton>
+                            {canDeactivate && (
+                                showDeactivation ? (
+                                    <Tooltip title="Reactivar">
+                                        <IconButton color="success" onClick={onReactivate} aria-label="Reactivar">
+                                            <HowToRegRounded />
+                                        </IconButton>
+                                    </Tooltip>
+                                ) : (
+                                    <Tooltip title="Desactivar">
+                                        <IconButton color="error" onClick={onDeactivate} aria-label="Desactivar">
+                                            <PersonOffRounded />
+                                        </IconButton>
+                                    </Tooltip>
+                                )
+                            )}
                         </TableCell>
                     </TableRow>
                 )}

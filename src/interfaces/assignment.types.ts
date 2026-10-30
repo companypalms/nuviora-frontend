@@ -60,6 +60,8 @@ export interface SellerRef {
     name: string;
     group: GroupRef | null;
     active_orders: number;
+    /** Cuenta desactivada (paso 6): se pueden pasar sus órdenes a otras, pero no recibe. */
+    deactivated?: boolean;
 }
 
 export interface AssignmentOverview {

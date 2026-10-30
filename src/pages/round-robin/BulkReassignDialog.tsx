@@ -21,9 +21,11 @@ interface Props {
     apiBase?: string;
     /** Quién no puede recibir órdenes (la Líder no se asigna a sí misma, spec §5.1). */
     excludeTargetIds?: number[];
+    /** Vendedora de origen ya elegida (desde la ventana de desactivar una cuenta). */
+    initialFromId?: number;
 }
 
-export const BulkReassignDialog: React.FC<Props> = ({ open, sellers, onClose, onDone, apiBase = "/assignment", excludeTargetIds = [] }) => {
+export const BulkReassignDialog: React.FC<Props> = ({ open, sellers, onClose, onDone, apiBase = "/assignment", excludeTargetIds = [], initialFromId }) => {
     const [from, setFrom] = useState<SellerRef | null>(null);
     const [preview, setPreview] = useState<ReassignPreview | null>(null);
     const [statusIds, setStatusIds] = useState<number[]>([]);
@@ -40,6 +42,13 @@ export const BulkReassignDialog: React.FC<Props> = ({ open, sellers, onClose, on
             setMode("group");
         }
     }, [open]);
+
+    useEffect(() => {
+        if (open && initialFromId && !from) {
+            const preset = sellers.find((s) => s.id === initialFromId);
+            if (preset) setFrom(preset);
+        }
+    }, [open, initialFromId, sellers, from]);
 
     useEffect(() => {
         if (!from) {
@@ -71,7 +80,8 @@ export const BulkReassignDialog: React.FC<Props> = ({ open, sellers, onClose, on
     );
     const destinations = mode === "group" ? groupMates : targets;
     const selectedCount = (preview?.statuses ?? []).filter((s) => statusIds.includes(s.id)).reduce((a, s) => a + s.count, 0);
-    const others = sellers.filter((s) => s.id !== from?.id && !excludeTargetIds.includes(s.id));
+    // Una cuenta desactivada no recibe órdenes (paso 6)
+    const others = sellers.filter((s) => s.id !== from?.id && !excludeTargetIds.includes(s.id) && !s.deactivated);
 
     const toggleStatus = (id: number) =>
         setStatusIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -120,7 +130,7 @@ export const BulkReassignDialog: React.FC<Props> = ({ open, sellers, onClose, on
                                 <Box display="flex" justifyContent="space-between" width="100%" gap={1}>
                                     <span>{o.name}</span>
                                     <Typography variant="caption" color="text.secondary">
-                                        {o.group ? `${o.group.name} · ` : ""}{o.active_orders} activas
+                                        {o.deactivated ? "Desactivada · " : ""}{o.group ? `${o.group.name} · ` : ""}{o.active_orders} activas
                                     </Typography>
                                 </Box>
                             </li>

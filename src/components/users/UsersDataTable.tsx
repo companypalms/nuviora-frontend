@@ -1,47 +1,35 @@
-import { Dispatch, FC, SetStateAction } from "react"
-import { TableContainer, Paper, Table, TableHead, TableRow, TableCell, TableBody, Pagination, Box } from "@mui/material";
+import { FC } from "react"
+import { TableContainer, Paper, Table, TableHead, TableRow, TableCell, TableBody, Pagination, Box, Typography } from "@mui/material";
 import { TableData } from "./TableData";
-import { toast } from "react-toastify";
-import { request } from "../../common/request";
-import { IResponse } from "../../interfaces/response-type";
 import { useUserStore } from "../../store/user/UserStore";
-import { TextFieldCustom } from "../custom";
 
 interface Props {
     data: any;
-    setData: Dispatch<SetStateAction<any>>;
+    /** Qué lista se ve (paso 6): las cuentas activas o las desactivadas. */
+    estado: 'activos' | 'desactivados';
+    /** Solo el Admin desactiva y reactiva. */
+    canManage: boolean;
+    selfId: number;
+    onPage: (page: number) => void;
+    onDeactivate: (user: any) => void;
+    onReactivate: (user: any) => void;
 }
-export const UsersDataTable: FC<Props> = ({ data, setData }) => {
+export const UsersDataTable: FC<Props> = ({ data, estado, canManage, selfId, onPage, onDeactivate, onReactivate }) => {
     const user = useUserStore(state => state.user);
-    const changePage = async (event: React.ChangeEvent<unknown>, page: number) => {
-        const url = `/${data?.path}?page=${page}`
-        const { status, response, err }: IResponse = await request(url, 'GET');
-        switch (status) {
-            case 200:
-                const { data } = await response.json();
-                setData(data)
-                break;
-            case 400:
-                toast.error('Ocurrio un error al conectar con el servidor')
-                break;
-            case 500:
-                toast.error('Ocurrio un error al conectar con el servidor')
-                break;
-            default:
-                toast.error('Ocurrio un error al conectar con el servidor')
-                break;
-
-        }
-    }
+    const deactivated = estado === 'desactivados';
+    const pager = data.last_page > 1 && (
+        <Box sx={{ display: 'flex', flexFlow: "row wrap", justifyContent: 'end', mt: 2, mb: 2 }}>
+            <Pagination count={data.last_page} page={data.current_page} showFirstButton showLastButton onChange={(_: React.ChangeEvent<unknown>, page: number) => onPage(page)} />
+        </Box>
+    );
     return (
         <>
-            <Box sx={{ display: 'flex', flexFlow: "row wrap", justifyContent: 'end', mt: 2, mb: 2 }}>
-                <Pagination count={data.last_page} page={data.current_page} showFirstButton showLastButton onChange={(event: React.ChangeEvent<unknown>, page: number) => changePage(event, page)} />
-            </Box>
+            {pager}
             <TableContainer component={Paper} elevation={0} sx={{
                 background: (theme) => theme.palette.mode === 'dark' ? `${user.color}20` : '#fff',
                 borderRadius: 5,
-                p: 5,
+                p: { xs: 1.5, sm: 5 },
+                mt: 1,
                 boxShadow: `0 8px 16px ${user.color}20`,
                 '&::-webkit-scrollbar': {
                     width: '0.4em'
@@ -59,6 +47,8 @@ export const UsersDataTable: FC<Props> = ({ data, setData }) => {
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>ID</TableCell>
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Nombres</TableCell>
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Apellidos</TableCell>
+                            <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Rol</TableCell>
+                            {deactivated && <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Desactivada</TableCell>}
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Telefono</TableCell>
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Email</TableCell>
                             <TableCell sx={{ whiteSpace: 'nowrap', textAlign: 'center' }}>Direccion</TableCell>
@@ -68,15 +58,30 @@ export const UsersDataTable: FC<Props> = ({ data, setData }) => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {data && data.data.map((data: any) => (
-                            <TableData key={data.id} data={data} />
+                        {data && data.data.map((row: any) => (
+                            <TableData
+                                key={row.id}
+                                data={row}
+                                showDeactivation={deactivated}
+                                canManage={canManage}
+                                isSelf={row.id === selfId}
+                                onDeactivate={() => onDeactivate(row)}
+                                onReactivate={() => onReactivate(row)}
+                            />
                         ))}
+                        {data && data.data.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={deactivated ? 11 : 10} align="center" sx={{ py: 4 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {deactivated ? 'No hay cuentas desactivadas.' : 'No hay usuarios con ese filtro.'}
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
-            <Box sx={{ display: 'flex', flexFlow: "row wrap", justifyContent: 'end', mt: 2, mb: 2 }}>
-                <Pagination count={data.last_page} page={data.current_page} showFirstButton showLastButton onChange={(event: React.ChangeEvent<unknown>, page: number) => changePage(event, page)} />
-            </Box>
+            {pager}
         </>
     )
 }
