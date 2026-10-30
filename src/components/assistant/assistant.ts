@@ -26,7 +26,24 @@ export type DisplayBlock =
     | {
         type: "orders"; title: string;
         orders: Array<{ id: number; name: string; status: string | null; client: string | null; city: string | null; total: number; created: string | null }>;
-    };
+    }
+    | { type: "action"; action: ActionCard };
+
+/** Un cambio que propuso el asistente (paso 5): solo se hace cuando el dueño toca Confirmar. */
+export type ActionStatus = "proposed" | "done" | "failed" | "cancelled" | "expired";
+
+export type ActionCard = {
+    id: number;
+    title: string;
+    lines: Array<{ label: string; value: string; before?: string }>;
+    warnings: string[];
+    status: ActionStatus;
+    status_label: string;
+    error: string | null;
+    result: { text: string; link: { label: string; to: string } | null } | null;
+    created: string | null;
+    decided: string | null;
+};
 
 export type ChatMessage = {
     id: number;
@@ -108,6 +125,13 @@ export const transcribe = (audio: File) => {
 export const fetchMessage = (id: number) => api<ChatMessage>(`/assistant/messages/${id}`);
 
 export const clearChat = () => api<{ cleared: number }>("/assistant", "DELETE");
+
+/** Confirmar o cancelar una tarjeta: solo va su número; el servidor revisa todo de nuevo. */
+export const confirmAction = (id: number) => api<ActionCard>(`/assistant/actions/${id}/confirm`, "POST");
+export const cancelAction = (id: number) => api<ActionCard>(`/assistant/actions/${id}/cancel`, "POST");
+
+/** "Lo que hizo el asistente". */
+export const fetchActions = () => api<{ actions: ActionCard[] }>("/assistant/actions");
 
 // --- Archivos: las mismas reglas del servidor (Services/Assistant/Files/FileRules.php) ---
 

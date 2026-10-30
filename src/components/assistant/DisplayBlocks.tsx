@@ -1,7 +1,7 @@
 // src/components/assistant/DisplayBlocks.tsx
 // Lo que se ve debajo de una respuesta del asistente: las tarjetas del Panel del dueño (MetricCard), gráficas, tablas
 // (los rankings, el stock, las comisiones), listas (las alertas, el historial de una orden), órdenes con su botón
-// "Abrir" y enlaces. Todo sale de los datos del sistema, no de la IA.
+// "Abrir", enlaces y las tarjetas de cambios con Confirmar (paso 5). Todo sale de los datos del sistema, no de la IA.
 import React, { FC, useState } from "react";
 import { Box, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { MetricCard } from "../owner-panel/MetricCard";
 import { OrderDialog } from "../orders/OrderDialog";
 import { formatValue } from "../owner-panel/ownerPanel";
+import { ActionCardView } from "./ActionCardView";
 import { AssistantChart } from "./AssistantChart";
 import { DisplayBlock } from "./assistant";
 
@@ -113,6 +114,8 @@ const Block: FC<{ block: DisplayBlock }> = ({ block }) => {
             );
         case "orders":
             return <OrdersBlock block={block} />;
+        case "action":
+            return <ActionCardView card={block.action} />;
         case "link":
             return (
                 <Box>

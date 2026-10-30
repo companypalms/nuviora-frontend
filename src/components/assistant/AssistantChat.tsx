@@ -1,7 +1,8 @@
 // src/components/assistant/AssistantChat.tsx
 // El chat del asistente, abajo del Dashboard del Admin (Etapa 4). Un solo chat: se escribe una pregunta (con fotos, PDF
 // o Excel, o dictada con el micrófono), el servidor la guarda y arma la respuesta aparte; aquí se pide cada poco hasta
-// que llega, mostrando qué está revisando. Por ahora solo consulta: no cambia nada del sistema.
+// que llega, mostrando qué está revisando. Los cambios llegan como tarjetas con Confirmar (paso 5), y quedan en "Lo que
+// hizo el asistente".
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import {
     Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Menu, MenuItem, Stack,
@@ -11,6 +12,7 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import MoreVertRoundedIcon from "@mui/icons-material/MoreVertRounded";
 import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
 import { Panel } from "../ui/surface/Panel";
+import { ActionsHistoryDialog } from "./ActionsHistoryDialog";
 import { AssistantComposer, AssistantComposerHandle } from "./AssistantComposer";
 import { MessageView } from "./MessageView";
 import { ChatState, SUGGESTIONS, clearChat, fetchChat, fetchMessage, newClientId, sendQuestion } from "./assistant";
@@ -24,6 +26,10 @@ const Welcome: FC<{ example: boolean; onAsk: (q: string) => void }> = ({ example
             Pregúntame lo que quieras de tu negocio: cuánto vendiste, tu ganancia, la efectividad de una vendedora o de una
             agencia, el ranking del equipo, tus metas o lo que tienes pendiente hoy. También puedes mandarme fotos (una factura,
             un comprobante), PDF o Excel, o hablarme con el micrófono.
+        </Typography>
+        <Typography color="text.secondary">
+            Y puedo hacer cambios por ti: anotar en tu calendario, cambiar las tasas, añadir un banco, anotar gastos y gastos
+            fijos, o registrar su pago. Siempre te muestro una tarjeta y no guardo nada hasta que tocas <b>Confirmar</b>.
         </Typography>
         {example && (
             <Alert severity="info" variant="outlined" sx={{ py: 0.25 }}>
@@ -45,6 +51,7 @@ export const AssistantChat: FC = () => {
     const [menu, setMenu] = useState<HTMLElement | null>(null);
     const [confirmClear, setConfirmClear] = useState(false);
     const [dragging, setDragging] = useState(false);
+    const [showActions, setShowActions] = useState(false);
     const listRef = useRef<HTMLDivElement>(null);
     const composerRef = useRef<AssistantComposerHandle>(null);
 
@@ -153,6 +160,7 @@ export const AssistantChat: FC = () => {
                 )}
                 <IconButton size="small" aria-label="Opciones del chat" onClick={(e) => setMenu(e.currentTarget)} sx={{ flexShrink: 0 }}><MoreVertRoundedIcon fontSize="small" /></IconButton>
                 <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)}>
+                    <MenuItem onClick={() => { setMenu(null); setShowActions(true); }}>Lo que hizo el asistente</MenuItem>
                     <MenuItem disabled={!count} onClick={() => { setMenu(null); setConfirmClear(true); }}>Limpiar chat</MenuItem>
                     {state && <MenuItem disabled>Preguntas de hoy: {state.today} de {state.limit}</MenuItem>}
                 </Menu>
@@ -179,10 +187,13 @@ export const AssistantChat: FC = () => {
                 </>
             )}
 
+            <ActionsHistoryDialog open={showActions} onClose={() => setShowActions(false)} />
             <Dialog open={confirmClear} onClose={() => setConfirmClear(false)}>
                 <DialogTitle>¿Limpiar el chat?</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" color="text.secondary">Se borra la conversación de la pantalla y el asistente empieza de cero.</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Se borra la conversación de la pantalla y el asistente empieza de cero. "Lo que hizo el asistente" se queda guardado.
+                    </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmClear(false)}>Cancelar</Button>
