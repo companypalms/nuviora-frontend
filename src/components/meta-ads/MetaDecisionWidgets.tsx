@@ -224,6 +224,11 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["corrections_pct", "Tiempo de correcciones", "%"], ["due_days", "Plazo de un encargo al aprobarlo", "días"],
         ],
     },
+    {
+        title: "Landings", help: "Con menos no se opina. Lenta y \"compra menos\" usan la visita y el \"debajo de tus ganadores\" de arriba.", fields: [
+            ["landing_min_clicks", "Opinar de la visita con al menos", "clics"], ["landing_min_visits", "Opinar de la compra con al menos", "visitas"],
+        ],
+    },
 ];
 
 const NumberField: React.FC<{ k: string; label: string; unit?: string; value: number; initial: number; onSave: (k: string, v: number) => void }> = ({ k, label, unit, value, initial, onSave }) => {
