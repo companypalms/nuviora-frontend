@@ -15,6 +15,7 @@ import { MetaFilters } from "../../components/meta-ads/MetaFilters";
 import { MetricCell, RuleChips } from "../../components/meta-ads/MetaWidgets";
 import { MetaReportTable } from "../../components/meta-ads/MetaReportTable";
 import { MetaChart } from "../../components/meta-ads/MetaChart";
+import { CreativeDecision, CreativeDecisionBox } from "../../components/meta-ads/MetaDecisionWidgets";
 
 /** Lo que dice el anuncio y a dónde lleva (paso 1a de la Etapa 5). */
 type AdDetails = {
@@ -25,12 +26,14 @@ type AdDetails = {
 type Detail = {
     creative: {
         id: number; tracking_id: string; label: string; type: string | null; status: string | null; status_changed_at: string | null;
+        status_source?: "auto" | "manual" | null; status_reason?: string | null;
         // Etapa 5, paso 1b
         product?: string | null; angle_code?: string | null; batch_code?: string | null; iteration_of?: string | null;
         angle?: { code: string; name: string | null; hypothesis: string | null; status: string } | null;
         parent?: { id: number; label: string } | null;
     };
     details?: AdDetails;
+    decision?: CreativeDecision | null;
     summary: ReportRow | null;
     ads: ReportRow[];
     range: RangeInfo;
@@ -56,8 +59,8 @@ export const MetaCreativePage: React.FC = () => {
 
     const setStatus = async (status: string) => {
         try {
-            await api(`/meta/creatives/${id}/status`, "PUT", { status: status || null });
-            toast.success("Estado guardado");
+            await api(`/meta/creatives/${id}/status`, "PUT", { status });
+            toast.success(status === "auto" ? "Vuelve a ponerlo el sistema" : "Estado guardado a mano");
             load();
         } catch (e) { toast.error((e as Error).message); }
     };
@@ -94,10 +97,16 @@ export const MetaCreativePage: React.FC = () => {
                             )}
                         </Typography>
                     </Box>
-                    <TextField select size="small" label="Estado del creativo" value={data.creative.status ?? ""} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 200 }}>
-                        <MenuItem value="">Sin estado</MenuItem>
-                        {Object.entries(CREATIVE_STATUS).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
-                    </TextField>
+                    <Box sx={{ minWidth: 220 }}>
+                        <TextField select size="small" label="Estado del creativo" fullWidth
+                            value={data.creative.status_source === "manual" ? data.creative.status ?? "auto" : "auto"} onChange={(e) => setStatus(e.target.value)}>
+                            <MenuItem value="auto">Automático{data.creative.status_source !== "manual" && data.creative.status ? ` (${CREATIVE_STATUS[data.creative.status] ?? data.creative.status})` : ""}</MenuItem>
+                            {Object.entries(CREATIVE_STATUS).map(([k, v]) => <MenuItem key={k} value={k}>{v} (a mano)</MenuItem>)}
+                        </TextField>
+                        {data.creative.status_source !== "manual" && data.creative.status_reason && (
+                            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5, maxWidth: 320 }}>{data.creative.status_reason}</Typography>
+                        )}
+                    </Box>
                 </Stack>
                 <MetaFilters value={filters} onChange={setFilters} compact />
 
@@ -143,6 +152,8 @@ export const MetaCreativePage: React.FC = () => {
                         </>
                     )}
                 </Paper>
+
+                <CreativeDecisionBox d={data.decision} />
 
                 {data.details && (
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2, mt: 2 }}>

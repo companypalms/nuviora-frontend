@@ -1,5 +1,6 @@
 // src/components/meta-ads/metaAds.ts
 // Tipos y utilidades de la integración de Meta Ads (documento de Fran del 2026-10-08, Módulo 2).
+import type { DecisionNote, Funnel, Verdict } from "./MetaDecisionWidgets";
 import { request } from "../../common/request";
 
 export type MetaAccount = {
@@ -156,6 +157,8 @@ export type ReportRow = Node & {
     // Etapa 5, paso 1b: lo que dice el nombre (anuncio, ad set o creativo)
     creative_label?: string | null; angle_code?: string | null; batch_code?: string | null; concept?: string | null;
     stage?: "test" | "proven" | null; iteration_of?: string | null;
+    // Etapa 5, paso 2a: lo que dicen las reglas del dueño (3 días cerrados)
+    verdict?: Verdict | null; decision_notes?: DecisionNote[]; funnel?: Funnel | null; status_source?: "auto" | "manual" | null;
 };
 
 export const RANGES: { key: string; label: string }[] = [

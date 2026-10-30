@@ -13,6 +13,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { MetaConnections } from "../../components/meta-ads/MetaConnections";
 import { MetaCampaignsTab, MetaRulesTab, MetaTargetsTab } from "../../components/meta-ads/MetaSetupTabs";
 import { MetaAnglesTab, MetaProductModes } from "../../components/meta-ads/MetaAnglesTab";
+import { MetaDecisionSettings } from "../../components/meta-ads/MetaDecisionWidgets";
 
 const TABS = [
     { key: "connections", label: "Conexiones" },
@@ -46,7 +47,7 @@ export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                 {tab === "campaigns" && <MetaCampaignsTab />}
                 {tab === "angles" && <MetaAnglesTab />}
                 {tab === "targets" && <Stack spacing={3}><MetaProductModes /><MetaTargetsTab /></Stack>}
-                {tab === "rules" && <MetaRulesTab />}
+                {tab === "rules" && <Stack spacing={3}><MetaDecisionSettings /><MetaRulesTab /></Stack>}
             </Box>
         </PageLayout>
     );

@@ -11,6 +11,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { COLUMNS, CREATIVE_STATUS, ReportRow, api } from "./metaAds";
 import { MetricCell, RuleChips } from "./MetaWidgets";
+import { DecisionNotes, VerdictChip } from "./MetaDecisionWidgets";
 
 const STATUS_LABEL: Record<string, string> = {
     ACTIVE: "Activa", PAUSED: "Pausada", ARCHIVED: "Archivada", DELETED: "Eliminada", CAMPAIGN_PAUSED: "Campaña pausada",
@@ -98,7 +99,13 @@ export const MetaReportTable: React.FC<{
                                             <Tooltip title="Corregir el código del creativo"><IconButton size="small" aria-label="Corregir el código del creativo" onClick={() => setEditing(r)}><EditRounded sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                         </Box>
                                     )}
-                                    {level === "creative" && r.status && <Chip size="small" label={CREATIVE_STATUS[r.status] ?? r.status} sx={{ mt: 0.5 }} />}
+                                    {level === "creative" && r.status && (
+                                        <Chip size="small" label={`${CREATIVE_STATUS[r.status] ?? r.status}${r.status_source === "manual" ? " (a mano)" : r.status_source === "auto" ? " (auto)" : ""}`}
+                                            sx={{ mt: 0.5, mr: 0.5 }} />
+                                    )}
+                                    {level !== "campaign" && <VerdictChip v={r.verdict} />}
+                                    {level === "creative" && r.funnel && <Chip size="small" variant="outlined" label={r.funnel.label} sx={{ mt: 0.5 }} />}
+                                    {level === "campaign" && <DecisionNotes notes={r.decision_notes} />}
                                     <RuleChips rules={r.signals.rules} />
                                 </TableCell>
                                 {cols.map((c) => (
