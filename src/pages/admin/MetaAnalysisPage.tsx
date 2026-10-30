@@ -42,7 +42,7 @@ type Analysis = {
     facts: ProductFact[]; text: { resumen: string; productos: AiProduct[] } | null;
     versions: { version: number; created_at: string; auto: boolean }[];
 };
-type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number };
+type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
 
 const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -237,6 +237,11 @@ export const MetaAnalysisPage: React.FC = () => {
                         </Typography>
                         {a.status === "example" && <Alert severity="warning">Ejemplo: en esta PC no hay IA. La lista y los datos son los de tus reglas; el texto es una plantilla.</Alert>}
                         {(a.status === "no_ai" || a.status === "error") && a.error && <Alert severity="warning">{a.error}</Alert>}
+                        {(data.queue_pending ?? 0) > 0 && (
+                            <Alert severity="info" action={<Button size="small" component={RouterLink} to="/meta-ads/cola">Ver la cola</Button>}>
+                                Hay <b>{data.queue_pending}</b> {data.queue_pending === 1 ? "encargo" : "encargos"} de creativos para aprobar.
+                            </Alert>
+                        )}
                         {a.warnings.length > 0 && (
                             <Alert severity="error">La IA escribió montos que no están en los datos: <b>{a.warnings.join(", ")}</b>. Fíate de la lista de arriba y de tus reglas, no de esos montos.</Alert>
                         )}

@@ -166,7 +166,7 @@ export const MetaAnglesTab: React.FC = () => {
     );
 };
 
-type ModeProduct = AngleProduct & { mode: string; note: string | null; updated_by: string | null; updated_at: string | null };
+type ModeProduct = AngleProduct & { mode: string; note: string | null; proof: string | null; updated_by: string | null; updated_at: string | null };
 
 const MODE_LABEL: Record<string, { label: string; help: string }> = {
     normal: { label: "Normal", help: "Se analiza, se escala y se le piden creativos." },
@@ -177,10 +177,11 @@ const MODE_LABEL: Record<string, { label: string; help: string }> = {
 
 const ModeRow: React.FC<{ p: ModeProduct; modes: string[]; onSaved: () => void }> = ({ p, modes, onSaved }) => {
     const [note, setNote] = useState(p.note ?? "");
-    const save = async (mode: string, n: string) => {
+    const [proof, setProof] = useState(p.proof ?? "");
+    const save = async (mode: string, n: string, pr: string = proof, message?: string) => {
         try {
-            await api(`/meta/product-modes/${p.id}`, "PUT", { mode, note: n.trim() || null });
-            toast.success(`${p.name}: ${MODE_LABEL[mode]?.label ?? mode}`);
+            await api(`/meta/product-modes/${p.id}`, "PUT", { mode, note: n.trim() || null, proof: pr.trim() || null });
+            toast.success(message ?? `${p.name}: ${MODE_LABEL[mode]?.label ?? mode}`);
             onSaved();
         } catch (e) { toast.error((e as Error).message); }
     };
@@ -198,6 +199,11 @@ const ModeRow: React.FC<{ p: ModeProduct; modes: string[]; onSaved: () => void }
             <TableCell sx={{ minWidth: 220 }}>
                 <TextField size="small" placeholder="Nota (opcional)" value={note} onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 255 }}
                     onBlur={() => { if (note.trim() !== (p.note ?? "")) save(p.mode, note); }} fullWidth />
+            </TableCell>
+            <TableCell sx={{ minWidth: 260 }}>
+                <TextField size="small" placeholder="Registro sanitario, un médico que de verdad lo recomienda, testimonios reales…" value={proof}
+                    onChange={(e) => setProof(e.target.value)} inputProps={{ maxLength: 2000, "aria-label": `Avales y pruebas reales de ${p.name}` }} multiline maxRows={4}
+                    onBlur={() => { if (proof.trim() !== (p.proof ?? "")) save(p.mode, note, proof, `${p.name}: avales guardados`); }} fullWidth />
             </TableCell>
         </TableRow>
     );
@@ -218,7 +224,9 @@ export const MetaProductModes: React.FC = () => {
             </Box>
             {data.products.length === 0 ? <Typography sx={{ p: 2 }}>Todavía no hay campañas clasificadas por producto.</Typography> : (
                 <Table size="small">
-                    <TableHead><TableRow><TableCell>Producto</TableCell><TableCell>Modo</TableCell><TableCell>Nota</TableCell></TableRow></TableHead>
+                    <TableHead><TableRow><TableCell>Producto</TableCell><TableCell>Modo</TableCell><TableCell>Nota</TableCell>
+                        <TableCell>Avales y pruebas reales<Typography variant="caption" color="text.secondary" component="div">La IA los usa tal cual en los encargos; nunca inventa otros.</Typography></TableCell>
+                    </TableRow></TableHead>
                     <TableBody>{data.products.map((p) => <ModeRow key={`${p.id}-${p.mode}`} p={p} modes={data.modes} onSaved={load} />)}</TableBody>
                 </Table>
             )}

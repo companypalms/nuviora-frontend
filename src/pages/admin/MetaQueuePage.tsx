@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import {
     AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, CheckRounded, ContentCopyRounded, DeleteOutlineRounded, EditRounded, ExpandLessRounded,
-    ExpandMoreRounded, InsightsRounded, SwapHorizRounded,
+    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -40,7 +40,10 @@ type Data = {
     batches: Batch[]; products: ProductRow[];
     settings: { batch_pieces: number; due_days: number; bank_min: number; bank_max: number; video_editors: number; capacity: number };
     statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>;
+    last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null } | null;
 };
+const RUN_STATUS: Record<string, string> = { ok: "redactados por la IA", example: "con una plantilla (en esta PC no hay IA)", no_ai: "con una plantilla (la IA no está configurada)",
+    error: "con una plantilla (la IA falló)" };
 type Options = {
     angles: { code: string; name: string | null; hypothesis: string | null }[];
     creatives: { id: number; label: string; status: string | null; angle_code: string | null; batch_code: string | null }[];
@@ -254,6 +257,7 @@ const BatchCard: React.FC<{
                 <Chip size="small" variant="outlined" label={data.kinds[b.kind] ?? b.kind} />
                 {b.angle_code && <Chip size="small" variant="outlined" label={b.angle_name ? `${b.angle_code} · ${b.angle_name}` : b.angle_code} />}
                 <Chip size="small" color={STATUS_COLOR[b.status]} label={b.status_label} />
+                {b.source === "rules" && <Chip size="small" variant="outlined" color="secondary" label="Propuesto por tus reglas" />}
                 {b.urgency && <Chip size="small" color={URGENCY_COLOR[b.urgency]} variant="outlined" label={`U${b.urgency}`} />}
             </Stack>
             {b.hypothesis && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Hipótesis:</b> {b.hypothesis}</Typography>}
@@ -336,6 +340,7 @@ export const MetaQueuePage: React.FC = () => {
     const [data, setData] = useState<Data | null>(null);
     const [editing, setEditing] = useState<{ batch: Batch | null } | null>(null);
     const [history, setHistory] = useState(false);
+    const [proposing, setProposing] = useState(false);
 
     const load = useCallback(() => { api<Data>("/meta/queue").then(setData).catch((e) => toast.error(e.message)); }, []);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
@@ -351,6 +356,14 @@ export const MetaQueuePage: React.FC = () => {
         };
     }, [data]);
 
+    const propose = async () => {
+        setProposing(true);
+        try {
+            const r = await api<{ run: { created: number } }>("/meta/queue/propose", "POST");
+            toast.success(r.run.created ? `${r.run.created} encargos nuevos para aprobar` : "No falta ningún encargo hoy");
+            load();
+        } catch (e) { toast.error((e as Error).message); } finally { setProposing(false); }
+    };
     // Después de guardar o mover uno, se vuelve a leer todo (la banca de cada producto cambia)
     const changed = () => load();
     const reorder = async (i: number, dir: -1 | 1) => {
@@ -380,16 +393,28 @@ export const MetaQueuePage: React.FC = () => {
         <Layout>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
                 <DescripcionDeVista title="Cola y banca" backPath="/meta-ads"
-                    description="Los encargos de creativos de cada producto: los apruebas, el sistema les da su número único (B#### y C####) y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
+                    description="Los encargos de creativos de cada producto: tus reglas los proponen cada mañana y la IA los redacta; los apruebas, el sistema les da su número único (B#### y C####) y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
                         {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Banca por producto: {s.bank_min}–{s.bank_max}.
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
+                        <Button size="small" variant="outlined" startIcon={proposing ? <CircularProgress size={14} /> : <AutoAwesomeRounded />} disabled={proposing} onClick={propose}>
+                            {proposing ? "Proponiendo…" : "Proponer ahora"}
+                        </Button>
                         <Button size="small" variant="contained" startIcon={<AddRounded />} onClick={() => setEditing({ batch: null })}>Nuevo encargo</Button>
                     </Stack>
                 </Stack>
+                {data.last_run && (
+                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1.5 }}>
+                        Última propuesta de tus reglas: {dateTime(data.last_run.at)} · {data.last_run.status === "nothing" ? "no faltaba ningún encargo"
+                            : `${data.last_run.created} ${data.last_run.created === 1 ? "encargo" : "encargos"} ${RUN_STATUS[data.last_run.status] ?? ""}`}
+                        {data.last_run.replaced > 0 ? ` · ${data.last_run.replaced} de días anteriores reemplazados` : ""}
+                        {data.last_run.learnings > 0 ? ` · ${data.last_run.learnings} aprendizajes escritos` : ""}. Se propone sola cada mañana a las 7:00.
+                    </Typography>
+                )}
+                {data.last_run?.status === "error" && data.last_run.error && <Alert severity="warning" sx={{ mb: 1.5 }}>{data.last_run.error}</Alert>}
                 <Stack spacing={2}>
                     <Paper elevation={0} sx={card}>
                         <Typography variant="subtitle1" fontWeight="bold">La banca de cada producto</Typography>
@@ -406,7 +431,7 @@ export const MetaQueuePage: React.FC = () => {
                             ))}
                     </Paper>
                     {byStatus.proposed.length > 0 || byStatus.queue.length + byStatus.bank.length + byStatus.testing.length + byStatus.closed.length > 0 ? null
-                        : <Alert severity="info">Todavía no hay encargos. Crea uno con "Nuevo encargo" (desde el paso siguiente también los propone el sistema cada mañana).</Alert>}
+                        : <Alert severity="info">Todavía no hay encargos. Tus reglas los proponen cada mañana a las 7:00 ("Proponer ahora" para no esperar), o crea uno con "Nuevo encargo".</Alert>}
                     {section("Para aprobar", "Al aprobar, el sistema le da su número y entra al final de la cola.", byStatus.proposed, "Nada para aprobar.")}
                     {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen.", byStatus.queue, "La cola está vacía.", true)}
                     {section("En banca", "Listos para lanzar. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}
