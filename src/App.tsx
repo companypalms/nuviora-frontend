@@ -37,6 +37,7 @@ import { MyClosures } from './pages/agency/MyClosures';
 import { MetaAdsDashboard } from './pages/admin/MetaAdsDashboard';
 import { MetaCreativePage } from './pages/admin/MetaCreativePage';
 import { MetaAnalysisPage } from './pages/admin/MetaAnalysisPage';
+import { MetaQueuePage } from './pages/admin/MetaQueuePage';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
 import { Integrations } from './pages/admin/Integrations';
@@ -150,6 +151,7 @@ function App() {
           <Route path="/meta-ads" element={<RequireRole allowedRoles={['Admin']}><MetaAdsDashboard /></RequireRole>} />
           <Route path="/meta-ads/creativos/:id" element={<RequireRole allowedRoles={['Admin']}><MetaCreativePage /></RequireRole>} />
           <Route path="/meta-ads/analisis" element={<RequireRole allowedRoles={['Admin']}><MetaAnalysisPage /></RequireRole>} />
+          <Route path="/meta-ads/cola" element={<RequireRole allowedRoles={['Admin']}><MetaQueuePage /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
           <Route path="/admin/tarifas-delivery" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tarifas" />} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />

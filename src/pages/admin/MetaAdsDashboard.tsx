@@ -198,6 +198,7 @@ export const MetaAdsDashboard: React.FC = () => {
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" variant="contained" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
+                        <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/cola">Cola y banca</Button>
                         <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads">Configuración</Button>
                     </Stack>
                 </Stack>

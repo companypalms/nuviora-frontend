@@ -117,7 +117,7 @@ export type CampaignAction = {
 };
 export type PriceOption = { text: string; price: number; to: number; min: number };
 export type ProductPlan = {
-    urgency: { level: 1 | 2 | 3 | 4 | 5; label: string; batches: string; reasons: string[] };
+    urgency: { level: 1 | 2 | 3 | 4 | 5; label: string; batches: string; reasons: string[]; needed?: string; bank?: string[] };
     next_work: string[]; price: string[]; price_watch: string | null; alarms: string[]; money_at_risk: number;
 };
 
@@ -153,7 +153,9 @@ export const PlanBox: React.FC<{ plan?: ProductPlan | null }> = ({ plan }) => {
                 <Tooltip title={u.reasons.length ? u.reasons.join(" · ") : "Sin problemas en los 3 días cerrados."}>
                     <Chip size="small" color={URGENCY_COLOR[u.level]} label={u.label} />
                 </Tooltip>
-                <Typography variant="caption" color="text.secondary">Batches a pedir: <b>{u.batches}</b></Typography>
+                <Typography variant="caption" color="text.secondary">
+                    Batches a pedir: <b>{u.batches}</b>{u.bank && u.bank.length > 0 ? ` · en banca: ${u.bank.join(", ")}` : ""}
+                </Typography>
             </Stack>
             {plan.next_work.map((t, i) => <Typography key={i} variant="body2" sx={{ mt: 0.25 }}>• {t}</Typography>)}
             {[...plan.price, ...(plan.price_watch ? [plan.price_watch] : [])].map((t, i) => (
@@ -215,6 +217,13 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
+    {
+        title: "Cola y banca", help: "La banca son los batches aprobados sin testear de cada producto; se restan de los que hay que pedir.", fields: [
+            ["bank_min", "Banca por producto: desde", "batches"], ["bank_max", "…hasta", "batches"], ["batch_pieces", "Piezas por batch", "piezas"],
+            ["video_editors", "Editores de video", "personas"], ["batches_per_editor", "Batches por editor por día", "batches"],
+            ["corrections_pct", "Tiempo de correcciones", "%"], ["due_days", "Plazo de un encargo al aprobarlo", "días"],
+        ],
+    },
 ];
 
 const NumberField: React.FC<{ k: string; label: string; unit?: string; value: number; initial: number; onSave: (k: string, v: number) => void }> = ({ k, label, unit, value, initial, onSave }) => {
