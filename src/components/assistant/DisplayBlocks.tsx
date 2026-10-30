@@ -20,7 +20,7 @@ const TABLE_ROWS = 10;
 const cell = (v: number | null, format: MetricFormat | "bs") =>
     format !== "bs" ? formatValue(v, format) : v === null ? "—" : `Bs ${v.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const LEVEL_COLOR: Record<string, string> = { red: "error.main", orange: "warning.dark", yellow: "warning.main", pending: "text.disabled" };
+const LEVEL_COLOR: Record<string, string> = { red: "error.main", orange: "warning.dark", yellow: "warning.main", green: "success.main", pending: "text.disabled" };
 
 /** Las órdenes que encontró el asistente, cada una con "Abrir" (la ficha de siempre, ahí mismo). */
 const OrdersBlock: FC<{ block: Extract<DisplayBlock, { type: "orders" }> }> = ({ block }) => {
