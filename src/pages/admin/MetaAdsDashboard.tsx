@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert, Box, Button, Chip, Collapse, IconButton, Paper, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography,
 } from "@mui/material";
-import { ExpandLessRounded, ExpandMoreRounded, SettingsRounded } from "@mui/icons-material";
+import { ExpandLessRounded, ExpandMoreRounded, InsightsRounded, SettingsRounded } from "@mui/icons-material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
@@ -196,7 +196,10 @@ export const MetaAdsDashboard: React.FC = () => {
                         {filters.compare && ` · contra ${shortDay(overview.range.prev_from)} – ${shortDay(overview.range.prev_to)}`}
                         {" · "}Última sincronización: {dateTime(overview.last_sync_at)}
                     </Typography>
-                    <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads">Configuración</Button>
+                    <Stack direction="row" spacing={1}>
+                        <Button size="small" variant="contained" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
+                        <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads">Configuración</Button>
+                    </Stack>
                 </Stack>
 
                 {!overview.has_connections && (

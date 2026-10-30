@@ -83,6 +83,7 @@ export const MENU_LINKS: NavLink[] = [
     // Reportes
     { section: "reportes", text: "Métricas", icon: <PollRounded />, link: "/metrics", roles: ["Admin", "Gerente"], keywords: "estadisticas reportes graficos" },
     { section: "reportes", text: "Meta Ads", icon: <InsightsRounded />, link: "/meta-ads", roles: ["Admin"], keywords: "facebook anuncios campañas publicidad cpa ctr cpm creativos" },
+    { section: "reportes", text: "Análisis de campañas", icon: <InsightsRounded />, link: "/meta-ads/analisis", roles: ["Admin"], keywords: "meta ads analisis del dia urgente escalar bajar pausar editores ia" },
     { section: "reportes", text: "Métricas del negocio", icon: <PollRounded />, link: "/business-metrics", roles: ["Admin"], keywords: "ganancias ventas estadisticas" },
     { section: "reportes", text: "Tracking de Órdenes", icon: <HistoryRounded />, link: "/tracking-report", roles: ["Admin", "Gerente"], keywords: "historial seguimiento" },
     { section: "reportes", text: "Reporte Horas Entregas", icon: <AccessTimeRounded />, link: "/admin/delivered-hours-report", roles: ["Admin"], keywords: "tiempos entregas horas agencias" },
