@@ -180,7 +180,7 @@ export const MetaAdsDashboard: React.FC = () => {
         filters.city_id && options?.cities.find((c) => c.id === filters.city_id)?.name,
         filters.campaign && (options?.campaigns.find((c) => c.meta_id === filters.campaign)?.name ?? "Campaña"),
         filters.adset && (options?.adsets.find((s) => s.meta_id === filters.adset)?.name ?? "Ad set"),
-        filters.creative && options?.creatives.find((c) => c.id === filters.creative)?.tracking_id,
+        filters.creative && options?.creatives.find((c) => c.id === filters.creative)?.label,
     ].filter(Boolean).join(" → ");
 
     return (

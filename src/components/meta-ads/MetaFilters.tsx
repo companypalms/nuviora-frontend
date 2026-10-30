@@ -50,7 +50,8 @@ export const MetaFilters: React.FC<{ value: Filters; onChange: (f: Filters) => v
                             onChange={(v) => set({ campaign: v as string | null, adset: null })} width={240} />
                         <Pick label="Ad set" options={adsets} value={f.adset} getKey={(o) => o.meta_id} getLabel={(o) => o.name ?? o.meta_id}
                             onChange={(v) => set({ adset: v as string | null })} />
-                        <Pick label="Creativo" options={options.creatives} value={f.creative} getKey={(o) => o.id} getLabel={(o) => o.tracking_id}
+                        <Pick label="Creativo" options={f.product_id ? options.creatives.filter((c) => c.product_id === f.product_id) : options.creatives}
+                            value={f.creative} getKey={(o) => o.id} getLabel={(o) => o.label}
                             onChange={(v) => set({ creative: v as number | null })} width={180} />
                         <TextField select size="small" label="Estado" value={f.status} onChange={(e) => set({ status: e.target.value as Filters["status"] })} sx={{ width: { xs: "100%", sm: 140 } }}>
                             <MenuItem value="">Todos</MenuItem>

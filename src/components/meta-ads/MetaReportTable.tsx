@@ -30,10 +30,13 @@ const TrackingIdDialog: React.FC<{ row: ReportRow | null; onClose: () => void; o
     };
     return (
         <Dialog open={row !== null} onClose={onClose} fullWidth maxWidth="xs">
-            <DialogTitle>Creative Tracking ID</DialogTitle>
+            <DialogTitle>Código del creativo</DialogTitle>
             <DialogContent>
-                <Typography variant="body2" sx={{ mb: 2 }}>Anuncio «{row?.name}». Si lo pones a mano, la sincronización no lo cambia.</Typography>
-                <TextField label="Creative Tracking ID" value={value} onChange={(e) => setValue(e.target.value)} fullWidth autoFocus placeholder="C004" />
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                    Anuncio «{row?.name}». El sistema lo lee del nombre; si lo pones a mano, la sincronización no lo cambia. Los anuncios del mismo
+                    producto con el mismo código se cuentan como un solo creativo.
+                </Typography>
+                <TextField label="Código del creativo" value={value} onChange={(e) => setValue(e.target.value)} fullWidth autoFocus placeholder="C004" inputProps={{ maxLength: 100 }} />
             </DialogContent>
             <DialogActions>
                 {row?.tracking_id_source === "manual" && <Button onClick={() => save("")}>Volver a detectar</Button>}
@@ -80,16 +83,19 @@ export const MetaReportTable: React.FC<{
                                             r.effective_status ? STATUS_LABEL[r.effective_status] ?? r.effective_status : null,
                                             r.missing_since ? `ya no está en Meta (último estado: ${STATUS_LABEL[r.last_known_state ?? ""] ?? r.last_known_state ?? "—"})` : null,
                                             level === "creative" ? `${r.ads} anuncios · ${r.accounts} cuentas · ${r.type === "image" ? "imagen" : r.type === "video" ? "video" : r.type ?? "—"}` : null,
+                                            level !== "campaign" && r.angle_code ? `ángulo ${r.angle_code}` : null,
+                                            level !== "campaign" && r.batch_code ? `batch ${r.batch_code}` : null,
+                                            level === "adset" && r.stage ? (r.stage === "proven" ? "PROVEN" : "test") : null,
                                         ].filter(Boolean).join(" · ")}
                                     </Typography>
                                     {level === "ad" && (
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                             <Typography variant="caption">Creativo:</Typography>
                                             {r.creative_id ? (
-                                                <Link component={RouterLink} to={`/meta-ads/creativos/${r.creative_id}`} variant="caption" fontWeight="bold">{r.creative_tracking_id}</Link>
-                                            ) : <Typography variant="caption" color="warning.main">sin ID</Typography>}
+                                                <Link component={RouterLink} to={`/meta-ads/creativos/${r.creative_id}`} variant="caption" fontWeight="bold">{r.creative_label ?? r.creative_tracking_id}</Link>
+                                            ) : <Typography variant="caption" color="warning.main">sin código</Typography>}
                                             {r.tracking_id_source === "manual" && <Chip size="small" label="a mano" sx={{ height: 18 }} />}
-                                            <Tooltip title="Corregir el Creative Tracking ID"><IconButton size="small" aria-label="Corregir el Creative Tracking ID" onClick={() => setEditing(r)}><EditRounded sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                            <Tooltip title="Corregir el código del creativo"><IconButton size="small" aria-label="Corregir el código del creativo" onClick={() => setEditing(r)}><EditRounded sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                         </Box>
                                     )}
                                     {level === "creative" && r.status && <Chip size="small" label={CREATIVE_STATUS[r.status] ?? r.status} sx={{ mt: 0.5 }} />}

@@ -1,8 +1,9 @@
 // src/pages/admin/MetaAdsSettings.tsx
 // Configuración → Meta Ads (documento de Fran del 2026-10-08, Módulo 2, §3): conexiones y cuentas (§3 a §6, §55,
 // §56), clasificación de campañas (§11 a §13), objetivos por producto (§34) y reglas (§37 a §40). Solo el Admin (§44).
+// Etapa 5, paso 1b: los ángulos de cada producto y el modo del producto (normal, liquidación, pausado, abandonado).
 import React from "react";
-import { Box, Button, Paper, Tab, Tabs } from "@mui/material";
+import { Box, Button, Paper, Stack, Tab, Tabs } from "@mui/material";
 import { InsightsRounded } from "@mui/icons-material";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { PageLayout } from "../../components/ui/SectionTabsPage";
@@ -11,11 +12,13 @@ import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVis
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { MetaConnections } from "../../components/meta-ads/MetaConnections";
 import { MetaCampaignsTab, MetaRulesTab, MetaTargetsTab } from "../../components/meta-ads/MetaSetupTabs";
+import { MetaAnglesTab, MetaProductModes } from "../../components/meta-ads/MetaAnglesTab";
 
 const TABS = [
     { key: "connections", label: "Conexiones" },
     { key: "campaigns", label: "Campañas" },
-    { key: "targets", label: "Objetivos por producto" },
+    { key: "angles", label: "Ángulos" },
+    { key: "targets", label: "Productos y objetivos" },
     { key: "rules", label: "Reglas" },
 ];
 
@@ -41,7 +44,8 @@ export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                 </Paper>
                 {tab === "connections" && <MetaConnections />}
                 {tab === "campaigns" && <MetaCampaignsTab />}
-                {tab === "targets" && <MetaTargetsTab />}
+                {tab === "angles" && <MetaAnglesTab />}
+                {tab === "targets" && <Stack spacing={3}><MetaProductModes /><MetaTargetsTab /></Stack>}
                 {tab === "rules" && <MetaRulesTab />}
             </Box>
         </PageLayout>

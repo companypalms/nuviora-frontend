@@ -153,6 +153,9 @@ export type ReportRow = Node & {
     creative_tracking_id?: string | null; tracking_id_source?: string | null; creative_id?: number | null; creative_status?: string | null;
     creative_type?: string | null; thumbnail_url?: string | null;
     tracking_id?: string; type?: string | null; status?: string | null; ads?: number; accounts?: number;
+    // Etapa 5, paso 1b: lo que dice el nombre (anuncio, ad set o creativo)
+    creative_label?: string | null; angle_code?: string | null; batch_code?: string | null; concept?: string | null;
+    stage?: "test" | "proven" | null; iteration_of?: string | null;
 };
 
 export const RANGES: { key: string; label: string }[] = [
@@ -227,7 +230,7 @@ export type FilterOptions = {
     accounts: { id: number; name: string | null; meta_id: string }[];
     campaigns: { meta_id: string; name: string | null; product_id: number | null; city_id: number | null; active: boolean }[];
     adsets: { meta_id: string; name: string | null; campaign_meta_id: string; active: boolean }[];
-    creatives: { id: number; tracking_id: string; type: string | null; status: string | null }[];
+    creatives: { id: number; tracking_id: string; label: string; product_id: number | null; type: string | null; status: string | null }[];
 };
 
 /** Los filtros como parámetros de la API. */

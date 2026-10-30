@@ -3,8 +3,8 @@
 // utilizando; CPA; CTR; CPM; Frequency; Hook Rate; Hold Rate; reproducciones; retención; evolución histórica; gráfica
 // por métrica; comparación entre períodos", sumando todas las cuentas (§33). El estado (§41) se pone a mano.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useParams } from "react-router-dom";
+import { Box, Link, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { Loading } from "../../components/ui/content/Loading";
@@ -23,7 +23,13 @@ type AdDetails = {
 };
 
 type Detail = {
-    creative: { id: number; tracking_id: string; type: string | null; status: string | null; status_changed_at: string | null };
+    creative: {
+        id: number; tracking_id: string; label: string; type: string | null; status: string | null; status_changed_at: string | null;
+        // Etapa 5, paso 1b
+        product?: string | null; angle_code?: string | null; batch_code?: string | null; iteration_of?: string | null;
+        angle?: { code: string; name: string | null; hypothesis: string | null; status: string } | null;
+        parent?: { id: number; label: string } | null;
+    };
     details?: AdDetails;
     summary: ReportRow | null;
     ads: ReportRow[];
@@ -61,13 +67,33 @@ export const MetaCreativePage: React.FC = () => {
     return (
         <Layout>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1300, mx: "auto" }}>
-                <DescripcionDeVista title={`Creativo ${data.creative.tracking_id}`} backPath="/meta-ads"
+                <DescripcionDeVista title={`Creativo ${data.creative.label}`} backPath="/meta-ads"
                     description="Rendimiento del creativo sumando todos los anuncios, campañas y cuentas donde se usa." />
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }} justifyContent="space-between" sx={{ mb: 1.5 }}>
-                    <Typography variant="body2" color="text.secondary">
-                        {isVideo ? (data.creative.type === "mixed" ? "Video e imagen" : "Video") : "Imagen"} · {data.ads.length} anuncios ·
-                        {" "}{data.range.label}: {shortDay(data.range.from)} – {shortDay(data.range.to)}
-                    </Typography>
+                    <Box>
+                        <Typography variant="body2" color="text.secondary">
+                            {isVideo ? (data.creative.type === "mixed" ? "Video e imagen" : "Video") : "Imagen"} · {data.ads.length} anuncios ·
+                            {" "}{data.range.label}: {shortDay(data.range.from)} – {shortDay(data.range.to)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {data.creative.product ?? "Sin producto"}
+                            {data.creative.angle_code && (
+                                <> · ángulo{" "}
+                                    <Tooltip title={data.creative.angle?.hypothesis ?? "Todavía sin hipótesis: ponla en Configuración › Meta Ads › Ángulos"}>
+                                        <b>{data.creative.angle_code}{data.creative.angle?.name ? ` (${data.creative.angle.name})` : ""}</b>
+                                    </Tooltip>
+                                </>
+                            )}
+                            {data.creative.batch_code && <> · batch <b>{data.creative.batch_code}</b></>}
+                            {data.creative.iteration_of && (
+                                <> · iteración de{" "}
+                                    {data.creative.parent
+                                        ? <Link component={RouterLink} to={`/meta-ads/creativos/${data.creative.parent.id}`} fontWeight="bold">{data.creative.parent.label}</Link>
+                                        : <b>{data.creative.iteration_of}</b>}
+                                </>
+                            )}
+                        </Typography>
+                    </Box>
                     <TextField select size="small" label="Estado del creativo" value={data.creative.status ?? ""} onChange={(e) => setStatus(e.target.value)} sx={{ minWidth: 200 }}>
                         <MenuItem value="">Sin estado</MenuItem>
                         {Object.entries(CREATIVE_STATUS).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
@@ -145,7 +171,7 @@ export const MetaCreativePage: React.FC = () => {
                 )}
 
                 <Box sx={{ mt: 2 }}>
-                    <MetaChart query={query} compare={filters.compare} isVideo={isVideo} canSeeSpend={canSeeSpend} title={data.creative.tracking_id} />
+                    <MetaChart query={query} compare={filters.compare} isVideo={isVideo} canSeeSpend={canSeeSpend} title={data.creative.label} />
                 </Box>
 
                 <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", mt: 2 }}>
