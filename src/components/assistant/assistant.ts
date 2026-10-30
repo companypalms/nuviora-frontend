@@ -37,6 +37,10 @@ export type ActionCard = {
     title: string;
     lines: Array<{ label: string; value: string; before?: string }>;
     warnings: string[];
+    /** Lo que cambia a cada rato (cuántas órdenes tiene, cuántas esperan): se muestra, pero no hace vencer la tarjeta (paso 7). */
+    notes?: string[];
+    /** Solo en la respuesta de Confirmar, una vez: la contraseña de una cuenta nueva (paso 7). Nunca se guarda. */
+    secret?: { label: string; value: string; note: string };
     status: ActionStatus;
     status_label: string;
     error: string | null;

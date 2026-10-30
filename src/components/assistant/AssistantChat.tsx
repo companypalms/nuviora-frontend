@@ -29,7 +29,8 @@ const Welcome: FC<{ example: boolean; onAsk: (q: string) => void }> = ({ example
         </Typography>
         <Typography color="text.secondary">
             Y puedo hacer cambios por ti: anotar en tu calendario, cambiar las tasas, añadir un banco, anotar gastos y gastos
-            fijos, o registrar su pago. Siempre te muestro una tarjeta y no guardo nada hasta que tocas <b>Confirmar</b>.
+            fijos o registrar su pago, registrar compras de mercancía, encender o apagar ciudades y agencias, y crear, desactivar o
+            reactivar cuentas. Siempre te muestro una tarjeta y no guardo nada hasta que tocas <b>Confirmar</b>.
         </Typography>
         {example && (
             <Alert severity="info" variant="outlined" sx={{ py: 0.25 }}>

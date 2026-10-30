@@ -4,6 +4,8 @@
 // servidor vuelve a revisar todo en ese momento.
 import React, { FC, useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@mui/material";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
+import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import { alpha } from "@mui/material/styles";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
@@ -18,14 +20,29 @@ export const ActionCardView: FC<{ card: ActionCard; readOnly?: boolean }> = ({ c
     const [card, setCard] = useState(initial);
     const [busy, setBusy] = useState<"confirm" | "cancel" | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // La contraseña de una cuenta nueva llega una sola vez, al confirmar: se guarda aparte para que no la borre el chat al
+    // ponerse al día (paso 7)
+    const [secret, setSecret] = useState<ActionCard["secret"] | null>(null);
+    const [copied, setCopied] = useState(false);
     const navigate = useNavigate();
     useEffect(() => setCard(initial), [initial]);
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(secret?.value ?? "");
+            setCopied(true);
+        } catch {
+            setCopied(false);
+        }
+    };
 
     const decide = async (what: "confirm" | "cancel") => {
         setBusy(what);
         setError(null);
         try {
-            setCard(await (what === "confirm" ? confirmAction(card.id) : cancelAction(card.id)));
+            const next = await (what === "confirm" ? confirmAction(card.id) : cancelAction(card.id));
+            if (next.secret) setSecret(next.secret);
+            setCard(next);
         } catch (e) {
             setError((e as Error).message);
         } finally {
@@ -41,8 +58,9 @@ export const ActionCardView: FC<{ card: ActionCard; readOnly?: boolean }> = ({ c
                 borderColor: open ? alpha(t.palette.warning.main, 0.6) : card.status === "done" ? alpha(t.palette.success.main, 0.5) : "divider",
             })}
         >
-            <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-                <Typography variant="body2" fontWeight={800} sx={{ flex: 1, minWidth: 0 }}>{card.title}</Typography>
+            {/* En un celular angosto, la etiqueta del estado baja a la línea siguiente en vez de taparse con el título */}
+            <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" sx={{ mb: 1 }}>
+                <Typography variant="body2" fontWeight={800} sx={{ flex: "1 1 140px", minWidth: 0 }}>{card.title}</Typography>
                 <Chip size="small" color={STATUS_COLOR[card.status]} variant={open ? "outlined" : "filled"} label={card.status_label} sx={{ flexShrink: 0 }} />
             </Stack>
 
@@ -63,6 +81,9 @@ export const ActionCardView: FC<{ card: ActionCard; readOnly?: boolean }> = ({ c
             {card.warnings.map((w) => (
                 <Alert key={w} severity="warning" variant="outlined" sx={{ mt: 1, py: 0 }}>{w}</Alert>
             ))}
+            {open && (card.notes ?? []).map((n) => (
+                <Alert key={n} severity="info" variant="outlined" sx={{ mt: 1, py: 0 }}>{n}</Alert>
+            ))}
             {error && <Alert severity="error" sx={{ mt: 1, py: 0 }}>{error}</Alert>}
             {card.error && card.status !== "proposed" && <Alert severity={card.status === "failed" ? "error" : "info"} sx={{ mt: 1, py: 0 }}>{card.error}</Alert>}
             {card.result && (
@@ -75,6 +96,15 @@ export const ActionCardView: FC<{ card: ActionCard; readOnly?: boolean }> = ({ c
                         </Button>
                     )}
                 </Stack>
+            )}
+            {secret && (
+                <Alert severity="success" icon={<KeyRoundedIcon />} sx={{ mt: 1, alignItems: "center" }}
+                    action={<Button size="small" color="inherit" startIcon={<ContentCopyRoundedIcon />} onClick={copy} sx={{ textTransform: "none" }}>{copied ? "Copiada" : "Copiar"}</Button>}
+                >
+                    <Typography variant="caption" component="div">{secret.label}</Typography>
+                    <Typography variant="body1" fontWeight={800} sx={{ fontFamily: "monospace", letterSpacing: 0.5, overflowWrap: "anywhere" }}>{secret.value}</Typography>
+                    <Typography variant="caption" component="div">{secret.note}</Typography>
+                </Alert>
             )}
 
             {open && !readOnly && (
