@@ -177,6 +177,23 @@ export type CpaVersion = {
     orders_created: number; orders_delivered: number; effectiveness: number | null; revenue: number; variable_costs: number; contribution: number;
     cogs: number; purchases: number; spend: number; meta_cpa: number | null; target_type: "sales" | "cost"; target_pct: number;
     break_even: number | null; target: number | null; fully_loaded: number | null; viable: boolean | null; trigger: string; computed_at: string;
+    fixed_pct: number | null; fixed_source: "real" | "minimum" | null; window_days: number | null; detail: CpaDetail | null;
+};
+
+/** El % de gastos fijos que se aparta: el real de los últimos 30 días o el mínimo, el mayor. */
+export type FixedShare = {
+    pct: number; source: "real" | "minimum"; real_pct: number | null; min_pct: number; expenses: number; revenue: number; from: string; to: string;
+};
+
+/** Una de las dos cohortes (7 y 28 días) con su objetivo y su break-even. */
+export type CpaWindow = {
+    from: string; to: string; days: number; purchases: number; effectiveness: number | null; meta_cpa: number | null;
+    target: number | null; break_even: number | null; missing_trips: number; shipping_filled: number;
+};
+
+export type CpaDetail = {
+    chosen: "short" | "long" | "product"; basis: "own" | "product"; city_min_purchases: number;
+    short: CpaWindow | null; long: CpaWindow | null; fixed: FixedShare;
 };
 
 export type CpaRow = CpaVersion & { product: string; city: string | null };
@@ -290,7 +307,8 @@ export const tripTotals = (labor: number, fuel: number, other: number, currency:
 export const usd4 = (v: number) => `$${new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v)}`;
 
 export type FinanceSettings = {
-    maturity_lag_days: number; analysis_window_days: number;
+    maturity_lag_days: number; analysis_window_days: number; analysis_long_window_days: number;
+    fixed_cost_min_pct: number; cpa_city_min_purchases: number;
     commissions: { order: number; upsell_unit: number; deliverer: number };
     vehicle_wear: WearRule;
     wear_modes: Record<WearMode, string>;
