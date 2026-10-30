@@ -51,8 +51,10 @@ export const TeamTable: FC<{
     compareLabel: string;
     totals?: TeamValues;
     totalsPrevious?: TeamValues;
+    // Lo que se aclara debajo de "Todos juntos" (los editores no se miden por pedidos)
+    totalsNote?: string;
     onOpen?: (row: TeamRow) => void;
-}> = ({ data, maturing, compareLabel, totals, totalsPrevious, onOpen }) => {
+}> = ({ data, maturing, compareLabel, totals, totalsPrevious, totalsNote = "Un pedido que pasó por dos personas cuenta una vez", onOpen }) => {
     const [sortKey, setSortKey] = useState(data.rank_by);
     const [reverse, setReverse] = useState(false);
     const sortCol = data.columns.find((c) => c.key === sortKey) ?? data.columns[0];
@@ -108,7 +110,7 @@ export const TeamTable: FC<{
                         <TableRow sx={{ "& td": { borderTop: "2px solid", borderTopColor: "divider", borderBottom: 0 } }}>
                             <TableCell sx={{ position: "sticky", left: 0, zIndex: 1, bgcolor: "background.paper" }}>
                                 <Typography variant="body2" fontWeight={800}>Todos juntos</Typography>
-                                <Typography variant="caption" color="text.secondary" component="div">Un pedido que pasó por dos personas cuenta una vez</Typography>
+                                <Typography variant="caption" color="text.secondary" component="div">{totalsNote}</Typography>
                             </TableCell>
                             {data.columns.map((col) => (
                                 <Cell key={col.key} col={col} values={totals} previous={totalsPrevious} maturing={maturing} compareLabel={compareLabel} flagged={false} bold />
