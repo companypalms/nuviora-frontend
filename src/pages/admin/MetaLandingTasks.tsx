@@ -2,18 +2,22 @@
 // Etapa 5, paso 6b (2026-10-30): Meta Ads › Landings › Encargos. Todos los encargos de landing por estado: para aprobar,
 // por hacer, para revisar, para publicar, en test y terminados. Por ahora las landings las hace el dueño: aquí también
 // empieza, entrega y publica. Nada de esto toca Meta ni Shopify.
+// Paso 6c: las reglas proponen cada mañana lo más grave de cada landing (y "Proponer ahora").
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Stack, Typography } from "@mui/material";
-import { AddRounded } from "@mui/icons-material";
+import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
+import { AddRounded, AutoAwesomeRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
-import { api } from "../../components/meta-ads/metaAds";
+import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { LandingTaskCard, TaskFormDialog } from "../../components/meta-ads/landingTasks";
 import { EMPTY_DRAFT, LandingOption, LandingTask, PersonOption, TaskDraft, onLandingChanged } from "../../components/meta-ads/landingTasksShared";
 
 type Data = {
     me: PersonOption; tasks: LandingTask[]; editors: PersonOption[]; products: { id: number; name: string }[]; landings: LandingOption[];
     test: Record<string, number>;
+    last_run: { at: string; created: number; replaced: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; error: string | null } | null;
 };
+const RUN_STATUS: Record<string, string> = { ok: "redactados por la IA", example: "con una plantilla (en esta PC no hay IA)", no_ai: "con una plantilla (la IA no está configurada)",
+    error: "con una plantilla (la IA falló)" };
 
 const SECTIONS: { title: string; help: string; statuses: LandingTask["status"][] }[] = [
     { title: "Para aprobar", help: "Al aprobarlo recibe su número L#### y su plazo.", statuses: ["proposed"] },
@@ -27,6 +31,7 @@ const SECTIONS: { title: string; help: string; statuses: LandingTask["status"][]
 export const LandingTasksPanel: React.FC<{ productId?: number | null }> = ({ productId }) => {
     const [data, setData] = useState<Data | null>(null);
     const [form, setForm] = useState<{ draft: TaskDraft; editing: LandingTask | null } | null>(null);
+    const [proposing, setProposing] = useState(false);
 
     const load = useCallback(() => {
         api<Data>("/meta/landing-tasks").then(setData).catch((e) => toast.error(e.message));
@@ -36,6 +41,14 @@ export const LandingTasksPanel: React.FC<{ productId?: number | null }> = ({ pro
     if (!data) return <Typography sx={{ p: 2 }}>Cargando…</Typography>;
     const people = [{ id: data.me.id, name: `Yo (${data.me.name})` }, ...data.editors.filter((e) => e.id !== data.me.id)];
     const replace = (t: LandingTask) => setData((d) => d ? { ...d, tasks: d.tasks.some((x) => x.id === t.id) ? d.tasks.map((x) => (x.id === t.id ? t : x)) : [t, ...d.tasks] } : d);
+    const propose = async () => {
+        setProposing(true);
+        try {
+            const r = await api<{ run: { created: number } }>("/meta/landing-tasks/propose", "POST");
+            toast.success(r.run.created > 0 ? `Las reglas propusieron ${r.run.created} ${r.run.created === 1 ? "encargo" : "encargos"}` : "No hay nada nuevo para proponer");
+            load();
+        } catch (e) { toast.error((e as Error).message); } finally { setProposing(false); }
+    };
     const edit = (t: LandingTask) => setForm({
         editing: t, draft: { product_id: t.product_id, landing_id: t.landing_id ?? "", kind: t.kind, angle_code: t.angle_code ?? "", observed: t.observed ?? "",
             hypothesis: t.hypothesis ?? "", change: t.change ?? "", keep: t.keep ?? "", notes: t.notes ?? "" },
@@ -49,9 +62,19 @@ export const LandingTasksPanel: React.FC<{ productId?: number | null }> = ({ pro
                     {" "}Test: {data.test.landing_test_before_days} días antes contra {data.test.landing_test_min_days} a {data.test.landing_test_max_days} días después, con
                     {" "}{data.test.landing_test_min_purchases} compras y {data.test.landing_test_min_visits} visitas de cada lado; gana o pierde con {data.test.landing_test_win_pct} %.
                 </Typography>
-                <Button variant="contained" size="small" startIcon={<AddRounded />}
-                    onClick={() => setForm({ editing: null, draft: { ...EMPTY_DRAFT, product_id: productId ?? data.products[0]?.id ?? "" } })}>Nuevo encargo</Button>
+                <Stack direction="row" spacing={1}>
+                    <Button size="small" startIcon={proposing ? <CircularProgress size={14} /> : <AutoAwesomeRounded />} disabled={proposing} onClick={propose}>Proponer ahora</Button>
+                    <Button variant="contained" size="small" startIcon={<AddRounded />}
+                        onClick={() => setForm({ editing: null, draft: { ...EMPTY_DRAFT, product_id: productId ?? data.products[0]?.id ?? "" } })}>Nuevo encargo</Button>
+                </Stack>
             </Stack>
+            {data.last_run && (
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 2, mt: -1 }}>
+                    Última propuesta de tus reglas: {dateTime(data.last_run.at)} · {data.last_run.status === "nothing" ? "ninguna landing necesitaba un encargo nuevo"
+                        : `${data.last_run.created} ${data.last_run.created === 1 ? "encargo" : "encargos"} ${RUN_STATUS[data.last_run.status] ?? ""}`}
+                    {data.last_run.replaced > 0 ? ` · ${data.last_run.replaced} sin aprobar se reemplazaron` : ""}. Cada mañana proponen lo más grave de cada landing (como mucho {data.test.landing_proposals_max} por día).
+                </Typography>
+            )}
             {data.tasks.length === 0 && <Alert severity="info">Todavía no hay encargos de landing. Pídelos desde cada landing con "Pedir cambio" o con "Nuevo encargo".</Alert>}
             <Stack spacing={3}>
                 {SECTIONS.map((s) => {

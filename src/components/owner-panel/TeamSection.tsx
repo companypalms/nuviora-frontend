@@ -137,7 +137,7 @@ export const TeamSection: FC<{
                         <BoxTitle title="Uno por uno" subtitle={`Las flechas comparan con ${data.previous.label.toLowerCase()}. Toca una fila para ver su detalle.`} />
                         <TeamTable key={r.key} data={r} maturing={data.maturing} compareLabel={data.previous.label}
                             totals={r.totals} totalsPrevious={r.totals_previous} onOpen={setOpen}
-                            totalsNote={r.key === "editors" ? "Todos los encargos del equipo de editores" : undefined} />
+                            totalsNote={r.key === "editors" ? "Todos los encargos del equipo de editores" : r.key === "landing_editors" ? "Todos los encargos de landing" : undefined} />
                     </Panel>
                 </>
             )}

@@ -43,6 +43,7 @@ import { EditorPage } from './pages/editor/EditorPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
 import { LandingEditorPage } from './pages/editor/LandingEditorPage';
+import { LandingResultsPage } from './pages/editor/LandingResultsPage';
 import { LANDING_EDITOR_ROLE } from './components/meta-ads/landingTasksShared';
 import { SalesLite } from './pages/lite/SalesLite';
 import { OrderTrackingReport } from './pages/OrderTrackingReport';
@@ -167,6 +168,7 @@ function App() {
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
           <Route path="/editor-landings" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingEditorPage /></RequireRole>} />
+          <Route path="/editor-landings/resultados" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingResultsPage /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />
           <Route path="/admin/tarifas-delivery" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tarifas" />} />
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />

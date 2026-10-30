@@ -234,7 +234,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["landing_due_days", "Plazo de un encargo al aprobarlo", "días"], ["landing_test_before_days", "Antes: los días anteriores a publicar", "días"],
             ["landing_test_min_days", "Después: al menos", "días"], ["landing_test_max_days", "Después: como mucho", "días"],
             ["landing_test_min_purchases", "Muestra de cada lado: compras", "compras"], ["landing_test_min_visits", "Muestra de cada lado: visitas", "visitas"],
-            ["landing_test_win_pct", "Gana o pierde si la compra cambia", "%"],
+            ["landing_test_win_pct", "Gana o pierde si la compra cambia", "%"], ["landing_proposals_max", "Encargos que proponen las reglas por día", "encargos"],
         ],
     },
 ];

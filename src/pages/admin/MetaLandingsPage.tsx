@@ -127,7 +127,7 @@ const LandingCard: React.FC<{ l: LandingRow; s?: Data["settings"]; onEdit: (l: L
             {l.notes && <Typography variant="body2" sx={{ mb: 1.5, whiteSpace: "pre-wrap" }}>{l.notes}</Typography>}
             {l.task && (
                 <Alert severity="info" sx={{ mb: 1.5 }} action={<Button color="inherit" size="small" onClick={onTasks}>Ver</Button>}>
-                    <b>{l.task.code ?? "Encargo propuesto"} · {l.task.status_label}</b>{l.task.result ? `: ${l.task.result}` : ". Mientras tanto no se pide otro cambio de esta landing."}
+                    <b>{l.task.code ? `${l.task.code} · ${l.task.status_label}` : "Encargo propuesto, sin aprobar"}</b>{l.task.result ? `: ${l.task.result}` : ". Mientras tanto no se pide otro cambio de esta landing."}
                 </Alert>
             )}
             <Stats b={l} ads={`${l.ads_active} de ${l.ads}`} s={s} />
