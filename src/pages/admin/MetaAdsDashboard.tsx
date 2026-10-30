@@ -23,6 +23,7 @@ import { MetaFilters } from "../../components/meta-ads/MetaFilters";
 import { MetricCell, RuleChips } from "../../components/meta-ads/MetaWidgets";
 import { MetaReportTable } from "../../components/meta-ads/MetaReportTable";
 import { MetaChart } from "../../components/meta-ads/MetaChart";
+import { ActionChip, PlanBox } from "../../components/meta-ads/MetaDecisionWidgets";
 
 const STORAGE_KEY = "meta-ads-filters";
 const loadFilters = (): Filters => {
@@ -52,6 +53,7 @@ const CityRow: React.FC<{ city: CityNode; canSeeSpend: boolean; onOpen: () => vo
                                 </Typography>
                             )}
                             <RuleChips rules={city.signals.rules} />
+                            {city.actions?.map((a, i) => <ActionChip key={i} a={a} />)}
                         </Box>
                     </Stack>
                 </TableCell>
@@ -100,6 +102,7 @@ const ProductCard: React.FC<{ p: ProductNode; canSeeSpend: boolean; onOpenCity: 
                         </Typography>
                     )}
                     <RuleChips rules={p.signals.rules} />
+                    <PlanBox plan={p.plan} />
                 </Box>
                 <Stack direction="row" spacing={2} flexWrap="wrap">
                     {canSeeSpend && <Box><Typography variant="caption" color="text.secondary">Gasto</Typography><MetricCell node={p} col={COLUMNS[0]} /></Box>}

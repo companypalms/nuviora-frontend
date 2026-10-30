@@ -11,7 +11,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { COLUMNS, CREATIVE_STATUS, ReportRow, api } from "./metaAds";
 import { MetricCell, RuleChips } from "./MetaWidgets";
-import { DecisionNotes, VerdictChip } from "./MetaDecisionWidgets";
+import { ActionChip, DecisionNotes, VerdictChip } from "./MetaDecisionWidgets";
 
 const STATUS_LABEL: Record<string, string> = {
     ACTIVE: "Activa", PAUSED: "Pausada", ARCHIVED: "Archivada", DELETED: "Eliminada", CAMPAIGN_PAUSED: "Campaña pausada",
@@ -105,6 +105,7 @@ export const MetaReportTable: React.FC<{
                                     )}
                                     {level !== "campaign" && <VerdictChip v={r.verdict} />}
                                     {level === "creative" && r.funnel && <Chip size="small" variant="outlined" label={r.funnel.label} sx={{ mt: 0.5 }} />}
+                                    {level === "campaign" && <ActionChip a={r.action} extra={[...(r.budget_notes ?? []), r.price_option?.text]} />}
                                     {level === "campaign" && <DecisionNotes notes={r.decision_notes} />}
                                     <RuleChips rules={r.signals.rules} />
                                 </TableCell>

@@ -1,6 +1,6 @@
 // src/components/meta-ads/metaAds.ts
 // Tipos y utilidades de la integración de Meta Ads (documento de Fran del 2026-10-08, Módulo 2).
-import type { DecisionNote, Funnel, Verdict } from "./MetaDecisionWidgets";
+import type { CampaignAction, DecisionNote, Funnel, PriceOption, ProductPlan, Verdict } from "./MetaDecisionWidgets";
 import { request } from "../../common/request";
 
 export type MetaAccount = {
@@ -127,10 +127,12 @@ export type FinancialCpa = {
 export type CityNode = Node & {
     city_id: number; name: string; accounts: (Node & { account_id: number; name: string | null })[];
     target_cpa?: number | null; break_even_cpa?: number | null; target_source?: "financial" | "manual"; financial?: FinancialCpa | null;
+    actions?: CampaignAction[]; // Etapa 5, paso 2b
 };
 export type ProductNode = Node & {
     product_id: number; name: string; target_cpa: number | null; break_even_cpa: number | null; cities: CityNode[];
     target_source?: "financial" | "manual"; manual_target_cpa?: number | null; manual_break_even_cpa?: number | null; financial?: FinancialCpa | null;
+    plan?: ProductPlan | null; // Etapa 5, paso 2b
 };
 
 export type RangeInfo = { key: string; label: string; from: string; to: string; prev_from: string; prev_to: string };
@@ -159,6 +161,7 @@ export type ReportRow = Node & {
     stage?: "test" | "proven" | null; iteration_of?: string | null;
     // Etapa 5, paso 2a: lo que dicen las reglas del dueño (3 días cerrados)
     verdict?: Verdict | null; decision_notes?: DecisionNote[]; funnel?: Funnel | null; status_source?: "auto" | "manual" | null;
+    action?: CampaignAction | null; budget_notes?: string[]; price_option?: PriceOption | null;
 };
 
 export const RANGES: { key: string; label: string }[] = [

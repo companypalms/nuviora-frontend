@@ -108,6 +108,62 @@ export const CreativeDecisionBox: React.FC<{ d: CreativeDecision | null | undefi
     );
 };
 
+// ---------------------------------------------------------------- paso 2b: qué hacer con cada campaña y cada producto
+
+export type CampaignAction = {
+    key: "no_target" | "wait" | "none" | "scale" | "hold" | "hold_prune" | "intervene" | "decrease" | "pause_city" | "last_test" | "drop";
+    label: string; tone: "default" | "info" | "success" | "warning" | "error";
+    data: string; reading: string; proposal: string | null; from: number | null; to: number | null; campaign?: string;
+};
+export type PriceOption = { text: string; price: number; to: number; min: number };
+export type ProductPlan = {
+    urgency: { level: 1 | 2 | 3 | 4 | 5; label: string; batches: string; reasons: string[] };
+    next_work: string[]; price: string[]; price_watch: string | null; alarms: string[]; money_at_risk: number;
+};
+
+const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
+
+/** Qué hacer con una campaña, con el monto; al pasar el mouse, el dato, la lectura, la propuesta y lo demás. */
+export const ActionChip: React.FC<{ a?: CampaignAction | null; extra?: (string | null | undefined)[] }> = ({ a, extra = [] }) => {
+    if (!a) return null;
+    const more = extra.filter(Boolean) as string[];
+    return (
+        <Tooltip title={
+            <Box sx={{ p: 0.5 }}>
+                {a.campaign && <Typography variant="caption" component="div" sx={{ opacity: 0.8 }}>{a.campaign}</Typography>}
+                {a.data && <Typography variant="caption" component="div">{a.data}</Typography>}
+                <Typography variant="caption" component="div" fontWeight={700} sx={{ mt: 0.5 }}>{a.reading}</Typography>
+                {a.proposal && <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>→ {a.proposal}</Typography>}
+                {more.map((t, i) => <Typography key={i} variant="caption" component="div" sx={{ mt: 0.5 }}>• {t}</Typography>)}
+            </Box>
+        }>
+            <Chip size="small" color={a.tone} variant={["scale", "decrease", "pause_city", "drop"].includes(a.key) ? "filled" : "outlined"}
+                label={a.label} sx={{ mt: 0.5, mr: 0.5, maxWidth: "100%" }} />
+        </Tooltip>
+    );
+};
+
+/** Lo del producto: urgencia, cuántos batches pedir, qué producir, el precio y las alarmas. */
+export const PlanBox: React.FC<{ plan?: ProductPlan | null }> = ({ plan }) => {
+    if (!plan) return null;
+    const u = plan.urgency;
+    return (
+        <Box sx={{ mt: 0.75 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Tooltip title={u.reasons.length ? u.reasons.join(" · ") : "Sin problemas en los 3 días cerrados."}>
+                    <Chip size="small" color={URGENCY_COLOR[u.level]} label={u.label} />
+                </Tooltip>
+                <Typography variant="caption" color="text.secondary">Batches a pedir: <b>{u.batches}</b></Typography>
+            </Stack>
+            {plan.next_work.map((t, i) => <Typography key={i} variant="body2" sx={{ mt: 0.25 }}>• {t}</Typography>)}
+            {[...plan.price, ...(plan.price_watch ? [plan.price_watch] : [])].map((t, i) => (
+                <Typography key={`p${i}`} variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>💲 {t}</Typography>
+            ))}
+            {plan.alarms.map((t, i) => <Alert key={`a${i}`} severity="warning" sx={{ mt: 0.5, py: 0 }}>{t}</Alert>)}
+        </Box>
+    );
+};
+
 // ---------------------------------------------------------------- los números (Meta Ads › Reglas)
 
 type Settings = Record<string, number | boolean>;
@@ -140,6 +196,22 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["retention_open", "Se van al principio si llega al 25 % menos del", "%"], ["retention_body", "Se van en el medio si del 25 % al 75 % sigue menos del", "%"],
             ["retention_end", "Se van al final si del 75 % al final sigue menos del", "%"], ["watch_good", "Tiempo visto bueno desde", "% del video"],
             ["watch_weak", "Tiempo visto flojo debajo de", "% del video"], ["winners_gap_pct", "Flojo si está debajo de tus ganadores por", "%"],
+        ],
+    },
+    {
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día.", fields: [
+            ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"], ["scale_big_below_pct", "Subida grande si el CPA está debajo de C por", "%"],
+            ["scale_big_pct", "Subida grande", "%"], ["scale_small_pct", "Subida chica", "%"], ["decrease_pct", "Bajar", "%"],
+            ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
+            ["last_test_budget_cpa", "Último test: por día", "×C"], ["last_test_days", "Último test: durante", "días"],
+            ["stock_days_min", "Escalar solo con stock para", "días de ventas"],
+        ],
+    },
+    {
+        title: "Presupuesto y precio", help: "Los mínimos de gasto de los ad sets (CBO) y la opción de bajar el precio.", fields: [
+            ["startup_min_mult", "Arranque: C × batches nuevos × desde", "veces"], ["startup_max_mult", "…hasta", "veces"],
+            ["mins_low_pct", "Mínimos bajos debajo de", "% del presupuesto"], ["mins_ok_pct", "Mínimos bien hasta", "% del presupuesto"],
+            ["mins_review_pct", "Revisar hasta (más, no)", "% del presupuesto"], ["price_step", "Probar bajar el precio de a", "$"],
         ],
     },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
@@ -181,7 +253,8 @@ export const MetaDecisionSettings: React.FC = () => {
         <Stack spacing={2}>
             <Alert severity="info">
                 <b>Tus números para decidir.</b> Con estos números el sistema dice si cada anuncio, batch y creativo está sin datos, en evaluación,
-                prometedor, PROVEN, intermedio o perdedor, y qué cambió cuando un ganador empieza a fallar. Solo recomienda: nunca toca Meta.
+                prometedor, PROVEN, intermedio o perdedor, qué cambió cuando un ganador empieza a fallar y qué hacer con cada campaña (con montos).
+                Solo recomienda: nunca toca Meta.
             </Alert>
             {GROUPS.map((g) => (
                 <Paper key={g.title} elevation={0} sx={box}>
