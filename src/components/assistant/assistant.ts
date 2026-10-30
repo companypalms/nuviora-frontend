@@ -18,7 +18,7 @@ export type DisplayBlock =
     | { type: "cards"; title: string; compare_label: string; cards: MetricCardData[] }
     | { type: "chart"; kind: "bar" | "hbar" | "line"; title: string; format: MetricFormat; series: ChartSeries[]; points: Array<Record<string, string | number | null>> }
     | {
-        type: "table"; title: string; columns: Array<{ key: string; label: string; format: MetricFormat }>;
+        type: "table"; title: string; columns: Array<{ key: string; label: string; format: MetricFormat | "bs" }>;
         rows: Array<{ name: string; group: string | null; values: Record<string, number | null>; low_data: boolean }>;
     }
     | { type: "list"; title: string; items: Array<{ text: string; level?: string | null }> }

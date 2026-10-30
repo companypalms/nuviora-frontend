@@ -8,13 +8,17 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { useNavigate } from "react-router-dom";
 import { MetricCard } from "../owner-panel/MetricCard";
 import { OrderDialog } from "../orders/OrderDialog";
-import { formatValue } from "../owner-panel/ownerPanel";
+import { formatValue, MetricFormat } from "../owner-panel/ownerPanel";
 import { ActionCardView } from "./ActionCardView";
 import { AssistantChart } from "./AssistantChart";
 import { DisplayBlock } from "./assistant";
 
 /** Las filas que se ven de una tabla antes de "Ver todas". */
 const TABLE_ROWS = 10;
+
+/** Una celda de tabla: los formatos del panel, o bolívares ("Bs 1.234,56", el efectivo de las agencias). */
+const cell = (v: number | null, format: MetricFormat | "bs") =>
+    format !== "bs" ? formatValue(v, format) : v === null ? "—" : `Bs ${v.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const LEVEL_COLOR: Record<string, string> = { red: "error.main", orange: "warning.dark", yellow: "warning.main", pending: "text.disabled" };
 
@@ -67,7 +71,7 @@ const TableBlock: FC<{ block: Extract<DisplayBlock, { type: "table" }> }> = ({ b
                                         <Typography variant="caption" color="text.secondary">{[r.group, r.low_data ? "pocos datos" : null].filter(Boolean).join(" · ")}</Typography>
                                     )}
                                 </TableCell>
-                                {block.columns.map((c) => <TableCell key={c.key} align="right">{formatValue(r.values[c.key] ?? null, c.format)}</TableCell>)}
+                                {block.columns.map((c) => <TableCell key={c.key} align="right">{cell(r.values[c.key] ?? null, c.format)}</TableCell>)}
                             </TableRow>
                         ))}
                     </TableBody>
