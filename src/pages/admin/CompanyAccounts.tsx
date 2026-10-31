@@ -24,6 +24,7 @@ import {
     InputLabel,
     Autocomplete,
     Chip,
+    Alert,
 } from '@mui/material';
 import {
     AddRounded,
@@ -46,6 +47,8 @@ import { ICompanyAccount, ICompanyAccountDetail, ICompanyAccountOptions } from '
 import { Loading } from '../../components/ui/content/Loading';
 import { toast } from 'react-toastify';
 import { useValidateSession } from '../../hooks/useValidateSession';
+import { fmtMoney } from '../../lib/money';
+import { PAGO_MOVIL_KIND } from '../../lib/paymentAccount';
 
 const ICON_OPTIONS = [
     { label: 'Banco', value: 'AccountBalanceRounded', icon: <AccountBalanceRounded /> },
@@ -84,6 +87,7 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
         currency: '',
         statement_source_name: '',
         is_active: true,
+        takes_orders: true,
         details: [{ label: '', value: '' }] as ICompanyAccountDetail[]
     });
 
@@ -129,6 +133,7 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                 currency: account.currency ?? '',
                 statement_source_name: account.statement_source_name ?? '',
                 is_active: account.is_active,
+                takes_orders: account.takes_orders ?? true,
                 details: account.details && account.details.length > 0 ? [...account.details] : [{ label: '', value: '' }]
             });
         } else {
@@ -140,6 +145,7 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                 currency: '',
                 statement_source_name: '',
                 is_active: true,
+                takes_orders: true,
                 details: [{ label: '', value: '' }]
             });
         }
@@ -235,6 +241,23 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
         }
     };
 
+    // .60: pausar una cuenta de pago móvil (no recibe órdenes nuevas; las que ya la tienen se quedan con ella)
+    const handleToggleTakes = async (account: ICompanyAccount) => {
+        try {
+            const { status }: IResponse = await request(`/company-accounts/${account.id}`, 'PUT', {
+                takes_orders: !(account.takes_orders ?? true)
+            });
+            if (status) {
+                loadAccounts();
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const pagoMovil = accounts.filter((a) => a.method === PAGO_MOVIL_KIND);
+    const receiving = pagoMovil.filter((a) => a.is_active && a.takes_orders !== false);
+
     if (loadingSession || !isValid || !user.token) return <Loading />;
 
     return (
@@ -264,6 +287,14 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                         Nueva Cuenta
                     </Button>
                 </Stack>
+
+                {pagoMovil.length > 0 && (
+                    <Alert severity={receiving.length === 0 ? 'warning' : 'info'} sx={{ mb: 3, borderRadius: 3 }}>
+                        {receiving.length === 0
+                            ? 'Ninguna cuenta de pago móvil está recibiendo órdenes: las órdenes nuevas con pago móvil quedan sin cuenta. Activa o reanuda al menos una.'
+                            : <>Pago móvil: cada orden con pago móvil recibe <b>una</b> de tus {receiving.length} cuentas que reciben órdenes, la que menos bolívares lleva hoy. La agencia la ve al final de la plantilla y la vendedora en la orden. Para que una deje de recibir (por ejemplo, si llega al límite), apaga "Recibe órdenes": las órdenes que ya la tienen se quedan con ella.</>}
+                    </Alert>
+                )}
 
                 {loading && accounts.length === 0 ? (
                     <Loading />
@@ -305,6 +336,7 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                                                             <Chip size="small" variant="outlined" label={options.methods[account.method] ?? account.method} />
                                                             {account.currency && <Chip size="small" variant="outlined" label={account.currency} />}
                                                             {account.statement_source_name && <Chip size="small" variant="outlined" label={`Extracto: ${account.statement_source_name}`} />}
+                                                            {account.method === PAGO_MOVIL_KIND && account.takes_orders === false && <Chip size="small" color="warning" label="Pausada" />}
                                                         </Stack>
                                                     )}
                                                 </Box>
@@ -317,6 +349,19 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                                                 />
                                             </Tooltip>
                                         </Stack>
+
+                                        {account.method === PAGO_MOVIL_KIND && (
+                                            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.5, p: 1, borderRadius: 2, bgcolor: 'action.hover' }}>
+                                                <Typography variant="body2">
+                                                    {account.today ? <>Hoy: <b>{account.today.orders}</b> {account.today.orders === 1 ? 'orden' : 'órdenes'} · <b>{fmtMoney(account.today.bs, 'VES')}</b></> : 'Pago móvil'}
+                                                </Typography>
+                                                <FormControlLabel
+                                                    sx={{ mr: 0 }}
+                                                    control={<Switch size="small" checked={account.takes_orders !== false} disabled={!account.is_active} onChange={() => handleToggleTakes(account)} />}
+                                                    label={<Typography variant="caption">Recibe órdenes</Typography>}
+                                                />
+                                            </Stack>
+                                        )}
 
                                         <Divider sx={{ my: 2 }} />
 
@@ -480,6 +525,24 @@ export const CompanyAccounts: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                                 }
                                 label="Cuenta Activa"
                             />
+                            {formData.method === PAGO_MOVIL_KIND && (
+                                <Box>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                checked={formData.takes_orders}
+                                                onChange={(e) => setFormData({ ...formData, takes_orders: e.target.checked })}
+                                            />
+                                        }
+                                        label="Recibe órdenes nuevas"
+                                    />
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                        Las órdenes con pago móvil se reparten entre las cuentas que reciben: cada una va a la que menos bolívares lleva hoy.
+                                        Apágalo para pausar esta cuenta sin desactivarla. Pon en los detalles, en este orden, lo que el cliente necesita para pagar
+                                        (Banco, Teléfono, Cédula, Titular): así sale en la plantilla de la agencia.
+                                    </Typography>
+                                </Box>
+                            )}
                         </Stack>
                     </DialogContent>
                     <DialogActions sx={{ p: 3 }}>

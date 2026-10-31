@@ -27,6 +27,7 @@ import { OrderRefundsCard } from "./OrderRefundsCard";
 import { OrderTripsCard } from "./OrderTripsCard";
 import { RefundDialog } from "./RefundDialog";
 import { fmtMoney } from "../../lib/money";
+import { pagoMovilBlock } from "../../lib/paymentAccount";
 import { ButtonCustom } from "../custom";
 import { ProductSearchDialog } from "../products/ProductsSearchDialog";
 import { UpsellConfirmDialog } from "./UpsellConfirmDialog";
@@ -294,9 +295,14 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
         if (order.client?.address2) locationDetails += `\n📍 *Referencia:* ${order.client.address2}`;
         if (order.location) locationDetails += `\n🔗 *Link Maps:* ${order.location}`;
 
-        const message = `🚀 *ORDEN ${orderNo(order.name)}*${locationDetails || '\n📍 *Ubicación:* No asignada'}\n🏢 *Agencia:* ${agencyDisplay}\n👤 *Cliente:* ${order.client?.first_name} ${order.client?.last_name}\n📞 *Teléfono:* ${order.client?.phone}\n📦 *Productos:*\n${productsList}\n${paymentInfo}`;
+        // .60: al final, si se paga por pago móvil, los datos de la cuenta de ESTA orden para que el motorizado se los dé al cliente
+        const pagoMovil = pagoMovilBlock(order);
+        const message = `🚀 *ORDEN ${orderNo(order.name)}*${locationDetails || '\n📍 *Ubicación:* No asignada'}\n🏢 *Agencia:* ${agencyDisplay}\n👤 *Cliente:* ${order.client?.first_name} ${order.client?.last_name}\n📞 *Teléfono:* ${order.client?.phone}\n📦 *Productos:*\n${productsList}\n${paymentInfo}${pagoMovil.text}`;
         navigator.clipboard.writeText(message);
         toast.info('📋 Información copiada');
+        if (pagoMovil.missing) {
+            toast.warning('Esta orden se paga por pago móvil y todavía no tiene cuenta: la plantilla va sin los datos del pago móvil.');
+        }
     };
 
     const handleCreateReturn = async () => {
@@ -910,7 +916,7 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                                             />
                                         </Grid>
                                         <Grid size={{ xs: 12 }}>
-                                            <OrderCompanyAccounts />
+                                            <OrderCompanyAccounts order={order} onChange={refreshOrder} />
                                         </Grid>
                                         {!order.is_exchange && (
                                             <Grid size={{ xs: 12, md: 6 }}>

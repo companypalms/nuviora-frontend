@@ -15,7 +15,8 @@ import {
     Paper,
     Divider,
     useTheme,
-    alpha
+    alpha,
+    Alert
 } from '@mui/material';
 import { ContentCopyRounded, AccountBalanceRounded, CloseRounded } from '@mui/icons-material';
 import { request } from '../../common/request';
@@ -32,12 +33,14 @@ interface CompanyAccount {
     icon: string;
     details: { label: string; value: string }[];
     is_active: boolean;
+    method?: string | null;
 }
 
 export const BankAccountsDialog: React.FC<BankAccountsDialogProps> = ({ open, onClose }) => {
     const theme = useTheme();
     const [accounts, setAccounts] = useState<CompanyAccount[]>([]);
     const [loading, setLoading] = useState(false);
+    const [hasPagoMovil, setHasPagoMovil] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -56,7 +59,10 @@ export const BankAccountsDialog: React.FC<BankAccountsDialogProps> = ({ open, on
                     ...d,
                     details: typeof d.details === 'string' ? JSON.parse(d.details) : d.details
                 }));
-                setAccounts(formatted.filter((d: any) => d.is_active));
+                // .60: el pago móvil va por orden (cada una tiene su cuenta): aquí no se muestra, para no dar la equivocada
+                const active: CompanyAccount[] = formatted.filter((d: CompanyAccount) => d.is_active);
+                setHasPagoMovil(active.some((d) => d.method === 'pago_movil'));
+                setAccounts(active.filter((d) => d.method !== 'pago_movil'));
             }
         } catch (e) {
             console.error("Error fetching accounts", e);
@@ -115,10 +121,15 @@ export const BankAccountsDialog: React.FC<BankAccountsDialogProps> = ({ open, on
             </DialogTitle>
             <Divider />
             <DialogContent sx={{ p: 2 }}>
+                {!loading && hasPagoMovil && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        <b>Pago móvil:</b> cada orden tiene su propia cuenta. Abre la orden y copia la cuenta de esa orden (también va al final de la plantilla de la agencia).
+                    </Alert>
+                )}
                 {loading ? (
                     <Typography align="center" sx={{ py: 4, color: 'text.secondary' }}>Cargando...</Typography>
                 ) : accounts.length === 0 ? (
-                    <Typography align="center" sx={{ py: 4, color: 'text.secondary' }}>No hay cuentas registradas</Typography>
+                    hasPagoMovil ? null : <Typography align="center" sx={{ py: 4, color: 'text.secondary' }}>No hay cuentas registradas</Typography>
                 ) : (
                     <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {accounts.map((acc, idx) => (

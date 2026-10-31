@@ -577,7 +577,7 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
 
                                 {/* Cuentas Bancarias */}
                                 <Box sx={{ mt: 2 }}>
-                                    <OrderCompanyAccounts />
+                                    <OrderCompanyAccounts order={order} onChange={refreshOrder} />
                                 </Box>
                             </>
                         )}
