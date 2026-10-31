@@ -21,7 +21,9 @@ type Piece = { id: number; code: string | null; change: string | null; format: s
 type EBatch = EditorFields & {
     id: number; code: string | null; product: string; status: Status; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; hypothesis: string | null; audience: string | null;
-    reference: string | null; reference_thumbnail: string | null; reference_texts: string[]; city: string | null; format: string | null; keep: string | null;
+    reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
+    /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
+    reference_script?: { hook: string | null; text: string | null } | null; city: string | null; format: string | null; keep: string | null;
     offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; pieces: Piece[];
     meta_names: { adset: string | null; ads: string[] }; brief: string;
 };
@@ -98,6 +100,12 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                             <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="body2"><b>Referencia:</b> {b.reference}</Typography>
                                 {b.reference_texts.map((t, i) => <Typography key={i} variant="caption" component="div" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>“{t}”</Typography>)}
+                                {b.reference_script?.hook && (
+                                    <Typography variant="caption" component="div" sx={{ mt: 0.5, overflowWrap: "anywhere" }}><b>Hook de su video:</b> «{b.reference_script.hook}»</Typography>
+                                )}
+                                {b.reference_script?.text && (
+                                    <Typography variant="caption" component="div" color="text.secondary" sx={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>
+                                )}
                             </Box>
                         </Stack>
                     )}
