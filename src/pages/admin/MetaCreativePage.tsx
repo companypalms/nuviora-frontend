@@ -23,7 +23,14 @@ type AdDetails = {
     landing_urls: string[]; url_tags: string[]; synced: boolean;
 };
 
+/** .55: lo que dicen sus videos (se transcriben solo los de los creativos ganadores). */
+type Transcripts = {
+    has_video: boolean; transcribes: boolean;
+    items: { video_id: string; status: string; status_label: string; hook: string | null; text: string | null; error: string | null; transcribed_at: string | null }[];
+};
+
 type Detail = {
+    transcripts?: Transcripts;
     creative: {
         id: number; tracking_id: string; label: string; type: string | null; status: string | null; status_changed_at: string | null;
         status_source?: "auto" | "manual" | null; status_reason?: string | null;
@@ -176,6 +183,40 @@ export const MetaCreativePage: React.FC = () => {
                                         Parámetros de URL: {data.details.url_tags.length ? data.details.url_tags.join(" · ") : "no lleva (sin UTM)"}
                                     </Typography>
                                 </Stack>
+                            </Stack>
+                        )}
+                    </Paper>
+                )}
+
+                {data.transcripts?.has_video && (
+                    <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2, mt: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Lo que dice el video</Typography>
+                        {data.transcripts.items.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                                {data.transcripts.transcribes
+                                    ? "Es un ganador: su video se transcribe solo la próxima mañana (7:30)."
+                                    : "Se transcriben solo los videos de los creativos ganadores. Si este gana, aparece aquí."}
+                            </Typography>
+                        ) : (
+                            <Stack spacing={2}>
+                                {data.transcripts.items.map((t) => (
+                                    <Box key={t.video_id} sx={{ minWidth: 0 }}>
+                                        {t.status !== "done" ? (
+                                            <Typography variant="body2" color="text.secondary">{t.status_label}{t.error ? `: ${t.error}` : ""}</Typography>
+                                        ) : (
+                                            <>
+                                                {t.hook && (
+                                                    <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "action.hover", mb: 1 }}>
+                                                        <Typography variant="caption" color="text.secondary">El hook (los primeros 3 segundos)</Typography>
+                                                        <Typography variant="body2" fontWeight={700} sx={{ overflowWrap: "anywhere" }}>«{t.hook}»</Typography>
+                                                    </Box>
+                                                )}
+                                                <Typography variant="body2" sx={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{t.text}</Typography>
+                                            </>
+                                        )}
+                                        {data.transcripts!.items.length > 1 && <Typography variant="caption" color="text.secondary">Video {t.video_id}</Typography>}
+                                    </Box>
+                                ))}
                             </Stack>
                         )}
                     </Paper>
