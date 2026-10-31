@@ -25,7 +25,7 @@ const MarginRow: React.FC<{ p: Product; types: FinanceSettings["target_types"] }
     return (
         <TableRow>
             <TableCell>{p.name}</TableCell>
-            <TableCell align="right">{p.cost_usd === null ? <Typography variant="caption" color="warning.main">sin costo</Typography> : money(p.cost_usd)}</TableCell>
+            <TableCell align="right">{p.cost_usd === null ? <Typography variant="caption" color="warning.main">sin compras todavía</Typography> : money(p.cost_usd)}</TableCell>
             <TableCell>
                 <TextField select size="small" value={type} onChange={(e) => setType(e.target.value as Product["target_type"])} sx={{ minWidth: 160 }}>
                     {Object.entries(types).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
@@ -115,7 +115,7 @@ export const SettingsTab: React.FC = () => {
                 <PanelHeader title="Utilidad objetivo por producto" subtitle="El CPA objetivo deja esta utilidad después de los gastos fijos. Un producto caro rinde con menos %; uno barato necesita más." />
                 <TableContainer>
                     <Table size="small">
-                        <TableHead><TableRow><TableCell>Producto</TableCell><TableCell align="right">Costo</TableCell><TableCell>Tipo</TableCell><TableCell>Margen</TableCell><TableCell /></TableRow></TableHead>
+                        <TableHead><TableRow><TableCell>Producto</TableCell><TableCell align="right">Última compra</TableCell><TableCell>Tipo</TableCell><TableCell>Margen</TableCell><TableCell /></TableRow></TableHead>
                         <TableBody>{data.products.map((p) => <MarginRow key={p.id} p={p} types={data.target_types} />)}</TableBody>
                     </Table>
                 </TableContainer>

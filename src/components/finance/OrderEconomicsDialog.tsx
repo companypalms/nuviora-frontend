@@ -9,7 +9,7 @@ import { api, errorMessage, money } from "./finance";
 type Detail = {
     order: { id: number; name: string; status: string | null; total: number; refunded: number; created_at: string | null; delivered_at: string | null; is_exchange: boolean; is_return: boolean };
     financials: { outcome: string; revenue: number; revenue_refunded: number; cogs_main: number; cogs_upsell: number; logistics: number;
-        cogs_source: "lots" | "catalog" | "mixed" | null; cogs_is_provisional: boolean; delivery: number; commission_seller: number;
+        cogs_source: "lots" | "last" | "catalog" | "mixed" | null; cogs_is_provisional: boolean; delivery: number; commission_seller: number;
         commission_upsell: number; commission_leader: number; total_cost: number; result: number; computed_at: string | null } | null;
     lots: { lot_id: number | null; kind: string | null; received_at: string | null; supplier: string | null; product: string | null; variant: string | null;
         warehouse: string | null; units: number; unit_cost: number | null; landed: number }[];
@@ -22,7 +22,8 @@ type Detail = {
 
 const ROLE: Record<string, string> = { vendedor: "Vendedora", upsell: "Upsell", repartidor: "Repartidor propio" };
 const LOT_KIND: Record<string, string> = { initial: "lote inicial", purchase: "compra", pending_cost: "por completar", recovered: "de un cambio", adjustment: "ajuste" };
-const SOURCE: Record<string, string> = { lots: "de sus lotes", catalog: "de catálogo (provisional)", mixed: "de sus lotes y de catálogo (provisional)" };
+const SOURCE: Record<string, string> = { lots: "de sus lotes", last: "de la última compra (provisional)", catalog: "de catálogo (provisional)",
+    mixed: "de sus lotes y de la última compra (provisional)" };
 const OUTCOME: Record<string, string> = { delivered: "Entregada", not_delivered: "No entregada", open: "Abierta" };
 
 export const OrderEconomicsDialog: React.FC<{ orderId: number | null; onClose: () => void }> = ({ orderId, onClose }) => {
@@ -59,13 +60,13 @@ export const OrderEconomicsDialog: React.FC<{ orderId: number | null; onClose: (
                             <Typography variant="subtitle2">Líneas y costo del producto</Typography>
                             {f && f.outcome === "delivered" && (
                                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                                    Costo del producto: <b>{money(f.cogs_main + f.cogs_upsell)}</b>, {SOURCE[f.cogs_source ?? "catalog"]}
+                                    Costo del producto: <b>{money(f.cogs_main + f.cogs_upsell)}</b>, {SOURCE[f.cogs_source ?? "last"]}
                                     {f.logistics > 0 ? <> · transporte: <b>{money(f.logistics)}</b></> : null}
                                 </Typography>
                             )}
                             <Table size="small">
                                 <TableHead><TableRow><TableCell>Producto</TableCell><TableCell align="right">Cant.</TableCell><TableCell align="right">Precio</TableCell>
-                                    <TableCell align="right">Costo de catálogo</TableCell><TableCell align="right">COGS de catálogo</TableCell></TableRow></TableHead>
+                                    <TableCell align="right">Última compra</TableCell><TableCell align="right">Costo (última compra)</TableCell></TableRow></TableHead>
                                 <TableBody>
                                     {d.lines.map((l, i) => (
                                         <TableRow key={i}>

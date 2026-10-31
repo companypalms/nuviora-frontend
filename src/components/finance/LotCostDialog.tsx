@@ -1,6 +1,6 @@
 // src/components/finance/LotCostDialog.tsx
 // Poner el costo de un lote (Módulo 4 de Fran, entrega 2e; R5): el de un lote que entró sin costo de compra (ingreso
-// sin compra, lote inicial sin costo de catálogo o corrección de conteo). Pide de dónde sale el costo: queda en el
+// sin compra, lote inicial o corrección de conteo; mientras tanto tiene el costo de la última compra de su producto). Pide de dónde sale el costo: queda en el
 // historial (§82). Las órdenes que vendieron unidades de ese lote se recalculan solas.
 import React, { useState } from "react";
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, Stack, TextField, Typography } from "@mui/material";

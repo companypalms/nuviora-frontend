@@ -89,6 +89,7 @@ const ProductCard: React.FC<{ p: ProductNode; canSeeSpend: boolean; onOpenCity: 
                             <Typography variant="body2" fontWeight={600}>
                                 CPA financiero: Target {fmt.money(p.target_cpa)} · Break-even {fmt.money(p.break_even_cpa)}
                                 {p.financial?.viable === false && <Typography component="span" variant="body2" color="error.main"> · no viable</Typography>}
+                                {p.financial?.no_cost && <Typography component="span" variant="body2" color="warning.main"> · falta el costo: registra una compra en Inventario</Typography>}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" component="div">
                                 Calculado {p.financial?.computed_at} con las órdenes del {p.financial?.period_from} al {p.financial?.period_to} ·{" "}

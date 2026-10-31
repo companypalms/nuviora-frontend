@@ -77,7 +77,7 @@ export const InventoryTab: React.FC = () => {
 
             {data.pending.length > 0 && (
                 <Panel>
-                    <PanelHeader title="Lotes por completar" subtitle="Entraron sin costo de compra o sin costo. Mientras tanto cuentan con el costo de catálogo (provisional) o en $0." />
+                    <PanelHeader title="Lotes por completar" subtitle="Entraron sin compra. Mientras tanto cuentan con el costo de la última compra registrada de su producto (provisional); si nunca tuvo una compra, sin costo." />
                     <TableContainer>
                         <Table size="small">
                             <TableHead>

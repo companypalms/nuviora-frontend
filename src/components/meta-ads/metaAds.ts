@@ -123,6 +123,8 @@ export type Node = {
 export type FinancialCpa = {
     target: number | null; break_even: number | null; fully_loaded: number | null; viable: boolean | null; city_level: boolean;
     period_from: string | null; period_to: string | null; computed_at: string | null; version: number;
+    /** 2026-10-31: el producto nunca tuvo una compra registrada */
+    no_cost?: boolean;
 };
 export type CityNode = Node & {
     city_id: number; name: string; accounts: (Node & { account_id: number; name: string | null })[];

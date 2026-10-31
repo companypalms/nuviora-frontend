@@ -33,7 +33,9 @@ const Basis: React.FC<{ v: CpaVersion }> = ({ v }) => {
     );
 };
 
-const Viable: React.FC<{ v: CpaVersion }> = ({ v }) => (v.purchases <= 0 ? <Chip size="small" label="sin compras de Meta" />
+const Viable: React.FC<{ v: CpaVersion }> = ({ v }) => (v.detail?.no_cost
+    ? <Tooltip title="Este producto nunca tuvo una compra registrada en el inventario: no se sabe cuánto cuesta. Registra su compra en Inventario (o completa el costo de su lote en Finanzas › Inventario)."><Chip size="small" color="warning" label="falta el costo: registra una compra" /></Tooltip>
+    : v.purchases <= 0 ? <Chip size="small" label="sin compras de Meta" />
     : v.viable ? <Chip size="small" color="success" variant="outlined" label="viable" />
     : <Tooltip title="Con la estructura actual de costes y efectividad, el margen configurado no es alcanzable."><Chip size="small" color="error" label="$0 · no viable" /></Tooltip>);
 

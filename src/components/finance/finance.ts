@@ -143,7 +143,7 @@ export type GroupBy = "product" | "city" | "product_city";
 
 export type OrderRow = {
     order_id: number; name: string; status: string | null; kind: string; outcome: string; created_date: string | null; delivered_date: string | null;
-    cost_date: string | null; revenue: number; cogs: number; logistics: number; cogs_source: "lots" | "catalog" | "mixed" | null;
+    cost_date: string | null; revenue: number; cogs: number; logistics: number; cogs_source: "lots" | "last" | "catalog" | "mixed" | null;
     delivery: number; commissions: number; result: number; cogs_missing_lines: number; delivery_missing_trips: number; delivery_estimated: boolean;
 };
 
@@ -194,6 +194,8 @@ export type CpaWindow = {
 export type CpaDetail = {
     chosen: "short" | "long" | "product"; basis: "own" | "product"; city_min_purchases: number;
     short: CpaWindow | null; long: CpaWindow | null; fixed: FixedShare;
+    /** 2026-10-31: el producto nunca tuvo una compra registrada: sin costo, no se calcula */
+    no_cost?: boolean;
 };
 
 export type CpaRow = CpaVersion & { product: string; city: string | null };
@@ -272,7 +274,8 @@ export type InventoryResponse = {
 };
 
 export const COST_SOURCE: Record<string, string> = {
-    purchase: "de la compra", catalog: "de catálogo", manual: "puesto a mano", last_lot: "del lote anterior", recovered: "pieza de un cambio",
+    purchase: "de la compra", last_purchase: "de la última compra", catalog: "de catálogo", manual: "puesto a mano", last_lot: "del lote anterior",
+    recovered: "pieza de un cambio",
 };
 
 // ---- Viajes de traslado (entrega 2c; §13, §14, §15, R8) ----

@@ -209,7 +209,7 @@ export const InventoryCard: React.FC<InventoryCardProps> = ({
                     </Tooltip>
                 )}
                 {onEdit && (
-                    <Tooltip title="Editar Producto (Costo, SKU...)">
+                    <Tooltip title="Editar Producto (nombre, precio...)">
                         <IconButton size="small" color="info" onClick={() => onEdit(productStock)}>
                             <EditIcon />
                         </IconButton>

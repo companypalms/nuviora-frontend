@@ -34,8 +34,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         title: '',
         showable_name: '',
         sku: '',
-        price: 0,
-        cost_usd: 0
+        price: 0
     });
 
     useEffect(() => {
@@ -44,8 +43,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 title: product.title || '',
                 showable_name: product.showable_name || '',
                 sku: product.sku || '',
-                price: product.price || 0,
-                cost_usd: product.cost_usd || 0
+                price: product.price || 0
             });
         }
     }, [open, product]);
@@ -81,7 +79,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === 'price' || name === 'cost_usd' ? Number(value) : value
+            [name]: name === 'price' ? Number(value) : value
         }));
     };
 
@@ -124,19 +122,10 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 />
                             </Grid>
                             <Grid size={{ xs: 6 }}>
-                                <TextField
-                                    fullWidth
-                                    label="Costo de Compra (USD)"
-                                    name="cost_usd"
-                                    type="number"
-                                    value={formData.cost_usd}
-                                    onChange={handleChange}
-                                    required
-                                    size="small"
-                                    inputProps={{ step: "0.01", min: 0 }}
-                                    helperText="Este valor se usará para calcular la ganancia en métricas"
-                                    sx={{ '& .MuiFormHelperText-root': { color: 'primary.main', fontWeight: 'medium' } }}
-                                />
+                                {/* 2026-10-31: el costo sale solo de las compras registradas en el inventario, nunca de aquí */}
+                                <Typography variant="caption" color="text.secondary">
+                                    El costo sale de las compras registradas en Inventario: el de la última compra. Se ve en Finanzas › Configuración.
+                                </Typography>
                             </Grid>
                         </Grid>
                     </Box>

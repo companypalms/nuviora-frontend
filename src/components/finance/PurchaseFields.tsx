@@ -49,7 +49,7 @@ export const PurchaseFields: React.FC<{
             )}
             {!value.enabled ? (
                 <Alert severity="info" sx={{ mt: 1 }}>
-                    Sin compra (por ejemplo, una devolución): las unidades entran con el costo de catálogo del producto y el lote queda "por completar".
+                    Sin compra (por ejemplo, una devolución): las unidades entran con el costo de la última compra registrada del producto y el lote queda "por completar".
                 </Alert>
             ) : !options ? <Typography color="text.secondary" sx={{ mt: 1 }}>Cargando…</Typography> : (
                 <Stack spacing={2} sx={{ mt: 1 }}>
