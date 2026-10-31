@@ -20,8 +20,6 @@ import { CancellationsReview } from './pages/orders/cancellations/CancellationsR
 import { WarehouseInventory } from './pages/inventory/WarehouseInventory';
 import { EarningsAdmin } from './pages/money/EarningsAdmin';
 import { MyEarningsPage } from './pages/money/EarningsMyPage';
-import { Metrics } from './pages/Metrics';
-import { BusinessMetrics } from './pages/BusinessMetrics';
 import { ShopsAndCities } from './pages/admin/ShopsAndCities';
 import { RatesAndPayments } from './pages/admin/RatesAndPayments';
 import { PendingVueltos } from './pages/admin/PendingVueltos';
@@ -144,8 +142,9 @@ function App() {
           <Route path="/earnings" element={<RequireRole allowedRoles={['Admin']}><EarningsAdmin /></RequireRole>} />
           <Route path="/me/earnings" element={<RequireRole allowedRoles={['Vendedor', 'Repartidor', 'Gerente']}><MyEarningsPage /></RequireRole>} />
           <Route path="/shops" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="tiendas" />} />
-          <Route path="/metrics" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><Metrics /></RequireRole>} />
-          <Route path="/business-metrics" element={<RequireRole allowedRoles={['Admin']}><BusinessMetrics /></RequireRole>} />
+          {/* `.47`: las pantallas viejas de métricas se quitaron; sus números están en el Panel del dueño */}
+          <Route path="/metrics" element={<Navigate to="/panel-dueno" replace />} />
+          <Route path="/business-metrics" element={<Navigate to="/panel-dueno" replace />} />
           <Route path="/cities" element={<RedirectToSection to="/admin/tiendas-y-ciudades" section="ciudades" />} />
           <Route path="/admin/tiendas-y-ciudades" element={<RequireRole allowedRoles={['Admin', 'Gerente', 'Master']}><ShopsAndCities /></RequireRole>} />
           <Route path="/admin/tasa-y-pagos" element={<RequireRole allowedRoles={['Admin', 'Gerente']}><RatesAndPayments /></RequireRole>} />
