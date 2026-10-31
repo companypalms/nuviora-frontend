@@ -2,20 +2,21 @@
 // Finanzas › Reportes (Módulo 4 de Fran, entrega 4):
 // - §56 y §57: un reporte de cualquier rango; hoy, semana actual y mes actual salen PROVISIONAL. §58: cada uno se compara
 //   con el período anterior del mismo largo.
-// - §53 a §55: los automáticos (diario D-3, semanal, mensual), que se generan solos, con su configuración.
+// - §53 a §55: los automáticos se apagaron en la `.48c` (decisión del dueño, 2026-10-31): los reemplazan los reportes del
+//   negocio del asistente (/reportes-negocio). Aquí quedan los viejos, el reporte a mano y el Excel.
 // - §80: el reporte ejecutivo en PDF y el Excel detallado para análisis, contador y auditoría.
 // - R18: mandarlo por WhatsApp. §20, §21: versiones cuando una entrega tardía cambia las cifras.
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Button, Chip, IconButton, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography,
+    Alert, Button, Chip, IconButton, Menu, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography,
 } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import MoreVertRounded from "@mui/icons-material/MoreVertRounded";
 import { toast } from "react-toastify";
 import { request } from "../../common/request";
 import { Panel, PanelHeader } from "../ui/surface/Panel";
 import { PeriodPicker } from "./PeriodPicker";
 import { ReportDialog } from "./ReportDialog";
-import { ReportsConfigPanel } from "./ReportsConfigPanel";
 import { FinancialReportRow, ReportType, ReportsResponse, api, changeText, download, errorMessage, money, monthRange } from "./finance";
 
 /** Abre el PDF en otra pestaña (o lo baja, si el navegador no deja abrirla). */
@@ -44,7 +45,6 @@ export const ReportsTab: React.FC = () => {
     const [busy, setBusy] = useState(false);
     const [viewing, setViewing] = useState<number | null>(null);
     const [menu, setMenu] = useState<{ anchor: HTMLElement; r: FinancialReportRow } | null>(null);
-    const [configKey, setConfigKey] = useState(0);
 
     const load = useCallback(() => {
         api<ReportsResponse>(`/finance/reports?page=${page}${type ? `&type=${type}` : ""}`).then(setData).catch((e) => toast.error(errorMessage(e)));
@@ -68,6 +68,10 @@ export const ReportsTab: React.FC = () => {
 
     return (
         <Stack spacing={2}>
+            <Alert severity="info" action={<Button size="small" component={RouterLink} to="/reportes-negocio">Abrir</Button>}>
+                Los reportes automáticos se apagaron: ahora tu asistente te los da en <b>Reportes del negocio</b> (diario, semanal y mensual),
+                con los números del Panel ya revisados. Aquí quedan los viejos, y puedes hacer uno a mano o bajar el Excel.
+            </Alert>
             <Panel>
                 <PanelHeader title="Generar un reporte" subtitle="Cualquier rango. Si incluye los últimos días sale PROVISIONAL, porque todavía se están entregando órdenes. Se compara con el período anterior del mismo largo." />
                 <PeriodPicker value={range} onChange={setRange}>
@@ -81,7 +85,7 @@ export const ReportsTab: React.FC = () => {
             </Panel>
 
             <Panel>
-                <PanelHeader title="Reportes" subtitle="Los automáticos y los generados a mano. El PDF es el reporte ejecutivo; el Excel trae el detalle de cada orden, gasto y movimiento de caja (con los datos de hoy)."
+                <PanelHeader title="Reportes" subtitle="Los automáticos de antes (hasta el 31/10/2026) y los generados a mano. El PDF es el reporte ejecutivo; el Excel trae el detalle de cada orden, gasto y movimiento de caja (con los datos de hoy)."
                     action={<Stack direction="row" gap={0.5} flexWrap="wrap">
                         {(["", "daily", "weekly", "monthly", "custom"] as const).map((t) => (
                             <Chip key={t || "all"} size="small" label={t ? data?.types[t] ?? t : "Todos"} color={type === t ? "primary" : "default"}
@@ -89,7 +93,7 @@ export const ReportsTab: React.FC = () => {
                         ))}
                     </Stack>} />
                 {!data ? <Typography color="text.secondary">Cargando…</Typography> : data.reports.length === 0 ? (
-                    <Typography color="text.secondary">Todavía no hay reportes. Los automáticos aparecen solos cuando les toca; también puedes generar uno arriba.</Typography>
+                    <Typography color="text.secondary">No hay reportes de este tipo. Puedes generar uno arriba.</Typography>
                 ) : (
                     <TableContainer>
                         <Table size="small">
@@ -147,8 +151,6 @@ export const ReportsTab: React.FC = () => {
                     </Stack>
                 )}
             </Panel>
-
-            {data && <ReportsConfigPanel key={configKey} config={data.config} next={data.next} onSaved={() => { setConfigKey((k) => k + 1); load(); }} />}
 
             <Menu anchorEl={menu?.anchor} open={menu !== null} onClose={() => setMenu(null)}>
                 <MenuItem onClick={act((r) => setViewing(r.id))}>Ver</MenuItem>

@@ -34,7 +34,7 @@ export const ProfitabilityTab: React.FC = () => {
                 <>
                     <Panel>
                         <PanelHeader title={<Stack direction="row" gap={1} alignItems="center">Rentabilidad por niveles <StatusChip status={data.status} /></Stack>}
-                            subtitle={`Del ${day(data.from)} al ${day(data.to)}. El ingreso cuenta el día de la entrega; el delivery fallido, el día de la carrera.`} />
+                            subtitle={`Del ${day(data.from)} al ${day(data.to)}. Cada pedido cuenta el día en que se creó, aunque se entregue después: la misma ganancia que el Panel del dueño y tus reportes.`} />
                         <PnlStatement c={data.company} />
                     </Panel>
                     <Panel>
