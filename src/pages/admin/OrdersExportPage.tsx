@@ -61,6 +61,8 @@ interface OrderRow {
     delivery_cost: number;
     created_at: string | null;
     processed_at: string | null;
+    /** .58: la fecha real de entrega. */
+    delivered_at?: string | null;
     scheduled_for: string | null;
     created_weekday: string;
     created_hour: string;
@@ -170,7 +172,7 @@ export const OrdersExportPage: React.FC = () => {
             'Fecha Creación':      o.created_at ?? '',
             'Día de la semana':    o.created_weekday ?? '',
             'Hora de creación':    o.created_hour ? `${o.created_hour}:00` : '',
-            'Fecha Entrega':       o.processed_at ?? '',
+            'Fecha Entrega':       o.delivered_at ?? '',
             'Programada para':     o.scheduled_for ?? '',
             'Horas hasta entrega': o.duration_hours ?? '',
             // Comportamiento
@@ -386,8 +388,8 @@ export const OrdersExportPage: React.FC = () => {
                                                     <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">{o.created_at?.slice(0, 16).replace('T', ' ') ?? '—'}</Typography>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem" color={o.processed_at ? 'success.main' : 'text.disabled'}>
-                                                        {o.processed_at?.slice(0, 16).replace('T', ' ') ?? '—'}
+                                                    <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem" color={o.delivered_at ? 'success.main' : 'text.disabled'}>
+                                                        {o.delivered_at?.slice(0, 16).replace('T', ' ') ?? '—'}
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell>

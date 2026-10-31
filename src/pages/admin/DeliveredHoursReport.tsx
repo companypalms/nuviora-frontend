@@ -48,9 +48,13 @@ interface OrderRow {
     total: number;
     currency: string;
     created_at: string | null;
-    processed_at: string | null;
+    /** .58: la fecha real de entrega (orders.delivered_at); antes, processed_at. */
+    delivered_at: string | null;
     duration_hours: number | null;
 }
+
+/** "AAAA-MM-DD" de un día, en la hora de esta computadora. */
+const ymd = (d: Date) => d.toLocaleDateString('en-CA');
 
 const formatDateTime = (dt: string | null): string => {
     if (!dt) return '—';
@@ -102,21 +106,29 @@ export const DeliveredHoursReport: React.FC = () => {
     const [orders, setOrders] = useState<OrderRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    // .58: por fechas (antes cargaba toda la historia); sin elegir, los últimos 30 días
+    const [from, setFrom] = useState(() => ymd(new Date(Date.now() - 29 * 864e5)));
+    const [to, setTo] = useState(() => ymd(new Date()));
+    const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
-            const { status, response }: IResponse = await request('/reports/delivered-hours', 'GET');
-            if (status) {
-                const json = await response.json();
+            const { status, response }: IResponse = await request(`/reports/delivered-hours?from=${from}&to=${to}`, 'GET');
+            const json = await response.json();
+            if (status && json.status !== false) {
                 setOrders(json.data ?? []);
+            } else {
+                setOrders([]);
+                setError(json.message ?? 'No se pudo cargar el reporte.');
             }
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [from, to]);
 
     useEffect(() => {
         fetchData();
@@ -147,7 +159,7 @@ export const DeliveredHoursReport: React.FC = () => {
             'Agencia': o.agency_name,
             'Total': `${o.currency} ${Number(o.total).toFixed(2)}`,
             'Fecha y Hora del Pedido': o.created_at ?? '',
-            'Fecha y Hora de Entrega': o.processed_at ?? '',
+            'Fecha y Hora de Entrega': o.delivered_at ?? '',
             'Tiempo de Entrega': o.duration_hours !== null ? getDurationLabel(o.duration_hours) : '',
             'Horas (número)': o.duration_hours ?? '',
         }));
@@ -161,7 +173,7 @@ export const DeliveredHoursReport: React.FC = () => {
         }));
         ws['!cols'] = colWidths;
 
-        XLSX.writeFile(wb, `reporte_pedidos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        XLSX.writeFile(wb, `reporte_pedidos_${from}_a_${to}.xlsx`);
     };
 
     // Stats
@@ -197,7 +209,7 @@ export const DeliveredHoursReport: React.FC = () => {
                                 ⏱️ Reporte de Pedidos y Horas de Entrega
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Todas las órdenes — fecha de pedido vs. fecha de entrega. El tiempo de entrega aplica solo a pedidos <strong>Entregado</strong>.
+                                Los pedidos creados en las fechas que elijas — fecha del pedido vs. fecha real de entrega. El tiempo de entrega aplica solo a pedidos <strong>Entregado</strong>.
                             </Typography>
                         </Box>
                         <Stack direction="row" spacing={1.5}>
@@ -264,6 +276,11 @@ export const DeliveredHoursReport: React.FC = () => {
 
                 {/* Search */}
                 <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 1.5 }}>
+                        <TextField type="date" size="small" label="Creados desde" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField type="date" size="small" label="Hasta" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+                    </Stack>
+                    {error && <Typography variant="body2" color="error" sx={{ mb: 1 }}>{error}</Typography>}
                     <TextField
                         id="search-orders-input"
                         fullWidth
@@ -365,9 +382,9 @@ export const DeliveredHoursReport: React.FC = () => {
                                                         variant="body2"
                                                         fontFamily="monospace"
                                                         fontSize="0.78rem"
-                                                        color={order.processed_at ? 'success.main' : 'text.disabled'}
+                                                        color={order.delivered_at ? 'success.main' : 'text.disabled'}
                                                     >
-                                                        {formatDateTime(order.processed_at)}
+                                                        {formatDateTime(order.delivered_at)}
                                                     </Typography>
                                                 </TableCell>
                                                 <TableCell align="center">

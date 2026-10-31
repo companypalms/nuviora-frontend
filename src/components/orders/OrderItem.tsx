@@ -509,7 +509,7 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                     <Box sx={{ mt: 1 }}>
                         <OrderTimer
                             receivedAt={order.status.description === ORDER_STATUS.NOVEDADES ? order.updated_at : order.received_at}
-                            deliveredAt={order.status.description === ORDER_STATUS.ENTREGADO ? (order.processed_at || order.updated_at) : null}
+                            deliveredAt={order.status.description === ORDER_STATUS.ENTREGADO ? (order.delivered_at || order.processed_at || order.updated_at) : null}
                             status={order.status.description}
                         />
                     </Box>

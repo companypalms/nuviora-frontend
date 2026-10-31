@@ -416,7 +416,7 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                                             <Box sx={{ mt: 0.5, bgcolor: 'rgba(255,255,255,0.1)', px: 1, py: 0.2, borderRadius: 1 }}>
                                                 <OrderTimer
                                                     receivedAt={order.status?.description === 'Novedades' ? order.updated_at : order.received_at}
-                                                    deliveredAt={order.status?.description === 'Entregado' ? (order.processed_at || order.updated_at) : null}
+                                                    deliveredAt={order.status?.description === 'Entregado' ? (order.delivered_at || order.processed_at || order.updated_at) : null}
                                                     status={order.status?.description || ''}
                                                 />
                                             </Box>
