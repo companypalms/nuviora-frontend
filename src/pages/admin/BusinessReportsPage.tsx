@@ -2,10 +2,11 @@
 // .48b (2026-10-31): los reportes del negocio del asistente. Diario (los últimos 3 días), semanal (la semana pasada) y
 // mensual (el mes pasado), en los días de las revisiones del calendario. Los números son los del Panel del dueño, ya
 // revisados ("números comprobados"); la IA solo los explica. "Volver a generar" crea otra versión.
+// .48b-2: las revisiones del calendario abren /reportes-negocio?tipo=…&desde=…&hasta=… (el reporte de esas fechas).
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { CheckCircleRounded, InsightsRounded, RefreshRounded, WarningAmberRounded } from "@mui/icons-material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { Loading } from "../../components/ui/content/Loading";
@@ -37,7 +38,10 @@ type Report = {
     requested_by: string | null; model: string | null; error: string | null; warnings: string[]; facts: Facts; text: AiText | null;
 };
 type HistoryRow = { id: number; from: string; to: string; version: number; auto: boolean; created_at: string };
-type Data = { type: ReportType; report: Report | null; history: HistoryRow[]; counts: Partial<Record<ReportType, number>>; runs_left: number };
+type Data = {
+    type: ReportType; report: Report | null; missing: { from: string; to: string } | null; history: HistoryRow[];
+    counts: Partial<Record<ReportType, number>>; runs_left: number;
+};
 
 const TYPES: { key: ReportType; label: string; when: string }[] = [
     { key: "daily", label: "Diario", when: "Sale solo de lunes a sábado a las 7:15, con los últimos 3 días (hoy no cuenta)." },
@@ -186,16 +190,21 @@ const ReportView: React.FC<{ r: Report }> = ({ r }) => {
 
 export const BusinessReportsPage: React.FC = () => {
     const { loadingSession, isValid } = useValidateSession();
-    const [type, setType] = useState<ReportType>("daily");
+    const [params] = useSearchParams();
+    const asked = params.get("tipo");
+    const [type, setType] = useState<ReportType>(TYPES.some((x) => x.key === asked) ? (asked as ReportType) : "daily");
     const [id, setId] = useState<number | "">("");
+    // Las fechas que pidió el calendario, solo hasta que el dueño elige otra pestaña u otro reporte
+    const [range, setRange] = useState<{ from: string; to: string } | null>(params.get("desde") && params.get("hasta") ? { from: params.get("desde")!, to: params.get("hasta")! } : null);
     const [data, setData] = useState<Data | null>(null);
     const [running, setRunning] = useState(false);
 
     const load = useCallback(() => {
         const q = new URLSearchParams({ type });
         if (id !== "") q.set("id", String(id));
+        else if (range) { q.set("from", range.from); q.set("to", range.to); }
         api<Data>(`/business-reports?${q}`).then(setData).catch((e) => toast.error(e.message));
-    }, [type, id]);
+    }, [type, id, range]);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
 
     const run = async () => {
@@ -203,7 +212,8 @@ export const BusinessReportsPage: React.FC = () => {
         try {
             const r = await api<{ report: Report; runs_left: number }>("/business-reports/run", "POST", { type });
             setId("");
-            setData((d) => d ? { ...d, report: r.report, runs_left: r.runs_left } : d);
+            setRange(null);
+            setData((d) => d ? { ...d, report: r.report, missing: null, runs_left: r.runs_left } : d);
             load();
             toast.success("Reporte actualizado");
         } catch (e) { toast.error((e as Error).message); } finally { setRunning(false); }
@@ -219,12 +229,12 @@ export const BusinessReportsPage: React.FC = () => {
                 <DescripcionDeVista title="Reportes del negocio"
                     description="Cómo va tu negocio, explicado en simple. Los números son los de tu Panel, revisados por un segundo cálculo; la IA solo los explica y no puede inventar ninguno." />
                 <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", mb: 2 }}>
-                    <Tabs value={type} onChange={(_, v) => { setType(v); setId(""); }} variant="scrollable" allowScrollButtonsMobile>
+                    <Tabs value={type} onChange={(_, v) => { setType(v); setId(""); setRange(null); }} variant="scrollable" allowScrollButtonsMobile>
                         {TYPES.map((x) => <Tab key={x.key} value={x.key} label={`${x.label}${data.counts[x.key] ? ` (${data.counts[x.key]})` : ""}`} />)}
                     </Tabs>
                 </Paper>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ mb: 2 }}>
-                    <TextField select size="small" label="Reporte" value={r?.id ?? ""} onChange={(e) => setId(Number(e.target.value))} sx={{ minWidth: { sm: 320 } }} disabled={data.history.length === 0}>
+                    <TextField select size="small" label="Reporte" value={r?.id ?? ""} onChange={(e) => { setId(Number(e.target.value)); setRange(null); }} sx={{ minWidth: { sm: 320 } }} disabled={data.history.length === 0}>
                         {data.history.map((h) => (
                             <MenuItem key={h.id} value={h.id}>{h.from === h.to ? h.from : `${h.from} al ${h.to}`} · v{h.version}{h.auto ? " (automático)" : ""}</MenuItem>
                         ))}
@@ -233,6 +243,11 @@ export const BusinessReportsPage: React.FC = () => {
                         {running ? "Generando…" : `Volver a generar (${data.runs_left})`}
                     </Button>
                 </Stack>
+                {data.missing && data.type === type && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Todavía no está el reporte {info.label.toLowerCase()} del {data.missing.from} al {data.missing.to}{r ? "; te muestro el último que hay" : ""}. Toca "Volver a generar" para hacerlo ahora.
+                    </Alert>
+                )}
                 {!r ? (
                     <Alert severity="info">Todavía no hay reporte {info.label.toLowerCase()}. {info.when} También puedes tocar "Volver a generar".</Alert>
                 ) : (
