@@ -5,6 +5,7 @@
 // pone el dueño, y "Copiar encargo" solo copia el texto para el editor.
 // Paso 5a: los editores tienen sus pantallas (Mis encargos y Encargos del equipo); aquí el dueño ve quién tiene cada
 // encargo y sus entregas, y también asigna y revisa (las entregas del editor líder, solo aquí).
+// .57: "Subir a Meta" en los batches en banca (por ahora el simulacro: muestra lo que se crearía, sin tocar Meta).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Menu, MenuItem, Paper,
@@ -12,7 +13,7 @@ import {
 } from "@mui/material";
 import {
     AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, CheckRounded, ContentCopyRounded, DeleteOutlineRounded, EditRounded, ExpandLessRounded,
-    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded, OpenInNewRounded, RateReviewRounded,
+    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded, OpenInNewRounded, RateReviewRounded, CloudUploadRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -23,6 +24,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
+import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
@@ -233,6 +235,7 @@ const BatchCard: React.FC<{
     const [busy, setBusy] = useState(false);
     const [manualCopy, setManualCopy] = useState(false);
     const [review, setReview] = useState(false);
+    const [upload, setUpload] = useState(false);
     const numbered = b.code !== null;
     const pending = b.deliveries.find((d) => d.review === "pending") ?? null;
     const targets = (numbered ? MANUAL : (["discarded", "proposed"] as Status[])).filter((s) => canMove(b.status, s, numbered))
@@ -317,6 +320,9 @@ const BatchCard: React.FC<{
                 {b.can.assign && (
                     <AssignButton<Batch> editors={data.editors} current={b.editor_id} url={`/meta/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={onChanged} />
                 )}
+                {b.status === "bank" && (
+                    <Button size="small" variant="outlined" startIcon={<CloudUploadRounded />} onClick={() => setUpload(true)}>Subir a Meta</Button>
+                )}
                 <Button size="small" startIcon={<EditRounded />} onClick={onEdit}>{b.status === "tested" || b.status === "discarded" ? "Aprendizaje" : "Editar"}</Button>
                 <Button size="small" startIcon={<ContentCopyRounded />} onClick={copy}>Copiar encargo</Button>
                 {targets.length > 0 && (
@@ -336,6 +342,7 @@ const BatchCard: React.FC<{
                     </MenuItem>
                 ))}
             </Menu>
+            {upload && <UploadPlanDialog batchId={b.id} code={b.code} open={upload} onClose={() => setUpload(false)} />}
             <ReviewDialog<Batch> open={review} title={b.code ?? "el encargo"} delivery={pending} url={`/meta/queue/${b.id}/review`} onClose={() => setReview(false)} onDone={onChanged} />
             <Dialog open={manualCopy} onClose={() => setManualCopy(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Copia el encargo</DialogTitle>
