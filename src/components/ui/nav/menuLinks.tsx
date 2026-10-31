@@ -18,7 +18,7 @@ import {
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
-    VideoLibraryRounded, EmojiEventsRounded, WebRounded,
+    VideoLibraryRounded, EmojiEventsRounded, WebRounded, SummarizeRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -57,6 +57,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "principal", text: "Resumen del día", icon: <TodayRounded />, link: "/resumen-del-dia", roles: ["Admin"], keywords: "numeros de hoy pendientes vueltos deficit stock bajo sin agencia asignar agencias ciudades sin registrar validaciones conciliacion equipo pagos por metodo kpi" },
     // Etapa 2: los números del negocio con las reglas de guias/DICCIONARIO-METRICAS.md
     { section: "principal", text: "Panel del dueño", icon: <InsightsRounded />, link: "/panel-dueno", roles: ["Admin"], keywords: "metricas kpi indicadores ventas efectividad entregados ticket tablero numeros graficos" },
+    // .48b: cómo va el negocio, explicado por la IA con los números del panel ya revisados
+    { section: "principal", text: "Reportes del negocio", icon: <SummarizeRounded />, link: "/reportes-negocio", roles: ["Admin"], keywords: "reporte diario semanal mensual resumen ia asistente como va el negocio ganancia semana mes" },
     // Etapa 3: pagos, tareas, revisiones y notas de cada día
     { section: "principal", text: "Calendario", icon: <CalendarMonthRounded />, link: "/calendario", roles: ["Admin"], keywords: "agenda recordatorios tareas pagos pendientes notas fechas vencimientos anotar" },
     { section: "principal", text: "Órdenes", icon: <LocalShippingRoundedIcon />, link: "/orders", roles: ["Admin", "Gerente", "Vendedor", "Repartidor", "Agencia"], keywords: "pedidos ventas kanban" },

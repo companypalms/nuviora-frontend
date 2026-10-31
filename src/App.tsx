@@ -35,6 +35,7 @@ import { MyClosures } from './pages/agency/MyClosures';
 import { MetaAdsDashboard } from './pages/admin/MetaAdsDashboard';
 import { MetaCreativePage } from './pages/admin/MetaCreativePage';
 import { MetaAnalysisPage } from './pages/admin/MetaAnalysisPage';
+import { BusinessReportsPage } from './pages/admin/BusinessReportsPage';
 import { MetaQueuePage } from './pages/admin/MetaQueuePage';
 import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
 import { EditorPage } from './pages/editor/EditorPage';
@@ -173,6 +174,8 @@ function App() {
           <Route path="/finanzas" element={<RequireRole allowedRoles={['Admin']}><Finance /></RequireRole>} />
           {/* Panel del dueño (Etapa 2, guias/DICCIONARIO-METRICAS.md): solo el Administrador */}
           <Route path="/panel-dueno" element={<RequireRole allowedRoles={['Admin']}><OwnerPanel /></RequireRole>} />
+          {/* .48b: los reportes del negocio del asistente (diario, semanal y mensual) */}
+          <Route path="/reportes-negocio" element={<RequireRole allowedRoles={['Admin']}><BusinessReportsPage /></RequireRole>} />
           {/* Calendario del dueño (Etapa 3): pagos, tareas y notas de cada día. Solo el Administrador */}
           <Route path="/calendario" element={<RequireRole allowedRoles={['Admin']}><CalendarPage /></RequireRole>} />
           {/* Resumen del día (Etapa 4): lo que estaba en el Dashboard del Admin antes de que quedara con sus metas, lo de hoy y su asistente */}
