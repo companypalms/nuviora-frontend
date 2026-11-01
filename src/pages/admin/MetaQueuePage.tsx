@@ -33,7 +33,7 @@ type Batch = {
     id: number; code: string | null; product_id: number; product: string; status: Status; status_label: string; status_at: string | null; status_by: string | null;
     position: number | null; source: string; kind: string; angle_code: string | null; angle_name: string | null; concept: string | null; hypothesis: string | null;
     /** .63: para el editor: lo que buscamos y lo que hay que mejorar ("keep" es lo que funcionó). */
-    goal?: string | null; improve?: string | null;
+    goal?: string | null; improve?: string | null; test_idea?: string | null;
     audience: string | null; reference_id: number | null; reference: string | null; city_id: number | null; city: string | null; format: string | null;
     keep: string | null; offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; approved_at: string | null;
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
@@ -60,7 +60,7 @@ type Options = {
     cities: { id: number; name: string }[]; price: number | null;
 };
 type Form = {
-    product_id: number | ""; kind: string; angle_code: string; concept: string; hypothesis: string; goal: string; improve: string; audience: string; reference_creative_id: number | "";
+    product_id: number | ""; kind: string; angle_code: string; concept: string; hypothesis: string; test_idea: string; goal: string; improve: string; audience: string; reference_creative_id: number | "";
     learning_city_id: number | ""; format: string; keep: string; offer: string; deliverables: string; due_date: string; learning: string; pieces: Piece[];
 };
 
@@ -82,13 +82,13 @@ const canMove = (from: Status, to: Status, numbered: boolean) => {
 };
 
 const emptyForm = (pieces: number, productId: number | "" = ""): Form => ({
-    product_id: productId, kind: "iteration", angle_code: "", concept: "", hypothesis: "", goal: "", improve: "", audience: "", reference_creative_id: "", learning_city_id: "",
+    product_id: productId, kind: "iteration", angle_code: "", concept: "", hypothesis: "", test_idea: "", goal: "", improve: "", audience: "", reference_creative_id: "", learning_city_id: "",
     format: "video", keep: "", offer: "", deliverables: "", due_date: "", learning: "", pieces: Array.from({ length: pieces }, () => ({ change: "", format: null })),
 });
 
 const fromBatch = (b: Batch): Form => ({
     product_id: b.product_id, kind: b.kind, angle_code: b.angle_code ?? "", concept: b.concept ?? "", hypothesis: b.hypothesis ?? "",
-    goal: b.goal ?? "", improve: b.improve ?? "", audience: b.audience ?? "",
+    test_idea: b.test_idea ?? "", goal: b.goal ?? "", improve: b.improve ?? "", audience: b.audience ?? "",
     reference_creative_id: b.reference_id ?? "", learning_city_id: b.city_id ?? "", format: b.format ?? "", keep: b.keep ?? "", offer: b.offer ?? "",
     deliverables: b.deliverables ?? "", due_date: b.due_date ?? "", learning: b.learning ?? "", pieces: b.pieces.map((p) => ({ ...p })),
 });
@@ -118,7 +118,7 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
         setSaving(true);
         const body = closed ? { learning: form.learning || null } : {
             ...(batch ? {} : { product_id: form.product_id }), kind: form.kind, angle_code: form.angle_code || null, concept: form.concept || null,
-            hypothesis: form.hypothesis || null, goal: form.goal || null, improve: form.improve || null, audience: form.audience || null,
+            hypothesis: form.hypothesis || null, test_idea: form.test_idea || null, goal: form.goal || null, improve: form.improve || null, audience: form.audience || null,
             reference_creative_id: form.reference_creative_id || null,
             learning_city_id: form.learning_city_id || null, format: form.format || null, keep: form.keep || null, offer: form.offer || null,
             deliverables: form.deliverables || null, due_date: form.due_date || null, ...(batch ? { learning: form.learning || null } : {}),
@@ -169,6 +169,8 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
                         </Stack>
                         {field("Hipótesis (solo la ves tú)", "hypothesis", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
                             placeholder: options?.angles.find((a) => a.code === form.angle_code)?.hypothesis ?? "Qué crees que va a pasar y por qué" })}
+                        {field("Qué estamos probando (para el editor, sin números)", "test_idea", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
+                            placeholder: "Por ejemplo: probamos si abrir con una situación cotidiana de frío, antes de mostrar el chaleco, engancha a gente que todavía no busca una solución" })}
                         {field("Lo que buscamos (para el editor)", "goal", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
                             placeholder: "Por ejemplo: 3 versiones bien distintas, con el mismo hook, que hagan que la gente se quede hasta el final" })}
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -285,7 +287,8 @@ const BatchCard: React.FC<{
                 {b.returned && <Chip size="small" color="warning" variant="outlined" label={`Devuelto (${b.returned.version})`} />}
                 {pending && <Chip size="small" color="secondary" label={`${pending.version} por revisar`} />}
             </Stack>
-            {b.goal && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
+            {b.test_idea && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
+            {b.goal && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
             {b.keep && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que funcionó:</b> {b.keep}</Typography>}
             {b.improve && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que hay que mejorar:</b> {b.improve}</Typography>}
             {b.hypothesis && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Hipótesis (solo tú):</b> {b.hypothesis}</Typography>}

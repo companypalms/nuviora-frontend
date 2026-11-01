@@ -23,6 +23,8 @@ type EBatch = EditorFields & {
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
     /** .63: lo que buscamos, lo que funcionó (no se toca) y lo que hay que mejorar. */
     goal?: string | null; improve?: string | null;
+    /** .63: qué estamos probando (la hipótesis contada para el editor, sin números ni el proceso del dueño). */
+    test_idea?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
     /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
     reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
@@ -49,7 +51,7 @@ const Field: React.FC<{ label: string; value: string | null }> = ({ label, value
     ? <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}><b>{label}:</b> {value}</Typography> : null);
 
 /** .63: un bloque destacado del encargo ("Lo que buscamos", "Lo que funcionó", "Lo que hay que mejorar"). */
-const Block: React.FC<{ title: string; text?: string | null; tone: "info" | "success" | "warning" }> = ({ title, text, tone }) => (text && text.trim() ? (
+const Block: React.FC<{ title: string; text?: string | null; tone: "info" | "success" | "warning" | "secondary" }> = ({ title, text, tone }) => (text && text.trim() ? (
     <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, borderLeft: "4px solid", borderColor: `${tone}.main`, bgcolor: "action.hover" }}>
         <Typography variant="caption" fontWeight={700} color={`${tone}.main`} component="div">{title}</Typography>
         <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{text}</Typography>
@@ -94,6 +96,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
 
             {!done && (
                 <Box sx={{ mt: 1 }}>
+                    <Block title="Qué estamos probando" text={b.test_idea} tone="secondary" />
                     <Block title="Lo que buscamos" text={b.goal} tone="info" />
                     <Block title="Lo que funcionó (no lo cambies)" text={b.keep} tone="success" />
                     <Block title="Lo que hay que mejorar" text={b.improve} tone="warning" />
