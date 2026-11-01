@@ -21,11 +21,18 @@ export type WorkingFields = {
     stop_reason: string | null;
 };
 
+/** 1 = lunes … 7 = domingo: [desde, hasta] (HH:MM o null = sin límite) o null si ese día no trabaja. */
+export type WeekSchedule = Record<string, [string | null, string | null] | null>;
+
 /** Y el horario, que es de cada agencia (Fran, 2026-10-17, 10:54). Sin horario = todo el día. */
 export type WorkingHoursFields = WorkingFields & {
-    /** HH:MM o null. */
+    /** HH:MM o null: el mismo horario todos los días (si no tiene horario por día). */
     works_from: string | null;
     works_until: string | null;
+    /** Horario por día (dueño, 2026-11-01); null = usa el "desde/hasta" de todos los días. */
+    schedule?: WeekSchedule | null;
+    /** El horario en palabras, como lo arma el servidor; null = todo el día. */
+    hours_label?: string | null;
 };
 
 export type CityAgency = {

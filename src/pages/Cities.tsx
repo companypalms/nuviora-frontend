@@ -23,8 +23,9 @@ import { AgencySettingsDialog } from "../components/agencies/AgencySettingsDialo
 import { AgencyReassignDialog } from "../components/agencies/AgencyReassignDialog";
 import { WorkingHoursDialog } from "../components/agencies/WorkingHoursDialog";
 
-/** "de 08:00 a 17:00", "hasta las 17:00"…; null si trabaja todo el día. */
-const hoursLabel = (h: Pick<WorkingHoursFields, 'works_from' | 'works_until'>) => {
+/** "lun a vie de 09:00 a 19:00 · sáb …" (por día, lo arma el servidor), "de 08:00 a 17:00"…; null si trabaja todo el día. */
+const hoursLabel = (h: Pick<WorkingHoursFields, 'works_from' | 'works_until' | 'hours_label'>) => {
+    if (h.hours_label !== undefined) return h.hours_label;
     if (h.works_from && h.works_until) return `de ${h.works_from} a ${h.works_until}`;
     if (h.works_until) return `hasta las ${h.works_until}`;
     if (h.works_from) return `desde las ${h.works_from}`;
@@ -35,9 +36,11 @@ const hoursLabel = (h: Pick<WorkingHoursFields, 'works_from' | 'works_until'>) =
  * Si trabaja ahora, apagada o fuera de horario (Fran, 2026-10-17). El horario es solo de la agencia. Con onClick, se
  * puede cambiar.
  */
-const WorkingChip = ({ h, onClick }: { h: WorkingFields & Partial<Pick<WorkingHoursFields, 'works_from' | 'works_until'>>; onClick?: () => void }) => {
+const WorkingChip = ({ h, onClick }: { h: WorkingFields & Partial<Pick<WorkingHoursFields, 'works_from' | 'works_until' | 'hours_label' | 'schedule'>>; onClick?: () => void }) => {
     const hasHours = 'works_from' in h;
-    const hours = hasHours ? hoursLabel({ works_from: h.works_from ?? null, works_until: h.works_until ?? null }) : null;
+    const hours = hasHours ? hoursLabel({ works_from: h.works_from ?? null, works_until: h.works_until ?? null, hours_label: h.hours_label }) : null;
+    // El horario por día es largo: en la etiqueta va corto y completo en la ayuda
+    const short = h.schedule ? 'horario por día' : hours;
     const [label, color] = !h.is_working ? ['Apagada', 'error'] as const
         : h.stop_reason ? ['No trabaja ahora', 'warning'] as const
         : ['Trabajando', 'success'] as const;
@@ -47,7 +50,7 @@ const WorkingChip = ({ h, onClick }: { h: WorkingFields & Partial<Pick<WorkingHo
     return (
         <Tooltip title={tip}>
             <Chip size="small" color={color} variant={h.is_working && !h.stop_reason ? 'outlined' : 'filled'}
-                icon={<PowerIcon fontSize="small" />} label={hours ? `${label} · ${hours}` : label}
+                icon={<PowerIcon fontSize="small" />} label={short ? `${label} · ${short}` : label}
                 onClick={onClick} sx={{ fontWeight: 600 }} />
         </Tooltip>
     );
