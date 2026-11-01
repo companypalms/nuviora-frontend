@@ -170,7 +170,7 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
                         {field("Hipótesis (solo la ves tú)", "hypothesis", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
                             placeholder: options?.angles.find((a) => a.code === form.angle_code)?.hypothesis ?? "Qué crees que va a pasar y por qué" })}
                         {field("Qué estamos probando (para el editor, sin números)", "test_idea", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
-                            placeholder: "Por ejemplo: probamos si abrir con una situación cotidiana de frío, antes de mostrar el chaleco, engancha a gente que todavía no busca una solución" })}
+                            placeholder: "Por ejemplo: probamos si abrir mostrando el problema que vive el cliente en su día a día, antes de mostrar el producto, engancha a gente que todavía no busca una solución" })}
                         {field("Lo que buscamos (para el editor)", "goal", { multiline: true, minRows: 2, inputProps: { maxLength: 2000 },
                             placeholder: "Por ejemplo: 3 versiones bien distintas, con el mismo hook, que hagan que la gente se quede hasta el final" })}
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
