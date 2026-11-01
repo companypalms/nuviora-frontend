@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { Panel } from "../ui/surface/Panel";
 import { CalendarItemRow } from "./CalendarItemRow";
 import { itemKey, useCalendarActions } from "./useCalendarActions";
-import { TodayResponse, fetchToday, isClosed, isRoutine, onCalendarChanged } from "./calendar";
+import { TodayResponse, fetchToday, isClosed, isMeta, isOwn, isRoutine, onCalendarChanged } from "./calendar";
 
 /** Cuántas cosas se ven en el Dashboard (en el celular, menos, para que no tape todo); el resto, en el calendario. */
 const VISIBLE = 6;
@@ -37,9 +37,9 @@ export const TodayBox: FC = () => {
 
     if (!data) return null;
 
-    // Primero lo atrasado; después lo de hoy que falta: lo propio del día antes que la rutina
+    // Primero lo atrasado; después lo de hoy que falta: lo propio del día, Meta Ads y los editores, y la rutina
     const pendingToday = data.items.filter((i) => !isClosed(i));
-    const list = [...data.overdue, ...pendingToday.filter((i) => !isRoutine(i)), ...pendingToday.filter(isRoutine)];
+    const list = [...data.overdue, ...pendingToday.filter(isOwn), ...pendingToday.filter(isMeta), ...pendingToday.filter(isRoutine)];
     const shown = list.slice(0, visible);
     const doneToday = data.items.length - pendingToday.length;
     const goCalendar = () => navigate("/calendario");

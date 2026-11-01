@@ -114,7 +114,7 @@ export const CalendarItemRow: FC<Props> = ({ item, showDate, compact, busy, onTo
                         {item.details}
                     </Typography>
                 )}
-                {!compact && item.group !== "daily" && (
+                {!compact && item.group === null && (
                     <Typography variant="caption" color="text.secondary" component="div">
                         {item.repeat_label}
                         {moved && ` · El ${shortDate(item.due_date).split(" ")[1]} cae domingo: ${item.date < item.due_date ? "se adelantó al sábado" : "pasó al lunes"}`}

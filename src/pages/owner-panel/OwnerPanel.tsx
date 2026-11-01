@@ -78,8 +78,10 @@ export const OwnerPanel: React.FC = () => {
             ? { preset: "custom", from: linked.from, to: linked.to, shop: "", city: "", product: "" }
             : { preset: prefs.preset, from: daysBefore(today, 6), to: today, shop: "", city: "", product: "" };
     });
-    const [views, setViews] = useState<ViewKey[]>(prefs.views);
-    const [teamRole, setTeamRole] = useState(prefs.teamRole);
+    // .67: "?equipo=editors" (desde "Revisar el trabajo de los editores" del calendario) abre Equipo en ese rol
+    const linkedTeam = /^[a-z_]{1,30}$/.test(params.get("equipo") ?? "") ? params.get("equipo") : null;
+    const [views, setViews] = useState<ViewKey[]>(linkedTeam && !prefs.views.includes("team") ? [...prefs.views, "team"] : prefs.views);
+    const [teamRole, setTeamRole] = useState(linkedTeam ?? prefs.teamRole);
     const [options, setOptions] = useState<PanelOptions | null>(null);
     const [tick, setTick] = useState(0);
     const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
@@ -99,6 +101,12 @@ export const OwnerPanel: React.FC = () => {
         ?? (views.includes("team") ? team.data : null);
 
     useEffect(() => { fetchOptions().then(setOptions).catch((e) => toast.error(e.message)); }, []);
+
+    // Desde el calendario, una vez que Equipo tiene sus números, se baja hasta esa sección
+    const teamLoaded = team.data !== null;
+    useEffect(() => {
+        if (linkedTeam && teamLoaded) document.getElementById("seccion-team")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, [linkedTeam, teamLoaded]);
 
     // Las alertas miran el período y los filtros de arriba (pedido del dueño): se piden de nuevo al cambiarlos y al actualizar
     useEffect(() => {

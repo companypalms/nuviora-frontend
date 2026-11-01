@@ -5,7 +5,7 @@
 import React, { FC } from "react";
 import { Box, ButtonBase, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { CalendarItem, TYPE_META, WEEKDAYS_SHORT, isClosed, isRoutine, longDate, monthWeeks } from "./calendar";
+import { CalendarItem, TYPE_META, WEEKDAYS_SHORT, isClosed, isMeta, isOwn, isRoutine, longDate, monthWeeks } from "./calendar";
 
 type Props = {
     month: string;
@@ -31,10 +31,13 @@ export const MonthGrid: FC<Props> = ({ month, days, today, selected, onSelect })
             ))}
             {weeks.flat().map((ymd, i) => {
                 const all = days[ymd] ?? [];
-                // La rutina de todos los días va en una sola línea ("Rutina · 3/5"); se escribe lo propio del día
-                const items = all.filter((x) => !isRoutine(x));
+                // La rutina de todos los días va en una sola línea ("Rutina · 3/5"), y Meta Ads y los editores en otra (.67); se
+                // escribe lo propio del día
+                const items = all.filter(isOwn);
                 const routine = all.filter(isRoutine);
                 const routineDone = routine.filter(isClosed).length;
+                const meta = all.filter(isMeta);
+                const metaDone = meta.filter(isClosed).length;
                 const sunday = i % 7 === 6;
                 const isToday = ymd === today;
                 const isSelected = ymd === selected;
@@ -43,7 +46,7 @@ export const MonthGrid: FC<Props> = ({ month, days, today, selected, onSelect })
                     <ButtonBase
                         key={ymd}
                         onClick={() => onSelect(ymd)}
-                        aria-label={`${longDate(ymd)}: ${items.length === 0 ? "nada" : `${items.length} ${items.length === 1 ? "cosa" : "cosas"}`}${routine.length ? `, rutina ${routineDone} de ${routine.length}` : ""}`}
+                        aria-label={`${longDate(ymd)}: ${items.length === 0 ? "nada" : `${items.length} ${items.length === 1 ? "cosa" : "cosas"}`}${meta.length ? `, Meta Ads ${metaDone} de ${meta.length}` : ""}${routine.length ? `, rutina ${routineDone} de ${routine.length}` : ""}`}
                         aria-pressed={isSelected}
                         sx={(t) => ({
                             display: "flex", flexDirection: "column", alignItems: "stretch", justifyContent: "flex-start",
@@ -88,11 +91,20 @@ export const MonthGrid: FC<Props> = ({ month, days, today, selected, onSelect })
                         {items.length > VISIBLE && (
                             <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>+{items.length - VISIBLE} más</Typography>
                         )}
+                        {meta.length > 0 && (
+                            <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{ display: "block", px: 0.5, mt: "auto", color: ymd <= today && metaDone === meta.length ? "success.main" : "text.secondary" }}
+                            >
+                                Meta Ads · {ymd < today ? `${metaDone} hecha${metaDone === 1 ? "" : "s"}` : ymd === today ? `${metaDone}/${meta.length}` : meta.length}
+                            </Typography>
+                        )}
                         {routine.length > 0 && (
                             <Typography
                                 variant="caption"
                                 noWrap
-                                sx={{ display: "block", px: 0.5, mt: "auto", color: ymd <= today && routineDone === routine.length ? "success.main" : "text.secondary" }}
+                                sx={{ display: "block", px: 0.5, mt: meta.length > 0 ? 0 : "auto", color: ymd <= today && routineDone === routine.length ? "success.main" : "text.secondary" }}
                             >
                                 {/* Los días que pasaron solo muestran lo que se hizo: la rutina no se acumula */}
                                 Rutina · {ymd < today ? `${routineDone} hecha${routineDone === 1 ? "" : "s"}` : ymd === today ? `${routineDone}/${routine.length}` : routine.length}

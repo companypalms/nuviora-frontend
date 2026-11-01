@@ -1,11 +1,11 @@
 // src/components/calendar/DayList.tsx
 // Lo de un día del calendario: su fecha, el botón "Anotar" y la lista para tildar. Primero lo propio del día (notas,
-// pagos, revisiones de la semana o del mes) y abajo la rutina de todos los días. Es el panel de al lado del mes y, en el
-// celular, cada día de la semana.
+// pagos, revisiones de la semana o del mes), después Meta Ads y los editores (.67) y abajo la rutina de todos los días. Es
+// el panel de al lado del mes y, en el celular, cada día de la semana.
 import React, { FC } from "react";
 import { Button, Chip, IconButton, Stack, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import { CalendarItem, cap, isRoutine, longDate, weekdayOf } from "./calendar";
+import { CalendarItem, cap, isMeta, isOwn, isRoutine, longDate, weekdayOf } from "./calendar";
 import { CalendarItemRow } from "./CalendarItemRow";
 
 type Props = {
@@ -24,12 +24,30 @@ type Props = {
 
 export const DayList: FC<Props> = ({ date, today, items, busy, compact, onAdd, ...actions }) => {
     const sunday = weekdayOf(date) === 7;
-    const own = items.filter((i) => !isRoutine(i));
+    const own = items.filter(isOwn);
+    const meta = items.filter(isMeta);
     const routine = items.filter(isRoutine);
-    const routineDone = routine.filter((i) => i.status === "done" || i.status === "dismissed").length;
     const row = (item: CalendarItem) => (
         <CalendarItemRow key={`${item.item_key}-${item.due_date}`} item={item} busy={busy === `${item.item_key}-${item.due_date}`} {...actions} />
     );
+    // Un bloque con su título y cuántas van hechas: Meta Ads y los editores, y la rutina de todos los días
+    const block = (title: string, list: CalendarItem[], first: boolean) => {
+        if (list.length === 0) return null;
+        const done = list.filter((i) => i.status === "done" || i.status === "dismissed").length;
+        return (
+            <>
+                <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ pt: first ? 0 : 1 }}>
+                    <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        {title}
+                    </Typography>
+                    <Typography variant="caption" color={done === list.length ? "success.main" : "text.secondary"}>
+                        {done} de {list.length} hechas
+                    </Typography>
+                </Stack>
+                {list.map(row)}
+            </>
+        );
+    };
 
     return (
         <Stack spacing={1}>
@@ -47,19 +65,8 @@ export const DayList: FC<Props> = ({ date, today, items, busy, compact, onAdd, .
                 <Typography variant="body2" color="text.secondary">{compact ? "Nada." : "Nada anotado para este día."}</Typography>
             )}
             {own.map(row)}
-            {routine.length > 0 && (
-                <>
-                    <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ pt: own.length ? 1 : 0 }}>
-                        <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Rutina de todos los días
-                        </Typography>
-                        <Typography variant="caption" color={routineDone === routine.length ? "success.main" : "text.secondary"}>
-                            {routineDone} de {routine.length} hechas
-                        </Typography>
-                    </Stack>
-                    {routine.map(row)}
-                </>
-            )}
+            {block("Meta Ads y editores", meta, own.length === 0)}
+            {block("Rutina de todos los días", routine, own.length + meta.length === 0)}
         </Stack>
     );
 };

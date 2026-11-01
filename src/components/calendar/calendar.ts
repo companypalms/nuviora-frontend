@@ -32,8 +32,11 @@ export type CalendarItem = {
     /** El día en que se muestra; due_date es el que le tocaba (distinto si se corrió por un domingo). */
     date: string; due_date: string;
     type: ItemType;
-    /** "daily": la rutina de todos los días (tasa, conciliación, por aprobar, inventario, últimos 3 días). */
-    group: "daily" | null;
+    /**
+     * "daily": la rutina de todos los días (tasa, conciliación, por aprobar, inventario, últimos 3 días); "meta" (.67): Meta
+     * Ads y los editores (el análisis, los encargos por aprobar, las entregas, que vayan al día y la banca).
+     */
+    group: "daily" | "meta" | null;
     source: "owner" | "assistant" | "system";
     title: string; details: string | null; time: string | null; repeat_label: string;
     /** Por qué importa (los recordatorios del sistema). */
@@ -82,6 +85,10 @@ export const saveCalendarSettings = (rules: Record<string, { on: boolean; weekda
 
 /** La rutina de todos los días va aparte, debajo de lo propio del día. */
 export const isRoutine = (i: CalendarItem) => i.group === "daily";
+/** .67: Meta Ads y los editores van en su propio bloque, entre lo propio del día y la rutina. */
+export const isMeta = (i: CalendarItem) => i.group === "meta";
+/** Lo propio del día: notas, pagos y las revisiones de la semana o del mes. */
+export const isOwn = (i: CalendarItem) => i.group === null;
 /** Se tildó sola: no se puede deshacer (el sistema la vuelve a mirar). */
 export const isAutoDone = (i: CalendarItem) => i.mark?.source === "auto";
 /** El gasto fijo que se paga con "Registrar pago", si lo tiene. */
