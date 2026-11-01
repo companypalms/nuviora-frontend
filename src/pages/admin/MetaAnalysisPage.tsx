@@ -44,11 +44,16 @@ type Analysis = {
     model: string | null; error: string | null; warnings: string[]; urgent: UrgentItem[]; marks: Record<string, Mark>;
     facts: ProductFact[]; text: { resumen: string; productos: AiProduct[] } | null;
     versions: { version: number; created_at: string; auto: boolean }[];
+    /** .71: por creativo, el encargo que ya tiene el equipo (se le mandó solo al editor líder). */
+    sent: Record<string, Sent>;
 };
+type Sent = { code: string | null; status: string; status_label: string; editor: string | null };
 type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
 
 const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
+/** Hoy en Caracas ("AAAA-MM-DD"), para saber si el análisis que se ve es el de hoy. */
+const todayYmd = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 const UrgentRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
@@ -88,12 +93,12 @@ const UrgentRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark
     );
 };
 
-/** .70: un creativo con su decisión en grande, en qué se basa (sus números) y qué hacer el editor. */
-const CreativeCall: React.FC<{ cr: CreativeFact; n: number }> = ({ cr, n }) => {
+/**
+ * .70: un creativo con su decisión en grande, en qué se basa (sus números) y qué hacer el editor. .71: lo del editor ya no
+ * se copia: le llega solo al editor líder como encargo (y aquí se ve en qué va).
+ */
+const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: boolean }> = ({ cr, n, sent, today }) => {
     const call = cr.call!;
-    const copy = async () => {
-        try { await navigator.clipboard.writeText(`${cr.label}: ${call.editor ?? ""}`); toast.success("Copiado para el editor"); } catch { toast.error("No se pudo copiar"); }
-    };
     return (
         <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, border: "1px solid", borderColor: "divider", borderLeft: "4px solid", borderLeftColor: `${call.tone}.main` }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -107,18 +112,24 @@ const CreativeCall: React.FC<{ cr: CreativeFact; n: number }> = ({ cr, n }) => {
             <Typography variant="body2" sx={{ mt: 0.75 }}>{call.todo}</Typography>
             {(cr.numbers ?? []).map((t, i) => <Typography key={i} variant="caption" color="text.secondary" component="div">{t}</Typography>)}
             {call.editor && (
-                <Box sx={{ mt: 0.75, p: 1, borderRadius: 1.5, bgcolor: "action.hover", display: "flex", gap: 1, alignItems: "flex-start" }}>
-                    <Typography variant="body2" sx={{ flex: 1 }}><b>Para el editor:</b> {call.editor}</Typography>
-                    <Tooltip title="Copiar para el editor">
-                        <Button size="small" onClick={copy} sx={{ minWidth: 0 }} aria-label="Copiar para el editor"><ContentCopyRounded fontSize="small" /></Button>
-                    </Tooltip>
+                <Box sx={{ mt: 0.75, p: 1, borderRadius: 1.5, bgcolor: "action.hover" }}>
+                    <Typography variant="body2"><b>Para el editor:</b> {call.editor}</Typography>
+                    {sent ? (
+                        <Typography variant="caption" color="success.main" component="div" sx={{ mt: 0.5, fontWeight: 700 }}>
+                            ✓ Le llegó al editor líder: {sent.code ?? "encargo"} · {sent.status_label} · {sent.editor ? `lo hace ${sent.editor}` : "todavía sin editor"}
+                        </Typography>
+                    ) : today ? (
+                        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+                            Hoy no cupo en el día de tus editores: le llega solo al editor líder mañana, si sigue igual.
+                        </Typography>
+                    ) : null}
                 </Box>
             )}
         </Box>
     );
 };
 
-const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai }) => {
+const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<string, Sent>; today: boolean }> = ({ p, ai, sent, today }) => {
     const copy = async () => {
         try { await navigator.clipboard.writeText(ai?.mensaje_editor ?? ""); toast.success("Mensaje copiado"); } catch { toast.error("No se pudo copiar"); }
     };
@@ -157,7 +168,7 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai })
             {calls && (
                 <Box sx={{ mt: 1.5 }}>
                     <Typography variant="subtitle2">Qué hacer con cada creativo (de más a menos gasto en 7 días)</Typography>
-                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} />)}
+                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} sent={sent[String(cr.id)]} today={today} />)}
                 </Box>
             )}
             {!calls && p.creatives.length > 0 && (
@@ -193,7 +204,7 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai })
                     {[...p.price, ...(p.price_watch ? [p.price_watch] : [])].map((t, i) => <Typography key={`p${i}`} variant="caption" color="text.secondary" component="div">💲 {t}</Typography>)}
                 </Box>
             )}
-            {ai?.mensaje_editor && (
+            {!calls && ai?.mensaje_editor && (
                 <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: "action.hover" }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                         <Typography variant="subtitle2">Mensaje al editor líder (borrador, no se envía)</Typography>
@@ -300,7 +311,7 @@ export const MetaAnalysisPage: React.FC = () => {
                             {a.urgent.length === 0 ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Nada urgente hoy: tus campañas están en "mantener".</Typography>
                                 : a.urgent.map((i) => <UrgentRow key={i.key} item={i} mark={a.marks[i.key]} onMark={(s, n) => mark(i.key, s, n)} />)}
                         </Paper>
-                        {a.facts.map((p, i) => <ProductSection key={p.product_id} p={p} ai={aiFor(p, i)} />)}
+                        {a.facts.map((p, i) => <ProductSection key={p.product_id} p={p} ai={aiFor(p, i)} sent={a.sent ?? {}} today={a.date === todayYmd()} />)}
                     </Stack>
                 )}
             </Box>
