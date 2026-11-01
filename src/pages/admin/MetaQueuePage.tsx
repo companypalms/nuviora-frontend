@@ -121,7 +121,6 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
         api<Options>(`/meta/queue/options?product_id=${form.product_id}`).then((o) => {
             setOptions(o);
             setForm((f) => { setCustom(!!f.angle_code && !o.angles.some((a) => a.code === f.angle_code)); return f; });
-            if (!batch && o.price !== null) setForm((f) => (f.offer ? f : { ...f, offer: `Precio ${fmt.money(o.price)}` }));
         }).catch((e) => toast.error(e.message));
     }, [open, form.product_id, batch]);
 
@@ -224,7 +223,7 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
                                 <MenuItem value="">Sin elegir</MenuItem>
                                 {Object.entries(data.styles ?? {}).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
                             </TextField>
-                            {field("Oferta", "offer", { inputProps: { maxLength: 255 } })}
+                            {field("Oferta", "offer", { inputProps: { maxLength: 255 }, helperText: "El editor no ve precios ni montos: solo promociones como 2x1 o envío gratis" })}
                             {field("Plazo", "due_date", { type: "date", InputLabelProps: { shrink: true },
                                 helperText: batch?.code ? undefined : `Si lo dejas vacío: ${data.settings.due_days} día(s) después de aprobar` })}
                         </Stack>
