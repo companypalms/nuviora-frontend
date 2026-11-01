@@ -39,6 +39,8 @@ type Batch = {
     persona_id?: number | null; persona?: PersonaInfo | null; product_info?: ProductInfo | null;
     /** .65: de qué ronda de testeo es (vacío = un encargo normal). */
     testing_round?: number | null;
+    /** .66: el estilo (testimonio, video animado…), para aprender qué formato funciona. */
+    style?: string | null;
     audience: string | null; reference_id: number | null; reference: string | null; city_id: number | null; city: string | null; format: string | null;
     keep: string | null; offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; approved_at: string | null;
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
@@ -54,7 +56,7 @@ type ProductRow = {
 type Data = {
     batches: Batch[]; products: ProductRow[];
     settings: { batch_pieces: number; due_days: number; bank_min: number; bank_max: number; video_editors: number; capacity: number };
-    statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>;
+    statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>; styles?: Record<string, string>;
     last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null;
         /** .64: los productos que no recibieron encargos porque les falta la ficha. */
         missing_profile?: string[] } | null;
@@ -72,7 +74,7 @@ type Options = {
 };
 type Form = {
     product_id: number | ""; kind: string; angle_code: string; concept: string; hypothesis: string; test_idea: string; goal: string; improve: string; audience: string; persona_id: number | ""; reference_creative_id: number | "";
-    learning_city_id: number | ""; format: string; keep: string; offer: string; deliverables: string; due_date: string; learning: string; pieces: Piece[];
+    learning_city_id: number | ""; format: string; style: string; keep: string; offer: string; deliverables: string; due_date: string; learning: string; pieces: Piece[];
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -94,13 +96,13 @@ const canMove = (from: Status, to: Status, numbered: boolean) => {
 
 const emptyForm = (pieces: number, productId: number | "" = ""): Form => ({
     product_id: productId, kind: "iteration", angle_code: "", concept: "", hypothesis: "", test_idea: "", goal: "", improve: "", audience: "", persona_id: "", reference_creative_id: "", learning_city_id: "",
-    format: "video", keep: "", offer: "", deliverables: "", due_date: "", learning: "", pieces: Array.from({ length: pieces }, () => ({ change: "", format: null })),
+    format: "video", style: "", keep: "", offer: "", deliverables: "", due_date: "", learning: "", pieces: Array.from({ length: pieces }, () => ({ change: "", format: null })),
 });
 
 const fromBatch = (b: Batch): Form => ({
     product_id: b.product_id, kind: b.kind, angle_code: b.angle_code ?? "", concept: b.concept ?? "", hypothesis: b.hypothesis ?? "",
     test_idea: b.test_idea ?? "", goal: b.goal ?? "", improve: b.improve ?? "", audience: b.audience ?? "", persona_id: b.persona_id ?? "",
-    reference_creative_id: b.reference_id ?? "", learning_city_id: b.city_id ?? "", format: b.format ?? "", keep: b.keep ?? "", offer: b.offer ?? "",
+    reference_creative_id: b.reference_id ?? "", learning_city_id: b.city_id ?? "", format: b.format ?? "", style: b.style ?? "", keep: b.keep ?? "", offer: b.offer ?? "",
     deliverables: b.deliverables ?? "", due_date: b.due_date ?? "", learning: b.learning ?? "", pieces: b.pieces.map((p) => ({ ...p })),
 });
 
@@ -131,7 +133,7 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
             ...(batch ? {} : { product_id: form.product_id }), kind: form.kind, angle_code: form.angle_code || null, concept: form.concept || null,
             hypothesis: form.hypothesis || null, test_idea: form.test_idea || null, goal: form.goal || null, improve: form.improve || null, audience: form.audience || null,
             persona_id: form.persona_id || null, reference_creative_id: form.reference_creative_id || null,
-            learning_city_id: form.learning_city_id || null, format: form.format || null, keep: form.keep || null, offer: form.offer || null,
+            learning_city_id: form.learning_city_id || null, format: form.format || null, style: form.style || null, keep: form.keep || null, offer: form.offer || null,
             deliverables: form.deliverables || null, due_date: form.due_date || null, ...(batch ? { learning: form.learning || null } : {}),
             pieces: form.pieces.map((p) => ({ id: p.id ?? null, change: p.change || null, format: p.format || null })),
         };
@@ -216,6 +218,11 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
                             <TextField select size="small" label="Formato" value={form.format} onChange={(e) => set("format", e.target.value)} fullWidth>
                                 <MenuItem value="">Sin elegir</MenuItem>
                                 {Object.entries(data.formats).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+                            </TextField>
+                            {/* .66: el estilo, para aprender qué formato funciona en cada producto */}
+                            <TextField select size="small" label="Estilo" value={form.style} onChange={(e) => set("style", e.target.value)} fullWidth>
+                                <MenuItem value="">Sin elegir</MenuItem>
+                                {Object.entries(data.styles ?? {}).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
                             </TextField>
                             {field("Oferta", "offer", { inputProps: { maxLength: 255 } })}
                             {field("Plazo", "due_date", { type: "date", InputLabelProps: { shrink: true },
@@ -318,7 +325,7 @@ const BatchCard: React.FC<{
             {b.improve && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que hay que mejorar:</b> {b.improve}</Typography>}
             {b.hypothesis && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Hipótesis (solo tú):</b> {b.hypothesis}</Typography>}
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
-                {[b.reference && `Referencia: ${b.reference}`, b.city && `Ciudad: ${b.city}`, b.format && data.formats[b.format], b.due_date && `Plazo: ${b.due_date}`,
+                {[b.reference && `Referencia: ${b.reference}`, b.city && `Ciudad: ${b.city}`, b.format && data.formats[b.format], b.style && (data.styles?.[b.style] ?? b.style), b.due_date && `Plazo: ${b.due_date}`,
                     b.status_at && `${b.status_label} ${dateTime(b.status_at)}${b.status_by ? ` por ${b.status_by}` : b.status === "testing" || b.status === "tested" ? " (solo)" : ""}`]
                     .filter(Boolean).join(" · ")}
             </Typography>
@@ -483,6 +490,7 @@ export const MetaQueuePage: React.FC = () => {
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
+                        <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/lo-que-sabemos">Lo que sabemos</Button>
                         <Button size="small" variant="outlined" startIcon={proposing ? <CircularProgress size={14} /> : <AutoAwesomeRounded />} disabled={proposing} onClick={propose}>
                             {proposing ? "Proponiendo…" : "Proponer ahora"}
                         </Button>

@@ -28,6 +28,8 @@ type EBatch = EditorFields & {
     test_idea?: string | null;
     /** .64: lo del producto (de su ficha) y SOLO el buyer persona de este encargo. */
     product_info?: ProductInfo | null; persona?: PersonaInfo | null;
+    /** .66: el estilo del encargo (testimonio, video animado…). */
+    style_label?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
     /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
     reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
@@ -109,7 +111,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                         <Field label="Concepto" value={b.concept} />
                     </Box>
                     <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
-                        {[b.format && FORMATS[b.format], b.offer].filter(Boolean).join(" · ")}
+                        {[b.format && FORMATS[b.format], b.style_label && `Estilo: ${b.style_label}`, b.offer].filter(Boolean).join(" · ")}
                     </Typography>
                     <ProductBox product={b.product} info={b.product_info} />
                     {b.reference && (

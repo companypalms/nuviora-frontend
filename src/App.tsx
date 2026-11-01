@@ -38,6 +38,7 @@ import { MetaAnalysisPage } from './pages/admin/MetaAnalysisPage';
 import { BusinessReportsPage } from './pages/admin/BusinessReportsPage';
 import { MetaQueuePage } from './pages/admin/MetaQueuePage';
 import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
+import { MetaMemoryPage } from './pages/admin/MetaMemoryPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
@@ -164,6 +165,7 @@ function App() {
           <Route path="/meta-ads/analisis" element={<RequireRole allowedRoles={['Admin']}><MetaAnalysisPage /></RequireRole>} />
           <Route path="/meta-ads/cola" element={<RequireRole allowedRoles={['Admin']}><MetaQueuePage /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
+          <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
           <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
