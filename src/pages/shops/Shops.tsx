@@ -15,6 +15,9 @@ import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, PersonAdd as Pe
 import { toast } from "react-toastify";
 import { TypographyCustom } from "../../components/custom";
 
+const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
+
 export const Shops: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const { loadingSession, isValid, user } = useValidateSession();
     const [shops, setShops] = useState<any[]>([]);
@@ -25,6 +28,12 @@ export const Shops: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
     const [allSellers, setAllSellers] = useState<any[]>([]);
     const [selectedSellers, setSelectedSellers] = useState<number[]>([]);
     const [selectedAutoRoster, setSelectedAutoRoster] = useState<number[]>([]);
+    // Días en que abre sola (1 = lunes … 7 = domingo; dueño, 2026-11-01). Sin elegir = todos.
+    const [openDays, setOpenDays] = useState<number[]>(ALL_DAYS);
+
+    useEffect(() => {
+        if (openAdd) setOpenDays(editingShop?.auto_open_days ?? ALL_DAYS);
+    }, [openAdd, editingShop]);
 
     const fetchShops = async () => {
         setLoading(true);
@@ -66,9 +75,14 @@ export const Shops: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
         // Fix for switch: if unchecked it's undefined, we need false. But material switch sends value "on" or nothing?
         // Actually better to control the switch state or assume standard form behavior.
         // Let's rely on standard form handling but parse 'auto_schedule_enabled' (it comes as 'on' if checked, missing if not)
+        if (openDays.length === 0) {
+            toast.error("Marca al menos un día en que la tienda abre sola.");
+            return;
+        }
         const data = {
             ...formEntries,
-            auto_schedule_enabled: formData.get('auto_schedule_enabled') === 'on' || formData.get('auto_schedule_enabled') === 'true' ? 1 : 0
+            auto_schedule_enabled: formData.get('auto_schedule_enabled') === 'on' || formData.get('auto_schedule_enabled') === 'true' ? 1 : 0,
+            auto_open_days: openDays.length === 7 ? null : [...openDays].sort((a, b) => a - b)
         };
 
         const url = editingShop ? `/shops/${editingShop.id}` : "/shops";
@@ -380,8 +394,20 @@ export const Shops: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                                     label="Activar Apertura/Cierre Automático"
                                     sx={{ mt: 1 }}
                                 />
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                    Si se activa, el sistema abrirá la tienda y asignará el roster predeterminado a la hora indicada.
+                                <Typography variant="body2" sx={{ mt: 1, mb: 0.5 }}>Días que abre sola</Typography>
+                                <Box display="flex" flexWrap="wrap" gap={0.75}>
+                                    {DAY_LABELS.map((label, i) => {
+                                        const day = i + 1;
+                                        const on = openDays.includes(day);
+                                        return (
+                                            <Chip key={day} label={label} clickable size="small"
+                                                color={on ? "primary" : "default"} variant={on ? "filled" : "outlined"}
+                                                onClick={() => setOpenDays(on ? openDays.filter((d) => d !== day) : [...openDays, day])} />
+                                        );
+                                    })}
+                                </Box>
+                                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                                    Si se activa, el sistema abrirá la tienda y asignará el roster predeterminado a la hora indicada, solo los días marcados, y la cerrará a la hora de cierre. Abrir o cerrar a mano se puede cualquier día.
                                 </Typography>
                             </Box>
                         </Box>
