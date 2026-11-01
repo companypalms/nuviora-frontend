@@ -97,7 +97,7 @@ export const MonthGrid: FC<Props> = ({ month, days, today, selected, onSelect })
                                 noWrap
                                 sx={{ display: "block", px: 0.5, mt: "auto", color: ymd <= today && metaDone === meta.length ? "success.main" : "text.secondary" }}
                             >
-                                Meta Ads · {ymd < today ? `${metaDone} hecha${metaDone === 1 ? "" : "s"}` : ymd === today ? `${metaDone}/${meta.length}` : meta.length}
+                                Meta · {ymd < today ? `${metaDone} hecha${metaDone === 1 ? "" : "s"}` : ymd === today ? `${metaDone}/${meta.length}` : meta.length}
                             </Typography>
                         )}
                         {routine.length > 0 && (
