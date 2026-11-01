@@ -4,7 +4,10 @@
 // revisados ("números comprobados"); la IA solo los explica. "Volver a generar" crea otra versión.
 // .48b-2: las revisiones del calendario abren /reportes-negocio?tipo=…&desde=…&hasta=… (el reporte de esas fechas).
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
+import {
+    Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Tab, Tabs, TextField, Typography,
+} from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { CheckCircleRounded, InsightsRounded, RefreshRounded, WarningAmberRounded } from "@mui/icons-material";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -14,10 +17,10 @@ import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVis
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { MetricCard } from "../../components/owner-panel/MetricCard";
-import { MetricCardData, MetricFormat, formatValue, money } from "../../components/owner-panel/ownerPanel";
+import { MetricCardData, MetricFormat, formatValue, money, pct } from "../../components/owner-panel/ownerPanel";
 
 type ReportType = "daily" | "weekly" | "monthly";
-type Product = { name: string; revenue: number; ads: number; profit: number; delivered: number };
+type Product = { name: string; revenue: number; ads: number; profit: number; delivered: number; margin_pct: number | null };
 type Person = { name: string; value: number; previous: number | null };
 type TeamBlock = { label: string; metric: string; format: MetricFormat; best: Person[]; dropped: Person[] } | null;
 type Problem = { key: string; severity: "grave" | "aviso"; text: string; count: number; amount: number | null; examples: string[] };
@@ -25,7 +28,7 @@ type Facts = {
     type: ReportType; type_label: string; period: { from: string; to: string; label: string }; compare_label: string; maturing: boolean;
     cards: { sales?: MetricCardData[]; money?: MetricCardData[]; losses?: MetricCardData[] };
     waterfall: { key: string; label: string; amount: number }[];
-    products: { best: Product[]; losing: Product[] };
+    products: { all?: Product[]; best: Product[]; losing: Product[] }; // "all" no está en reportes guardados antes del .62
     reasons: { label: string; count: number; pct: number }[];
     team: { sellers: TeamBlock; agencies: TeamBlock };
     goals: { label: string; status: string | null; progress: number | null; text: string }[];
@@ -58,6 +61,38 @@ const Section: React.FC<{ title: string; text?: string; children?: React.ReactNo
         {text && <Typography variant="body2" sx={{ mt: 0.5, mb: children ? 1.5 : 0 }}>{text}</Typography>}
         {children}
     </Paper>
+);
+
+// .62: cada producto activo del período, uno por uno, del que más dejó al que más perdió — para ver rápido cuál da
+// dinero y cuál no (verde/rojo según la ganancia).
+const ProductsTable: React.FC<{ rows: Product[] }> = ({ rows }) => (
+    <Box sx={{ mt: 1.5, overflowX: "auto" }}>
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Producto por producto (después de su publicidad)</Typography>
+        <Table size="small" sx={{ "& td, & th": { px: 1 } }}>
+            <TableHead>
+                <TableRow>
+                    <TableCell>Producto</TableCell>
+                    <TableCell align="right">Ganancia</TableCell>
+                    <TableCell align="right">Vendido</TableCell>
+                    <TableCell align="right">Publicidad</TableCell>
+                    <TableCell align="right">Entregados</TableCell>
+                    <TableCell align="right">Margen</TableCell>
+                </TableRow>
+            </TableHead>
+            <TableBody>
+                {rows.map((p, i) => (
+                    <TableRow key={i} sx={{ bgcolor: (t) => alpha(p.profit < 0 ? t.palette.error.main : t.palette.success.main, 0.06) }}>
+                        <TableCell sx={{ fontWeight: 600 }}>{p.name}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, color: p.profit < 0 ? "error.main" : "success.main" }}>{money(p.profit)}</TableCell>
+                        <TableCell align="right">{money(p.revenue)}</TableCell>
+                        <TableCell align="right">{money(p.ads)}</TableCell>
+                        <TableCell align="right">{p.delivered}</TableCell>
+                        <TableCell align="right">{p.margin_pct === null ? "—" : pct(p.margin_pct)}</TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </Box>
 );
 
 const TeamList: React.FC<{ block: TeamBlock }> = ({ block }) => {
@@ -130,22 +165,8 @@ const ReportView: React.FC<{ r: Report }> = ({ r }) => {
                         A dónde se fue el dinero: {f.waterfall.map((w) => `${w.label} ${money(w.amount)}`).join(" · ")}
                     </Typography>
                 )}
-                {(f.products.best.length > 0 || f.products.losing.length > 0) && (
-                    <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 1.5 }}>
-                        {f.products.best.length > 0 && (
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography variant="subtitle2">Los que más dejaron (después de su publicidad)</Typography>
-                                {f.products.best.map((p, i) => <Typography key={i} variant="body2">{p.name}: <b>{money(p.profit)}</b> · vendido {money(p.revenue)} · {p.delivered} entregados</Typography>)}
-                            </Box>
-                        )}
-                        {f.products.losing.length > 0 && (
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography variant="subtitle2" color="error.main">Los que perdieron</Typography>
-                                {f.products.losing.map((p, i) => <Typography key={i} variant="body2">{p.name}: <b>{money(p.profit)}</b> · vendido {money(p.revenue)} · publicidad {money(p.ads)}</Typography>)}
-                            </Box>
-                        )}
-                    </Stack>
-                )}
+                {/* Reportes guardados antes de esto no tienen "all" (su versión vieja de los datos): no se les añade */}
+                {f.products.all && f.products.all.length > 0 && <ProductsTable rows={f.products.all} />}
             </Section>
 
             <Section title="Dónde se pierden pedidos" text={t?.perdidas}>
