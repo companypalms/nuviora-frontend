@@ -28,6 +28,9 @@ type CreativeFact = {
     id: number; label: string; verdict: string; verdict_key: string; tone: Tone; reading: string; proposal: string | null; cross: string | null;
     funnel: string | null; week: { spend: number; purchases: number; cpa: number | null } | null;
     video: { window: string; diagnosis: string[]; iterate: string | null } | null;
+    /** .70: ESCALAR, MANTENER, PARAR o ITERAR (de tus reglas), sus números y qué hacer el editor (en palabras). Los análisis viejos no lo traen. */
+    call?: { key: "scale" | "keep" | "stop" | "iterate"; label: string; tone: Tone; todo: string; editor: string | null };
+    numbers?: string[];
 };
 type ProductFact = {
     product_id: number; product: string; mode: string; money_at_risk: number;
@@ -85,11 +88,43 @@ const UrgentRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark
     );
 };
 
+/** .70: un creativo con su decisión en grande, en qué se basa (sus números) y qué hacer el editor. */
+const CreativeCall: React.FC<{ cr: CreativeFact; n: number }> = ({ cr, n }) => {
+    const call = cr.call!;
+    const copy = async () => {
+        try { await navigator.clipboard.writeText(`${cr.label}: ${call.editor ?? ""}`); toast.success("Copiado para el editor"); } catch { toast.error("No se pudo copiar"); }
+    };
+    return (
+        <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, border: "1px solid", borderColor: "divider", borderLeft: "4px solid", borderLeftColor: `${call.tone}.main` }}>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Chip color={call.tone} label={call.label} sx={{ fontWeight: 800, letterSpacing: 0.5 }} />
+                <Typography variant="caption" color="text.secondary">#{n}</Typography>
+                <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} variant="body2" fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{cr.label}</Link>
+                <Tooltip title={<Box>{cr.reading}{cr.proposal ? <><br />→ {cr.proposal}</> : null}</Box>}>
+                    <Chip size="small" color={cr.tone} variant="outlined" label={cr.verdict} />
+                </Tooltip>
+            </Stack>
+            <Typography variant="body2" sx={{ mt: 0.75 }}>{call.todo}</Typography>
+            {(cr.numbers ?? []).map((t, i) => <Typography key={i} variant="caption" color="text.secondary" component="div">{t}</Typography>)}
+            {call.editor && (
+                <Box sx={{ mt: 0.75, p: 1, borderRadius: 1.5, bgcolor: "action.hover", display: "flex", gap: 1, alignItems: "flex-start" }}>
+                    <Typography variant="body2" sx={{ flex: 1 }}><b>Para el editor:</b> {call.editor}</Typography>
+                    <Tooltip title="Copiar para el editor">
+                        <Button size="small" onClick={copy} sx={{ minWidth: 0 }} aria-label="Copiar para el editor"><ContentCopyRounded fontSize="small" /></Button>
+                    </Tooltip>
+                </Box>
+            )}
+        </Box>
+    );
+};
+
 const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai }) => {
     const copy = async () => {
         try { await navigator.clipboard.writeText(ai?.mensaje_editor ?? ""); toast.success("Mensaje copiado"); } catch { toast.error("No se pudo copiar"); }
     };
     const cityText = (city: string | null) => ai?.ciudades.find((c) => city && norm(c.ciudad) === norm(city))?.lectura;
+    // .70: con la decisión de cada creativo, esa lista reemplaza a la de antes y a las "decisiones creativas" de la IA
+    const calls = p.creatives.length > 0 && p.creatives.every((cr) => cr.call);
     return (
         <Paper elevation={0} sx={card}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -119,7 +154,13 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai })
                 </Box>
             )}
 
-            {p.creatives.length > 0 && (
+            {calls && (
+                <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="subtitle2">Qué hacer con cada creativo (de más a menos gasto en 7 días)</Typography>
+                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} />)}
+                </Box>
+            )}
+            {!calls && p.creatives.length > 0 && (
                 <Box sx={{ mt: 1.5 }}>
                     <Typography variant="subtitle2">Creativos (de más a menos gasto en 7 días)</Typography>
                     {p.creatives.map((cr, i) => (
@@ -139,7 +180,7 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct }> = ({ p, ai })
                 </Box>
             )}
 
-            {ai && ai.decisiones_creativas.length > 0 && (
+            {!calls && ai && ai.decisiones_creativas.length > 0 && (
                 <Box sx={{ mt: 1.5 }}>
                     <Typography variant="subtitle2">Decisiones creativas</Typography>
                     {ai.decisiones_creativas.map((t, i) => <Typography key={i} variant="body2">• {t}</Typography>)}
