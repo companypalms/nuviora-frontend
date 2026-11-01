@@ -3,12 +3,15 @@
 // ficha de cada producto: qué es, para qué sirve, cómo funciona, lo que NO es, la información clave, las fotos y sus
 // buyer personas. La lee la IA que escribe los encargos de los editores y las landings; sin ficha completa, no les
 // escribe nada. Se llena aquí o se la pasa al asistente (texto, PDF o fotos), que deja una tarjeta para aprobar.
+// .65: los ángulos de venta (del más fuerte al más débil) y la fase: "En testeo" pide 3 batches (1 por cada uno de los 3
+// primeros ángulos; con 2 ángulos, 2 del más fuerte y 1 del otro; con 1, 2 batches) y "Iterar lo que funciona".
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
-import { AddRounded, AutoAwesomeRounded, DeleteOutlineRounded, SaveRounded } from "@mui/icons-material";
+import { AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, AutoAwesomeRounded, DeleteOutlineRounded, SaveRounded } from "@mui/icons-material";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
+import { TestingBox, TestingSummary } from "./productProfile";
 
 type FieldKey = "what_it_is" | "benefits" | "mechanism" | "not_this" | "key_info" | "photos_url";
 type PersonaKey = "name" | "who" | "pain" | "wants" | "objections";
@@ -18,7 +21,12 @@ type ProductRow = { id: number; name: string; active_campaigns: number; complete
 type Data = {
     products: ProductRow[]; product_id: number | null; profile?: Record<FieldKey, string | null>; personas?: ApiPersona[]; missing?: string[];
     updated?: { at: string | null; by: string | null; source: string } | null;
+    /** .65 */
+    phase?: Phase; phases?: Record<Phase, string>; angles?: { code: string; name: string | null; hypothesis: string | null; persona: string | null }[];
+    testing?: TestingSummary | null; tested_angles?: string[];
 };
+type Phase = "testing" | "iterate";
+type Angle = { key: string; code: string; name: string; hypothesis: string; persona: string };
 
 const FIELDS: { key: FieldKey; label: string; placeholder: string; rows: number; max: number }[] = [
     { key: "what_it_is", label: "Qué es", placeholder: "En 1 o 2 frases. Por ejemplo: chaleco térmico reductor para hombre", rows: 2, max: 3000 },
@@ -35,12 +43,25 @@ const PERSONA_FIELDS: { key: Exclude<PersonaKey, "name">; label: string; placeho
     { key: "objections", label: "Qué lo frena", placeholder: "Sus dudas o miedos para comprar" },
 ];
 const MAX_PERSONAS = 8;
+const MAX_ANGLES = 10;
+
+/** Lo mismo que TestingRules::slots del servidor: los 3 batches del testeo, en palabras. */
+const testingText = (codes: string[]): string => {
+    const c = codes.filter(Boolean);
+    const slots = c.length === 0 ? [] : c.length === 1 ? [c[0], c[0]] : c.length === 2 ? [c[0], c[0], c[1]] : c.slice(0, 3);
+    if (!slots.length) return "sin ángulos todavía: el testeo no puede empezar";
+    const count = new Map<string, number>();
+    slots.forEach((s) => count.set(s, (count.get(s) ?? 0) + 1));
+    const parts = [...count].map(([code, n]) => `${n} ${n === 1 ? "batch" : "batches"} de ${code}${n > 1 ? " (con conceptos o formatos distintos)" : ""}`);
+    return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}` : parts[0];
+};
 
 let seq = 0;
 const newKey = () => `p${++seq}`;
 const toPersona = (p: ApiPersona): Persona => ({ id: p.id, key: `id${p.id}`, name: p.name ?? "", who: p.who ?? "", pain: p.pain ?? "", wants: p.wants ?? "", objections: p.objections ?? "" });
 const emptyPersona = (): Persona => ({ id: null, key: newKey(), name: "", who: "", pain: "", wants: "", objections: "" });
 const emptyProfile = (): Record<FieldKey, string> => ({ what_it_is: "", benefits: "", mechanism: "", not_this: "", key_info: "", photos_url: "" });
+const emptyAngle = (): Angle => ({ key: newKey(), code: "", name: "", hypothesis: "", persona: "" });
 
 export const MetaProductProfileTab: React.FC = () => {
     const [params] = useSearchParams();
@@ -50,6 +71,9 @@ export const MetaProductProfileTab: React.FC = () => {
     const [personas, setPersonas] = useState<Persona[]>([]);
     const [saving, setSaving] = useState(false);
     const [dirty, setDirty] = useState(false);
+    const [phase, setPhaseState] = useState<Phase>("iterate");
+    const [angles, setAngles] = useState<Angle[]>([]);
+    const [nexting, setNexting] = useState(false);
 
     const apply = useCallback((d: Data) => {
         setData(d);
@@ -58,6 +82,8 @@ export const MetaProductProfileTab: React.FC = () => {
         (Object.keys(p) as FieldKey[]).forEach((k) => { p[k] = d.profile?.[k] ?? ""; });
         setProfile(p);
         setPersonas((d.personas ?? []).map(toPersona));
+        setPhaseState(d.phase ?? "iterate");
+        setAngles((d.angles ?? []).map((a) => ({ key: `a${a.code}`, code: a.code, name: a.name ?? "", hypothesis: a.hypothesis ?? "", persona: a.persona ?? "" })));
         setDirty(false);
     }, []);
 
@@ -73,6 +99,19 @@ export const MetaProductProfileTab: React.FC = () => {
     };
     const setField = (k: FieldKey, v: string) => { setProfile((p) => ({ ...p, [k]: v })); setDirty(true); };
     const setPersona = (i: number, k: PersonaKey, v: string) => { setPersonas((list) => list.map((p, j) => (j === i ? { ...p, [k]: v } : p))); setDirty(true); };
+    const setAngle = (i: number, k: Exclude<keyof Angle, "key">, v: string) => { setAngles((list) => list.map((a, j) => (j === i ? { ...a, [k]: v } : a))); setDirty(true); };
+    const moveAngle = (i: number, dir: -1 | 1) => {
+        setAngles((list) => { const next = [...list]; [next[i], next[i + dir]] = [next[i + dir], next[i]]; return next; });
+        setDirty(true);
+    };
+    const nextRound = async () => {
+        if (!productId) return;
+        setNexting(true);
+        try {
+            apply(await api<Data>(`/meta/product-profiles/${productId}/next-round`, "POST"));
+            toast.success("Empieza otra ronda de testeo: las reglas piden sus batches en la próxima propuesta");
+        } catch (e) { toast.error((e as Error).message); } finally { setNexting(false); }
+    };
 
     const save = async () => {
         if (!productId) return;
@@ -82,6 +121,8 @@ export const MetaProductProfileTab: React.FC = () => {
                 profile: Object.fromEntries(Object.entries(profile).map(([k, v]) => [k, v.trim() || null])),
                 personas: personas.map((p) => ({ id: p.id ?? null, name: p.name.trim() || null, who: p.who.trim() || null, pain: p.pain.trim() || null,
                     wants: p.wants.trim() || null, objections: p.objections.trim() || null })),
+                phase,
+                angles: angles.map((a) => ({ code: a.code.trim(), name: a.name.trim() || null, hypothesis: a.hypothesis.trim() || null, persona: a.persona || null })),
             });
             apply(d);
             toast.success(d.missing?.length ? "Ficha guardada (todavía incompleta)" : "Ficha guardada: la IA ya la usa");
@@ -119,6 +160,19 @@ export const MetaProductProfileTab: React.FC = () => {
                             Guardada {dateTime(data.updated.at)}{data.updated.by ? ` por ${data.updated.by}` : ""}{data.updated.source === "assistant" ? " (con tu asistente)" : ""}.
                         </Typography>
                     )}
+                    <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">Fase</Typography>
+                        <TextField select size="small" value={phase} onChange={(e) => { setPhaseState(e.target.value as Phase); setDirty(true); }} sx={{ mt: 1, minWidth: 260 }}
+                            helperText={phase !== "testing"
+                                ? "Las reglas piden iteraciones de lo que gana y no piden más de los ángulos que perdieron en un testeo."
+                                : data.phase === "testing" ? "Abajo, en qué va el testeo."
+                                    : "Al guardar empieza el testeo: " + testingText(angles.map((a) => a.code.trim().toUpperCase()).filter((c) => !(data.tested_angles ?? []).includes(c)))
+                                        + ((data.tested_angles ?? []).length ? " (los ángulos que ya se probaron no se repiten)." : ".")}>
+                            <MenuItem value="testing">En testeo (producto nuevo)</MenuItem>
+                            <MenuItem value="iterate">Iterar lo que funciona</MenuItem>
+                        </TextField>
+                        <TestingBox testing={data.testing} onNext={nextRound} busy={nexting} />
+                    </Paper>
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>El producto</Typography>
                         <Stack spacing={1.5}>
@@ -159,6 +213,48 @@ export const MetaProductProfileTab: React.FC = () => {
                         <Button size="small" startIcon={<AddRounded />} sx={{ mt: 1.5 }} disabled={personas.length >= MAX_PERSONAS}
                             onClick={() => { setPersonas((list) => [...list, emptyPersona()]); setDirty(true); }}>
                             Agregar buyer persona
+                        </Button>
+                    </Paper>
+                    <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">Ángulos de venta</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                            Del más fuerte al más débil (ordénalos con las flechas). En el testeo se prueban los 3 primeros. El código es el que va en los nombres
+                            de Meta (por ejemplo "B0123 GINE"). La hipótesis solo la ves tú.
+                        </Typography>
+                        <Stack spacing={1.5}>
+                            {angles.map((a, i) => (
+                                <Box key={a.key} sx={{ p: 1.5, borderRadius: 2, bgcolor: "action.hover" }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+                                        <Chip size="small" label={i + 1} />
+                                        <Chip size="small" variant="outlined" color={i < 3 ? "primary" : "default"} label={i < 3 ? "Principal" : "De reserva"} />
+                                        <Box sx={{ flex: 1 }} />
+                                        <IconButton size="small" aria-label={`Subir el ángulo ${i + 1}`} disabled={i === 0} onClick={() => moveAngle(i, -1)}><ArrowUpwardRounded fontSize="small" /></IconButton>
+                                        <IconButton size="small" aria-label={`Bajar el ángulo ${i + 1}`} disabled={i === angles.length - 1} onClick={() => moveAngle(i, 1)}><ArrowDownwardRounded fontSize="small" /></IconButton>
+                                        <Tooltip title="Quitarlo de la ficha (sus anuncios en Meta no cambian)">
+                                            <IconButton size="small" aria-label={`Quitar el ángulo ${i + 1}`} onClick={() => { setAngles((list) => list.filter((_, j) => j !== i)); setDirty(true); }}>
+                                                <DeleteOutlineRounded fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                    <Stack spacing={1}>
+                                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                            <TextField size="small" label="Código" value={a.code} required sx={{ maxWidth: { sm: 160 } }} fullWidth
+                                                onChange={(e) => setAngle(i, "code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} inputProps={{ maxLength: 12 }} placeholder="GINE" />
+                                            <TextField size="small" label="Nombre" value={a.name} required fullWidth onChange={(e) => setAngle(i, "name", e.target.value)} inputProps={{ maxLength: 120 }} />
+                                        </Stack>
+                                        <TextField select size="small" label="A qué buyer persona apunta" value={a.persona} fullWidth onChange={(e) => setAngle(i, "persona", e.target.value)}>
+                                            <MenuItem value="">Ninguno en particular</MenuItem>
+                                            {personas.filter((p) => p.name.trim()).map((p) => <MenuItem key={p.key} value={p.name.trim()}>{p.name.trim()}</MenuItem>)}
+                                        </TextField>
+                                        <TextField size="small" label="Hipótesis (solo la ves tú)" value={a.hypothesis} fullWidth multiline onChange={(e) => setAngle(i, "hypothesis", e.target.value)}
+                                            inputProps={{ maxLength: 1000 }} placeholder="Por qué puede vender: qué dolor o deseo toca y por qué compraría" />
+                                    </Stack>
+                                </Box>
+                            ))}
+                        </Stack>
+                        <Button size="small" startIcon={<AddRounded />} sx={{ mt: 1.5 }} disabled={angles.length >= MAX_ANGLES}
+                            onClick={() => { setAngles((list) => [...list, emptyAngle()]); setDirty(true); }}>
+                            Agregar ángulo
                         </Button>
                     </Paper>
                     <Box sx={{ display: "flex", justifyContent: "flex-end", position: "sticky", bottom: 8 }}>

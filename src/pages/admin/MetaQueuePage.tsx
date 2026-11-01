@@ -25,7 +25,7 @@ import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
-import { PersonaInfo, ProductInfo } from "../../components/meta-ads/productProfile";
+import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
@@ -37,6 +37,8 @@ type Batch = {
     goal?: string | null; improve?: string | null; test_idea?: string | null;
     /** .64: el buyer persona de la ficha al que le habla y lo del producto que ve el editor. */
     persona_id?: number | null; persona?: PersonaInfo | null; product_info?: ProductInfo | null;
+    /** .65: de qué ronda de testeo es (vacío = un encargo normal). */
+    testing_round?: number | null;
     audience: string | null; reference_id: number | null; reference: string | null; city_id: number | null; city: string | null; format: string | null;
     keep: string | null; offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; approved_at: string | null;
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
@@ -46,6 +48,8 @@ type Batch = {
 type ProductRow = {
     id: number; name: string; active_campaigns: number; bank: number; ready: number;
     urgency: { level: number; label: string; to_order: string; needed: string } | null;
+    /** .65: en testeo, o un testeo que terminó hace poco. */
+    testing?: TestingSummary | null;
 };
 type Data = {
     batches: Batch[]; products: ProductRow[];
@@ -298,6 +302,7 @@ const BatchCard: React.FC<{
                 {b.angle_code && <Chip size="small" variant="outlined" label={b.angle_name ? `${b.angle_code} · ${b.angle_name}` : b.angle_code} />}
                 <Chip size="small" color={STATUS_COLOR[b.status]} label={b.status_label} />
                 {b.source === "rules" && <Chip size="small" variant="outlined" color="secondary" label="Propuesto por tus reglas" />}
+                {b.testing_round && <Chip size="small" color="secondary" label={`Testeo · ronda ${b.testing_round}`} />}
                 {b.urgency && <Chip size="small" color={URGENCY_COLOR[b.urgency]} variant="outlined" label={`U${b.urgency}`} />}
                 {numbered && QUEUE.includes(b.status) && (
                     <Chip size="small" variant="outlined" color={b.editor ? "default" : "warning"} label={b.editor ? `Editor: ${b.editor}` : "Sin editor"} />
@@ -420,6 +425,13 @@ export const MetaQueuePage: React.FC = () => {
         };
     }, [data]);
 
+    const nextRound = async (productId: number) => {
+        try {
+            await api(`/meta/product-profiles/${productId}/next-round`, "POST");
+            toast.success("Empieza otra ronda de testeo: toca \"Proponer ahora\" para pedir sus batches");
+            load();
+        } catch (e) { toast.error((e as Error).message); }
+    };
     const propose = async () => {
         setProposing(true);
         try {
@@ -496,15 +508,20 @@ export const MetaQueuePage: React.FC = () => {
                     <Paper elevation={0} sx={card}>
                         <Typography variant="subtitle1" fontWeight="bold">La banca de cada producto</Typography>
                         <Typography variant="caption" color="text.secondary">Banca = aprobados sin testear. "Pedir" ya resta lo que hay en la banca.</Typography>
-                        {data.products.filter((p) => p.active_campaigns > 0 || p.bank > 0).length === 0
+                        {data.products.filter((p) => p.active_campaigns > 0 || p.bank > 0 || p.testing).length === 0
                             ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No hay productos con campañas activas.</Typography>
-                            : data.products.filter((p) => p.active_campaigns > 0 || p.bank > 0).map((p) => (
-                                <Stack key={p.id} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ py: 0.75, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-                                    <Typography variant="body2" fontWeight={700} sx={{ minWidth: 140 }}>{p.name}</Typography>
-                                    {p.urgency && <Chip size="small" color={URGENCY_COLOR[p.urgency.level]} variant="outlined" label={p.urgency.label} />}
-                                    <Chip size="small" color={p.bank >= s.bank_min ? "success" : "default"} label={`En banca: ${p.bank}${p.ready ? ` (${p.ready} listos)` : ""}`} />
-                                    {p.urgency && <Typography variant="caption" color="text.secondary">Pedir: <b>{p.urgency.to_order}</b>{p.urgency.needed !== p.urgency.to_order ? ` (pedía ${p.urgency.needed})` : ""}</Typography>}
-                                </Stack>
+                            : data.products.filter((p) => p.active_campaigns > 0 || p.bank > 0 || p.testing).map((p) => (
+                                <Box key={p.id} sx={{ py: 0.75, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
+                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                                        <Typography variant="body2" fontWeight={700} sx={{ minWidth: 140 }}>{p.name}</Typography>
+                                        {p.testing?.phase === "testing" && <Chip size="small" color="secondary" label="En testeo" />}
+                                        {p.urgency && p.testing?.phase !== "testing" && <Chip size="small" color={URGENCY_COLOR[p.urgency.level]} variant="outlined" label={p.urgency.label} />}
+                                        <Chip size="small" color={p.bank >= s.bank_min ? "success" : "default"} label={`En banca: ${p.bank}${p.ready ? ` (${p.ready} listos)` : ""}`} />
+                                        {p.urgency && p.testing?.phase !== "testing" && <Typography variant="caption" color="text.secondary">Pedir: <b>{p.urgency.to_order}</b>{p.urgency.needed !== p.urgency.to_order ? ` (pedía ${p.urgency.needed})` : ""}</Typography>}
+                                    </Stack>
+                                    {/* .65: en qué va su testeo, o cómo terminó */}
+                                    <TestingBox testing={p.testing} onNext={() => nextRound(p.id)} />
+                                </Box>
                             ))}
                     </Paper>
                     {byStatus.proposed.length > 0 || byStatus.queue.length + byStatus.bank.length + byStatus.testing.length + byStatus.closed.length > 0 ? null
