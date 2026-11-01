@@ -1,7 +1,7 @@
 // src/pages/editor/EditorResultsPage.tsx
 // Etapa 5, paso 5b (2026-10-30): "Mis resultados" de los editores de video. Sus indicadores del período (entregas a
-// tiempo, lo devuelto, % de ganadores, CPA contra el objetivo y compras) y cómo les fue en Meta a sus batches. Sin
-// dólares (decisión del dueño): el CPA va en % del objetivo. El editor líder ve además los de cada editor y el equipo.
+// tiempo, lo devuelto, % de ganadores) y cómo les fue a sus batches. `.63` (decisión del dueño): solo si ganó, perdió o
+// empató; ni compras, ni CPA, ni ciudades (el servidor ya no los manda). El editor líder ve además los de cada editor.
 import React, { useCallback, useEffect, useState } from "react";
 import { Box, Chip, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from "@mui/material";
 import { toast } from "react-toastify";
@@ -15,10 +15,10 @@ import { Better, MetricFormat, PeriodInfo, formatValue } from "../../components/
 type Preset = "7d" | "month" | "last_month";
 type Metric = { key: string; label: string; format: MetricFormat; better: Better; help: string };
 type Values = { values: Record<string, number | null>; details: Record<string, string> };
-type Verdict = { city: string | null; key: string; label: string };
 type ResultBatch = {
     id: number; code: string; product: string | null; editor: string | null; status: string; status_label: string; testing_at: string | null; tested_at: string | null;
-    verdicts: Verdict[]; winner: boolean | null; purchases: number; cpa_vs_c: number | null; on_time: boolean | null; versions: number; returned: number;
+    /** .63: "Ganó", "Perdió", "Empate", "En test" o "Por lanzar". */
+    result: string; winner: boolean | null; on_time: boolean | null; versions: number; returned: number;
 };
 type Data = {
     period: PeriodInfo; leader: boolean; metrics: Metric[]; me: Values;
@@ -28,31 +28,17 @@ type Data = {
 
 const PRESETS: { key: Preset; label: string }[] = [{ key: "7d", label: "Últimos 7 días" }, { key: "month", label: "Este mes" }, { key: "last_month", label: "Mes pasado" }];
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
-const VERDICT_COLOR: Record<string, "success" | "warning" | "error" | "default"> = { proven: "success", promising: "success", intermediate: "warning", failing: "warning", loser: "error" };
+const RESULT_COLOR: Record<string, "success" | "error" | "warning" | "default" | "info"> = { "Ganó": "success", "Perdió": "error", "Empate": "default", "En test": "warning", "Por lanzar": "info" };
 
-/** El CPA contra el objetivo en palabras: "18 % debajo del objetivo". */
-const vsTarget = (v: number | null) => {
-    if (v === null) return null;
-    const diff = Math.round(Math.abs(v - 100));
-    return diff === 0 ? "justo en el objetivo" : `${diff} % ${v < 100 ? "debajo" : "encima"} del objetivo`;
-};
-
-const Kpi: React.FC<{ m: Metric; v: Values }> = ({ m, v }) => {
-    const value = v.values[m.key] ?? null;
-    const words = m.key === "cpa_vs_c" ? vsTarget(value) : null;
-    return (
-        <Tooltip title={m.help}>
-            <Paper elevation={0} sx={{ ...card, p: 1.5, minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary" component="div">{m.label}</Typography>
-                <Typography variant="h6" fontWeight={700}
-                    color={m.key === "cpa_vs_c" && value !== null ? (value <= 100 ? "success.main" : "warning.main") : "text.primary"}>
-                    {formatValue(value, m.format)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" component="div">{words ?? v.details[m.key] ?? " "}</Typography>
-            </Paper>
-        </Tooltip>
-    );
-};
+const Kpi: React.FC<{ m: Metric; v: Values }> = ({ m, v }) => (
+    <Tooltip title={m.help}>
+        <Paper elevation={0} sx={{ ...card, p: 1.5, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" component="div">{m.label}</Typography>
+            <Typography variant="h6" fontWeight={700}>{formatValue(v.values[m.key] ?? null, m.format)}</Typography>
+            <Typography variant="caption" color="text.secondary" component="div">{v.details[m.key] ?? " "}</Typography>
+        </Paper>
+    </Tooltip>
+);
 
 export const EditorResultsPage: React.FC = () => {
     const { loadingSession, isValid } = useValidateSession();
@@ -69,7 +55,7 @@ export const EditorResultsPage: React.FC = () => {
     return (
         <Layout>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1000, mx: "auto" }}>
-                <DescripcionDeVista title="Mis resultados" description="Cómo te va: tus entregas y cómo les fue en Meta a tus videos. El CPA va contra el objetivo de cada ciudad: 100 % es justo el objetivo y menos es mejor. Solo cuentan los encargos de la cola." />
+                <DescripcionDeVista title="Mis resultados" description="Cómo te va: tus entregas y si tus videos ganaron o perdieron. Solo cuentan los encargos de la cola." />
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
                     {PRESETS.map((p) => <Chip key={p.key} label={p.label} color={preset === p.key ? "primary" : "default"} variant={preset === p.key ? "filled" : "outlined"} onClick={() => setPreset(p.key)} />)}
                     <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center" }}>{data.period.from === data.period.to ? data.period.from : `${data.period.from} al ${data.period.to}`}</Typography>
@@ -112,7 +98,7 @@ export const EditorResultsPage: React.FC = () => {
                 <Paper elevation={0} sx={card}>
                     <Typography variant="subtitle1" fontWeight="bold">{data.leader ? "Los batches del equipo" : "Tus batches"}</Typography>
                     <Typography variant="caption" color="text.secondary" component="div">
-                        En test arriba y después lo testeado, lo más nuevo primero. Compras y CPA de toda la vida del batch en Meta.
+                        En test arriba y después lo testeado, lo más nuevo primero.
                     </Typography>
                     {data.batches.length === 0 ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Todavía no hay batches tuyos en Meta.</Typography>
                         : data.batches.map((b) => (
@@ -121,14 +107,10 @@ export const EditorResultsPage: React.FC = () => {
                                     <Chip size="small" color="primary" label={b.code} sx={{ fontWeight: 700 }} />
                                     <Typography variant="body2" fontWeight={700}>{b.product}</Typography>
                                     {data.leader && b.editor && <Chip size="small" variant="outlined" label={b.editor} />}
-                                    <Chip size="small" label={b.status_label} color={b.winner ? "success" : b.winner === false ? "default" : "warning"} />
-                                    {b.winner && <Chip size="small" color="success" variant="outlined" label="Ganador" />}
-                                    {b.verdicts.map((v, i) => <Chip key={i} size="small" variant="outlined" color={VERDICT_COLOR[v.key] ?? "default"} label={`${v.city ?? "Meta"}: ${v.label}`} />)}
+                                    <Chip size="small" label={b.result} color={RESULT_COLOR[b.result] ?? "default"} sx={{ fontWeight: 700 }} />
                                 </Stack>
                                 <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
                                     {[
-                                        `${b.purchases} ${b.purchases === 1 ? "compra" : "compras"}`,
-                                        b.cpa_vs_c !== null ? `CPA ${vsTarget(b.cpa_vs_c)}` : null,
                                         b.on_time === null ? null : b.on_time ? "entregado a tiempo" : "entregado tarde",
                                         b.versions > 1 ? `${b.versions} versiones (${b.returned} ${b.returned === 1 ? "devuelta" : "devueltas"})` : null,
                                         b.tested_at ? `testeado el ${dateTime(b.tested_at)}` : b.testing_at ? `en Meta desde el ${dateTime(b.testing_at)}` : null,

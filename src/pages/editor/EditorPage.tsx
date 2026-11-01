@@ -20,11 +20,13 @@ type Status = "approved" | "production" | "review" | "bank" | "testing" | "teste
 type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null };
 type EBatch = EditorFields & {
     id: number; code: string | null; product: string; status: Status; status_label: string; status_at: string | null; position: number | null;
-    kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; hypothesis: string | null; audience: string | null;
+    kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
+    /** .63: lo que buscamos, lo que funcionó (no se toca) y lo que hay que mejorar. */
+    goal?: string | null; improve?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
     /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
-    reference_script?: { hook: string | null; text: string | null } | null; city: string | null; format: string | null; keep: string | null;
-    offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; pieces: Piece[];
+    reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
+    offer: string | null; deliverables: string | null; due_date: string | null; pieces: Piece[];
     meta_names: { adset: string | null; ads: string[] }; brief: string;
 };
 type Data = {
@@ -45,6 +47,14 @@ const byDue = (a: EBatch, b: EBatch) => Number(b.overdue) - Number(a.overdue) ||
 
 const Field: React.FC<{ label: string; value: string | null }> = ({ label, value }) => (value && value.trim()
     ? <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}><b>{label}:</b> {value}</Typography> : null);
+
+/** .63: un bloque destacado del encargo ("Lo que buscamos", "Lo que funcionó", "Lo que hay que mejorar"). */
+const Block: React.FC<{ title: string; text?: string | null; tone: "info" | "success" | "warning" }> = ({ title, text, tone }) => (text && text.trim() ? (
+    <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, borderLeft: "4px solid", borderColor: `${tone}.main`, bgcolor: "action.hover" }}>
+        <Typography variant="caption" fontWeight={700} color={`${tone}.main`} component="div">{title}</Typography>
+        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{text}</Typography>
+    </Box>
+) : null);
 
 const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; onChanged: () => void }> = ({ b, data, showEditor, onChanged }) => {
     const [busy, setBusy] = useState(false);
@@ -84,12 +94,15 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
 
             {!done && (
                 <Box sx={{ mt: 1 }}>
-                    <Field label="Hipótesis" value={b.hypothesis} />
-                    <Field label="Dolor o público" value={b.audience} />
-                    <Field label="Concepto" value={b.concept} />
-                    <Field label="Conservar" value={b.keep} />
+                    <Block title="Lo que buscamos" text={b.goal} tone="info" />
+                    <Block title="Lo que funcionó (no lo cambies)" text={b.keep} tone="success" />
+                    <Block title="Lo que hay que mejorar" text={b.improve} tone="warning" />
+                    <Box sx={{ mt: 1 }}>
+                        <Field label="Dolor o público" value={b.audience} />
+                        <Field label="Concepto" value={b.concept} />
+                    </Box>
                     <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
-                        {[b.city && `Ciudad de aprendizaje: ${b.city}`, b.format && FORMATS[b.format], b.offer, b.urgency && `Prioridad U${b.urgency}`].filter(Boolean).join(" · ")}
+                        {[b.format && FORMATS[b.format], b.offer].filter(Boolean).join(" · ")}
                     </Typography>
                     {b.reference && (
                         <Stack direction="row" spacing={1.25} sx={{ mt: 1, p: 1, borderRadius: 2, bgcolor: "action.hover" }}>
@@ -110,7 +123,10 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                         </Stack>
                     )}
                     {b.pieces.length > 0 && (
-                        <Box component="ol" sx={{ m: 0, mt: 1, pl: 2.5 }}>
+                        <Typography variant="body2" fontWeight={700} sx={{ mt: 1.25 }}>Ideas para cada versión <Typography component="span" variant="caption" color="text.secondary">(tú decides cómo)</Typography></Typography>
+                    )}
+                    {b.pieces.length > 0 && (
+                        <Box component="ol" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
                             {b.pieces.map((p) => (
                                 <Typography key={p.id} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
                                     {p.code && <b>{p.code} </b>}{p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
