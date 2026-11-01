@@ -68,7 +68,7 @@ export const ActionCardView: FC<{ card: ActionCard; readOnly?: boolean }> = ({ c
                 {card.lines.map((l) => (
                     <React.Fragment key={l.label}>
                         <Typography component="dt" variant="caption" color="text.secondary" sx={{ pt: { xs: 0.5, sm: 0.25 } }}>{l.label}</Typography>
-                        <Typography component="dd" variant="body2" sx={{ m: 0, overflowWrap: "anywhere" }}>
+                        <Typography component="dd" variant="body2" sx={{ m: 0, overflowWrap: "anywhere", whiteSpace: "pre-line" }}>
                             {l.before && (
                                 <Box component="span" sx={{ color: "text.disabled", textDecoration: "line-through", mr: 0.75 }}>{l.before}</Box>
                             )}

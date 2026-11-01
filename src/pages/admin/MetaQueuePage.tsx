@@ -25,6 +25,7 @@ import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
+import { PersonaInfo, ProductInfo } from "../../components/meta-ads/productProfile";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
@@ -34,6 +35,8 @@ type Batch = {
     position: number | null; source: string; kind: string; angle_code: string | null; angle_name: string | null; concept: string | null; hypothesis: string | null;
     /** .63: para el editor: lo que buscamos y lo que hay que mejorar ("keep" es lo que funcionó). */
     goal?: string | null; improve?: string | null; test_idea?: string | null;
+    /** .64: el buyer persona de la ficha al que le habla y lo del producto que ve el editor. */
+    persona_id?: number | null; persona?: PersonaInfo | null; product_info?: ProductInfo | null;
     audience: string | null; reference_id: number | null; reference: string | null; city_id: number | null; city: string | null; format: string | null;
     keep: string | null; offer: string | null; deliverables: string | null; urgency: number | null; due_date: string | null; approved_at: string | null;
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
@@ -48,7 +51,9 @@ type Data = {
     batches: Batch[]; products: ProductRow[];
     settings: { batch_pieces: number; due_days: number; bank_min: number; bank_max: number; video_editors: number; capacity: number };
     statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>;
-    last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null } | null;
+    last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null;
+        /** .64: los productos que no recibieron encargos porque les falta la ficha. */
+        missing_profile?: string[] } | null;
     editors: EditorOption[];
     landing_tests?: { product_id: number; code: string | null; landing: string | null; published_at: string | null; max_days: number }[];
 };
@@ -58,9 +63,11 @@ type Options = {
     angles: { code: string; name: string | null; hypothesis: string | null }[];
     creatives: { id: number; label: string; status: string | null; angle_code: string | null; batch_code: string | null }[];
     cities: { id: number; name: string }[]; price: number | null;
+    /** .64: los buyer personas de su ficha y lo que le falta a la ficha. */
+    personas?: { id: number; name: string }[]; profile_missing?: string[];
 };
 type Form = {
-    product_id: number | ""; kind: string; angle_code: string; concept: string; hypothesis: string; test_idea: string; goal: string; improve: string; audience: string; reference_creative_id: number | "";
+    product_id: number | ""; kind: string; angle_code: string; concept: string; hypothesis: string; test_idea: string; goal: string; improve: string; audience: string; persona_id: number | ""; reference_creative_id: number | "";
     learning_city_id: number | ""; format: string; keep: string; offer: string; deliverables: string; due_date: string; learning: string; pieces: Piece[];
 };
 
@@ -82,13 +89,13 @@ const canMove = (from: Status, to: Status, numbered: boolean) => {
 };
 
 const emptyForm = (pieces: number, productId: number | "" = ""): Form => ({
-    product_id: productId, kind: "iteration", angle_code: "", concept: "", hypothesis: "", test_idea: "", goal: "", improve: "", audience: "", reference_creative_id: "", learning_city_id: "",
+    product_id: productId, kind: "iteration", angle_code: "", concept: "", hypothesis: "", test_idea: "", goal: "", improve: "", audience: "", persona_id: "", reference_creative_id: "", learning_city_id: "",
     format: "video", keep: "", offer: "", deliverables: "", due_date: "", learning: "", pieces: Array.from({ length: pieces }, () => ({ change: "", format: null })),
 });
 
 const fromBatch = (b: Batch): Form => ({
     product_id: b.product_id, kind: b.kind, angle_code: b.angle_code ?? "", concept: b.concept ?? "", hypothesis: b.hypothesis ?? "",
-    test_idea: b.test_idea ?? "", goal: b.goal ?? "", improve: b.improve ?? "", audience: b.audience ?? "",
+    test_idea: b.test_idea ?? "", goal: b.goal ?? "", improve: b.improve ?? "", audience: b.audience ?? "", persona_id: b.persona_id ?? "",
     reference_creative_id: b.reference_id ?? "", learning_city_id: b.city_id ?? "", format: b.format ?? "", keep: b.keep ?? "", offer: b.offer ?? "",
     deliverables: b.deliverables ?? "", due_date: b.due_date ?? "", learning: b.learning ?? "", pieces: b.pieces.map((p) => ({ ...p })),
 });
@@ -119,7 +126,7 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
         const body = closed ? { learning: form.learning || null } : {
             ...(batch ? {} : { product_id: form.product_id }), kind: form.kind, angle_code: form.angle_code || null, concept: form.concept || null,
             hypothesis: form.hypothesis || null, test_idea: form.test_idea || null, goal: form.goal || null, improve: form.improve || null, audience: form.audience || null,
-            reference_creative_id: form.reference_creative_id || null,
+            persona_id: form.persona_id || null, reference_creative_id: form.reference_creative_id || null,
             learning_city_id: form.learning_city_id || null, format: form.format || null, keep: form.keep || null, offer: form.offer || null,
             deliverables: form.deliverables || null, due_date: form.due_date || null, ...(batch ? { learning: form.learning || null } : {}),
             pieces: form.pieces.map((p) => ({ id: p.id ?? null, change: p.change || null, format: p.format || null })),
@@ -177,6 +184,18 @@ const BatchDialog: React.FC<{ data: Data; batch: Batch | null; open: boolean; on
                             {field("Concepto", "concept", { inputProps: { maxLength: 120 } })}
                             {field("Dolor o público", "audience", { inputProps: { maxLength: 255 } })}
                         </Stack>
+                        {/* .64: a qué buyer persona de la ficha le habla (el editor solo ve ese) */}
+                        <TextField select size="small" label="A qué buyer persona le habla" value={form.persona_id} fullWidth disabled={!options || !(options.personas ?? []).length}
+                            onChange={(e) => set("persona_id", e.target.value === "" ? "" : Number(e.target.value))}
+                            helperText={options && !(options.personas ?? []).length ? "Este producto todavía no tiene buyer personas en su ficha." : "El editor solo ve este buyer persona, nunca la lista completa."}>
+                            <MenuItem value="">Ninguno</MenuItem>
+                            {(options?.personas ?? []).map((p) => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+                        </TextField>
+                        {options && (options.profile_missing ?? []).length > 0 && (
+                            <Alert severity="warning" action={<Button size="small" component={RouterLink} to={`/admin/integraciones?seccion=meta&tab=profile&producto=${form.product_id}`}>Abrir la ficha</Button>}>
+                                A la ficha de este producto le falta: {(options.profile_missing ?? []).join(", ")}. El editor va a tener menos contexto.
+                            </Alert>
+                        )}
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                             <TextField select size="small" label="Creativo de referencia" value={form.reference_creative_id} fullWidth disabled={!options}
                                 onChange={(e) => set("reference_creative_id", e.target.value === "" ? "" : Number(e.target.value))}>
@@ -288,6 +307,7 @@ const BatchCard: React.FC<{
                 {pending && <Chip size="small" color="secondary" label={`${pending.version} por revisar`} />}
             </Stack>
             {b.test_idea && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
+            {b.persona?.name && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Le habla a:</b> {b.persona.name}</Typography>}
             {b.goal && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
             {b.keep && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que funcionó:</b> {b.keep}</Typography>}
             {b.improve && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que hay que mejorar:</b> {b.improve}</Typography>}
@@ -466,6 +486,12 @@ export const MetaQueuePage: React.FC = () => {
                     </Typography>
                 )}
                 {data.last_run?.status === "error" && data.last_run.error && <Alert severity="warning" sx={{ mb: 1.5 }}>{data.last_run.error}</Alert>}
+                {(data.last_run?.missing_profile ?? []).length > 0 && (
+                    <Alert severity="warning" sx={{ mb: 1.5 }}
+                        action={<Button size="small" component={RouterLink} to="/admin/integraciones?seccion=meta&tab=profile">Llenar la ficha</Button>}>
+                        No propuse encargos para <b>{(data.last_run?.missing_profile ?? []).join(", ")}</b>: le falta la ficha del producto. Llénala o pásale la información a tu asistente.
+                    </Alert>
+                )}
                 <Stack spacing={2}>
                     <Paper elevation={0} sx={card}>
                         <Typography variant="subtitle1" fontWeight="bold">La banca de cada producto</Typography>

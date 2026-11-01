@@ -15,6 +15,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel, notifyEditorChanged } from "../../components/meta-ads/editorShared";
+import { PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
 
 type Status = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null };
@@ -25,6 +26,8 @@ type EBatch = EditorFields & {
     goal?: string | null; improve?: string | null;
     /** .63: qué estamos probando (la hipótesis contada para el editor, sin números ni el proceso del dueño). */
     test_idea?: string | null;
+    /** .64: lo del producto (de su ficha) y SOLO el buyer persona de este encargo. */
+    product_info?: ProductInfo | null; persona?: PersonaInfo | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
     /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
     reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
@@ -98,6 +101,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                 <Box sx={{ mt: 1 }}>
                     <Block title="Qué estamos probando" text={b.test_idea} tone="secondary" />
                     <Block title="Lo que buscamos" text={b.goal} tone="info" />
+                    <PersonaBox persona={b.persona} />
                     <Block title="Lo que funcionó (no lo cambies)" text={b.keep} tone="success" />
                     <Block title="Lo que hay que mejorar" text={b.improve} tone="warning" />
                     <Box sx={{ mt: 1 }}>
@@ -107,6 +111,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                     <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
                         {[b.format && FORMATS[b.format], b.offer].filter(Boolean).join(" · ")}
                     </Typography>
+                    <ProductBox product={b.product} info={b.product_info} />
                     {b.reference && (
                         <Stack direction="row" spacing={1.25} sx={{ mt: 1, p: 1, borderRadius: 2, bgcolor: "action.hover" }}>
                             {b.reference_thumbnail && (
