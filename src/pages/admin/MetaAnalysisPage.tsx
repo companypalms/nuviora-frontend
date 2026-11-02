@@ -1,24 +1,33 @@
 // src/pages/admin/MetaAnalysisPage.tsx
 // Etapa 5, paso 3a (2026-10-30): el análisis de campañas de cada mañana. Lo arma el sistema a las 7:00 con las reglas del
-// dueño (Paso 2) y lo redacta la IA: arriba, la lista de lo más urgente a lo menos (los montos son de las reglas) con
-// "hecho" y "no estoy de acuerdo"; abajo, cada producto como sus documentos. Nada de esto toca Meta: el mensaje al editor
-// es un borrador.
-import React, { useCallback, useEffect, useState } from "react";
+// dueño (Paso 2) y lo redacta la IA. Nada de esto toca Meta.
+// .82 (dueño, 2026-11-02: "mucho más intuitivo, minimalista y fácil de entender, que cada cosa tenga una lógica y un
+// porqué"): la pantalla responde una sola pregunta, "¿qué hago hoy en Ads Manager?". Arriba, cuánto falta; después las
+// tareas en el orden en que se hacen (frenar pérdidas, arreglar, crecer), cada una con su porqué plegado; después lo que
+// ya tiene el equipo y los avisos que no son de Ads Manager; al final, cada producto plegado y lo de la IA, en chico. El
+// color es solo para las señales (rojo, ámbar, verde); los botones, en tinta.
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert, Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Paper,
-    Stack, TextField, Tooltip, Typography,
+    Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
+    Stack, TextField, Tooltip, Typography, useTheme,
 } from "@mui/material";
-import { ContentCopyRounded, InsightsRounded, RefreshRounded, ThumbDownAltOutlined } from "@mui/icons-material";
+import {
+    CheckRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, NotificationsNoneRounded, ReportProblemRounded, TaskAltRounded,
+} from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
-import { Loading } from "../../components/ui/content/Loading";
-import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
+import { FONT_FAMILY } from "../../common/theme";
 
 type Tone = "default" | "info" | "success" | "warning" | "error";
-type UrgentItem = { key: string; product_id: number; product: string; city: string | null; kind: string; label: string; text: string; tone: Tone; urgency: string | null };
+type Group = "frenar" | "arreglar" | "crecer" | "aviso";
+/** .82: title, why, detail y group los arma el sistema; los análisis de antes no los traen (se arman aquí con lo que hay). */
+type UrgentItem = {
+    key: string; product_id: number; product: string; city: string | null; kind: string; label: string; text: string; tone: Tone; urgency: string | null;
+    group?: Group; title?: string; why?: string | null; detail?: string[];
+};
 type Mark = { status: "done" | "disagree"; note: string | null; by: string | null; at: string };
 type CityFact = {
     campaign_meta_id: string; campaign: string | null; city: string | null; notes: string[]; budget_notes: string[]; price_option: string | null;
@@ -37,8 +46,6 @@ type ProductFact = {
     urgency: { level: number; label: string; batches: string; reasons: string[] } | null;
     next_work: string[]; price: string[]; price_watch: string | null; alarms: string[];
     cities: CityFact[]; creatives: CreativeFact[]; batches: { name: string; verdict: string; reading: string; proposal: string | null }[];
-    /** .80: qué apagar hoy en cada ciudad (los creativos que ahí pierden y siguen activos). Los análisis viejos no lo traen. */
-    stop_by_city?: Record<string, string[]>;
 };
 type AiProduct = { producto: string; diagnostico: string; ciudades: { ciudad: string; lectura: string }[]; decisiones_creativas: string[]; mensaje_editor: string; aprendizaje: string };
 type Analysis = {
@@ -55,53 +62,125 @@ type Sent = { code: string | null; status: string; status_label: string; editor:
 type Turn = { pick: number; open: string[]; full: boolean };
 type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
 
-const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
-const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
+/** .82: Geist solo en esta pantalla (la prueba del sistema de diseño nuevo); Inter de reserva. */
+const GEIST = `"Geist", ${FONT_FAMILY}`;
+const geist = { fontFamily: GEIST, fontFeatureSettings: '"tnum"', "& *": { fontFamily: "inherit" } } as const;
+
+/** Los colores de la pantalla: tinta y grises para todo; rojo, ámbar y verde solo para las señales. */
+const useTokens = () => {
+    const dark = useTheme().palette.mode === "dark";
+    return dark
+        ? { card: "#1B1F26", line: "#2A303A", soft: "#232832", ink: "#E8EBF0", onInk: "#14171C", muted: "#A3ABB7", faint: "#7C8592",
+            red: "#F2686D", amber: "#F5B544", green: "#3CCB93", gray: "#5B6472" }
+        : { card: "#FFFFFF", line: "#E6E8EC", soft: "#F3F4F6", ink: "#1C2230", onInk: "#FFFFFF", muted: "#5E6672", faint: "#8A919C",
+            red: "#C62E34", amber: "#E8A100", green: "#0F7552", gray: "#B8BEC7" };
+};
+type Tokens = ReturnType<typeof useTokens>;
+
+/** Los grupos, en el orden en que se hacen, con su porqué. */
+const GROUPS: { key: Exclude<Group, "aviso">; name: string; hint: string; color: (t: Tokens) => string }[] = [
+    { key: "frenar", name: "Frenar pérdidas", hint: "primero esto: hoy te cuesta plata", color: (t) => t.red },
+    { key: "arreglar", name: "Arreglar", hint: "va mal pero tiene arreglo", color: (t) => t.amber },
+    { key: "crecer", name: "Crecer", hint: "al final, con lo de arriba resuelto", color: (t) => t.green },
+];
+/** El grupo de cada cosa para los análisis de antes de la .82 (el mismo de UrgentList::GROUP). */
+const KIND_GROUP: Record<string, Group> = {
+    drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
+    intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar",
+    scale: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
+};
+const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";
+const titleOf = (i: UrgentItem) => i.title ?? `${i.label} · ${i.product}${i.city ? ` en ${i.city}` : ""}`;
+const toneColor = (tone: Tone, t: Tokens) => ({ error: t.red, warning: t.amber, success: t.green, info: t.ink, default: t.gray }[tone]);
+
 /** Hoy en Caracas ("AAAA-MM-DD"), para saber si el análisis que se ve es el de hoy. */
 const todayYmd = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const hour = (iso: string) => new Date(iso).toLocaleTimeString("es-VE", { timeZone: "America/Caracas", hour: "2-digit", minute: "2-digit", hour12: false });
 
-const UrgentRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
+const Dot: React.FC<{ color: string; size?: number }> = ({ color, size = 10 }) => (
+    <Box component="span" aria-hidden sx={{ width: size, height: size, borderRadius: "50%", bgcolor: color, display: "inline-block", flex: "none" }} />
+);
+
+/** Un enlace de texto que es un botón ("¿Por qué?", "Volver a analizar"). */
+const TextAction: React.FC<React.ComponentProps<typeof ButtonBase>> = ({ sx, ...props }) => {
+    const t = useTokens();
+    return <ButtonBase {...props} sx={{ font: "inherit", color: t.ink, textDecoration: "underline", textUnderlineOffset: 3, borderRadius: 1, verticalAlign: "baseline",
+        "&.Mui-disabled": { color: t.faint, textDecoration: "none" }, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 }, ...sx }} />;
+};
+
+const Section: React.FC<{ icon?: React.ReactNode; dot?: string; name: string; hint?: string; children: React.ReactNode; mt?: number }> = ({ icon, dot, name, hint, children, mt = 3 }) => {
+    const t = useTokens();
+    return (
+        <Box component="section" sx={{ mt }}>
+            <Stack direction="row" columnGap={1} rowGap={0} alignItems="center" flexWrap="wrap" sx={{ mb: 0.75 }}>
+                {dot ? <Dot color={dot} /> : <Box sx={{ display: "flex", color: t.muted, "& svg": { fontSize: 18 } }}>{icon}</Box>}
+                <Typography component="h2" sx={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>{name}</Typography>
+                {hint && <Typography sx={{ fontSize: 13, color: t.muted }}>{hint}</Typography>}
+            </Stack>
+            {children}
+        </Box>
+    );
+};
+
+const cardSx = (t: Tokens) => ({ bgcolor: t.card, border: `1px solid ${t.line}`, borderRadius: "10px" });
+
+/** Una cosa que hacer: la casilla, la frase con los montos y, plegado, su porqué y "No estoy de acuerdo". */
+const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
+    const t = useTokens();
     const [open, setOpen] = useState(false);
+    const [dialog, setDialog] = useState(false);
     const [note, setNote] = useState(mark?.note ?? "");
     const done = mark?.status === "done";
+    const detail = item.detail?.length ? item.detail : [item.text];
+    const box = { width: 22, height: 22, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" } as const;
     return (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", py: 1, borderBottom: "1px solid", borderColor: "divider", opacity: done ? 0.55 : 1 }}>
-            <Checkbox size="small" checked={done} onChange={(e) => onMark(e.target.checked ? "done" : null)} inputProps={{ "aria-label": "Hecho" }} sx={{ mt: -0.5 }} />
+        <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75, transition: "opacity 150ms" }}>
+            <Checkbox checked={done} onChange={(e) => onMark(e.target.checked ? "done" : null)} disableRipple sx={{ p: 0, mt: "1px" }}
+                inputProps={{ "aria-label": `Hecho: ${titleOf(item)}` }}
+                icon={<Box sx={{ ...box, border: `1.5px solid ${t.faint}` }} />}
+                checkedIcon={<Box sx={{ ...box, bgcolor: t.ink, color: t.onInk }}><CheckRounded sx={{ fontSize: 16 }} /></Box>} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                    <Typography variant="body2" fontWeight={700}>{item.product}{item.city ? ` · ${item.city}` : ""}</Typography>
-                    <Chip size="small" color={item.tone} label={item.label} />
-                    {mark?.status === "disagree" && <Chip size="small" color="secondary" variant="outlined" label="No estoy de acuerdo" />}
-                </Stack>
-                <Typography variant="body2" sx={{ textDecoration: done ? "line-through" : "none", overflowWrap: "anywhere" }}>{item.text}</Typography>
-                {mark?.status === "disagree" && mark.note && <Typography variant="caption" color="text.secondary">Tu nota: {mark.note}</Typography>}
+                <Typography sx={{ fontSize: 15, fontWeight: done ? 400 : 500, lineHeight: 1.4, overflowWrap: "anywhere",
+                    color: done ? t.faint : t.ink, textDecoration: done ? "line-through" : "none" }}>
+                    {titleOf(item)}
+                </Typography>
+                {!done && (
+                    <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
+                        {item.why && <>{item.why} · </>}
+                        <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
+                    </Typography>
+                )}
+                {mark?.status === "disagree" && (
+                    <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>No estás de acuerdo{mark.note ? `: ${mark.note}` : ""}</Typography>
+                )}
+                <Collapse in={open && !done} unmountOnExit>
+                    <Box sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", mt: 1, fontSize: 13, lineHeight: 1.55 }}>
+                        {detail.map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}>{d}</Typography>)}
+                        <TextAction onClick={() => { setNote(mark?.note ?? ""); setDialog(true); }} sx={{ mt: 1, fontSize: 13, color: t.muted }}>
+                            {mark?.status === "disagree" ? "Cambiar tu nota" : "No estoy de acuerdo"}
+                        </TextAction>
+                    </Box>
+                </Collapse>
             </Box>
-            <Tooltip title="No estoy de acuerdo (con una nota, para ajustar los números)">
-                <Button size="small" color="secondary" onClick={() => { setNote(mark?.note ?? ""); setOpen(true); }} sx={{ minWidth: 0 }} aria-label="No estoy de acuerdo">
-                    <ThumbDownAltOutlined fontSize="small" />
-                </Button>
-            </Tooltip>
-            <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>No estoy de acuerdo</DialogTitle>
+            <Dialog open={dialog} onClose={() => setDialog(false)} fullWidth maxWidth="sm" PaperProps={{ sx: geist }}>
+                <DialogTitle sx={{ fontSize: 18, fontWeight: 600 }}>No estoy de acuerdo</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" sx={{ mb: 1.5 }}>{item.product}{item.city ? ` · ${item.city}` : ""}: {item.label}</Typography>
-                    <TextField label="¿Qué harías tú y por qué?" value={note} onChange={(e) => setNote(e.target.value)} multiline minRows={3} fullWidth inputProps={{ maxLength: 500 }} />
+                    <Typography sx={{ fontSize: 14, mb: 1.5 }}>{titleOf(item)}</Typography>
+                    <TextField label="¿Qué harías tú y por qué?" value={note} onChange={(e) => setNote(e.target.value)} multiline minRows={3} fullWidth autoFocus
+                        inputProps={{ maxLength: 500 }} helperText="Sirve para ajustar tus reglas." />
                 </DialogContent>
-                <DialogActions>
-                    {mark?.status === "disagree" && <Button onClick={() => { onMark(null); setOpen(false); }}>Quitar</Button>}
-                    <Button onClick={() => setOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" onClick={() => { onMark("disagree", note); setOpen(false); }}>Guardar</Button>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    {mark?.status === "disagree" && <Button sx={{ color: t.muted, mr: "auto" }} onClick={() => { onMark(null); setDialog(false); }}>Quitar mi nota</Button>}
+                    <Button sx={{ color: t.ink }} onClick={() => setDialog(false)}>Cancelar</Button>
+                    <Button variant="contained" disableElevation sx={{ bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 } }}
+                        onClick={() => { onMark("disagree", note); setDialog(false); }}>Guardar nota</Button>
                 </DialogActions>
             </Dialog>
         </Box>
     );
 };
 
-/**
- * .70: un creativo con su decisión en grande, en qué se basa (sus números) y qué hacer el editor. .71: lo del editor ya no
- * se copia: le llega solo al editor líder como encargo (y aquí se ve en qué va).
- */
 /** .78: por qué este creativo todavía no le llegó al editor líder (uno por producto a la vez, primero los ganadores). */
 const notYet = (cr: CreativeFact, turn?: Turn): string | null => {
     if (!turn) return null;
@@ -110,150 +189,139 @@ const notYet = (cr: CreativeFact, turn?: Turn): string | null => {
     return "Hoy no cupo en el día de tus editores: le llega solo al editor líder mañana, si sigue igual.";
 };
 
-const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: boolean; turn?: Turn }> = ({ cr, n, sent, today, turn }) => {
+/** .70: un creativo con su decisión (de tus reglas), sus números y qué hace el editor (.71: le llega solo). */
+const CreativeCall: React.FC<{ cr: CreativeFact; sent?: Sent; today: boolean; turn?: Turn }> = ({ cr, sent, today, turn }) => {
+    const t = useTokens();
     const call = cr.call!;
+    const why = !sent && today ? notYet(cr, turn) : null;
     return (
-        <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, border: "1px solid", borderColor: "divider", borderLeft: "4px solid", borderLeftColor: `${call.tone}.main` }}>
+        <Box sx={{ py: 1.25, borderTop: `1px solid ${t.line}` }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Chip color={call.tone} label={call.label} sx={{ fontWeight: 800, letterSpacing: 0.5 }} />
-                <Typography variant="caption" color="text.secondary">#{n}</Typography>
-                <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} variant="body2" fontWeight={700} sx={{ overflowWrap: "anywhere" }}>{cr.label}</Link>
-                <Tooltip title={<Box>{cr.reading}{cr.proposal ? <><br />→ {cr.proposal}</> : null}</Box>}>
-                    <Chip size="small" color={cr.tone} variant="outlined" label={cr.verdict} />
+                <Dot color={toneColor(call.tone, t)} size={8} />
+                <Typography sx={{ fontSize: 13, fontWeight: 600, letterSpacing: 0.3 }}>{call.label}</Typography>
+                <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} sx={{ fontSize: 14, fontWeight: 500, color: t.ink, overflowWrap: "anywhere" }}>{cr.label}</Link>
+                <Tooltip title={<Box>{cr.reading}{cr.proposal ? <><br />{cr.proposal}</> : null}</Box>}>
+                    <Typography component="span" sx={{ fontSize: 13, color: t.muted }}>{cr.verdict}</Typography>
                 </Tooltip>
             </Stack>
-            <Typography variant="body2" sx={{ mt: 0.75 }}>{call.todo}</Typography>
-            {(cr.numbers ?? []).map((t, i) => <Typography key={i} variant="caption" color="text.secondary" component="div">{t}</Typography>)}
+            <Typography sx={{ fontSize: 14, mt: 0.5 }}>{call.todo}</Typography>
+            {(cr.numbers ?? []).map((n, i) => <Typography key={i} sx={{ fontSize: 12, color: t.muted }}>{n}</Typography>)}
             {call.editor && (
-                <Box sx={{ mt: 0.75, p: 1, borderRadius: 1.5, bgcolor: "action.hover" }}>
-                    <Typography variant="body2"><b>Para el editor:</b> {call.editor}</Typography>
+                <Box sx={{ mt: 0.75, p: "8px 10px", borderRadius: "8px", bgcolor: t.soft }}>
+                    <Typography sx={{ fontSize: 13, whiteSpace: "pre-line" }}><b>Para el editor:</b> {call.editor}</Typography>
                     {sent ? (
-                        <Typography variant="caption" color="success.main" component="div" sx={{ mt: 0.5, fontWeight: 700 }}>
-                            ✓ Le llegó al editor líder: {sent.code ?? "encargo"} · {sent.status_label} · {sent.editor ? `lo hace ${sent.editor}` : "todavía sin editor"}
+                        <Typography sx={{ fontSize: 12, mt: 0.5, color: t.green, fontWeight: 600 }}>
+                            Le llegó al editor líder: {sent.code ?? "encargo"} · {sent.status_label} · {sent.editor ? `lo hace ${sent.editor}` : "todavía sin editor"}
                         </Typography>
-                    ) : today && notYet(cr, turn) ? (
-                        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                            {notYet(cr, turn)}
-                        </Typography>
-                    ) : null}
+                    ) : why ? <Typography sx={{ fontSize: 12, mt: 0.5, color: t.muted }}>{why}</Typography> : null}
                 </Box>
             )}
         </Box>
     );
 };
 
-const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<string, Sent>; today: boolean; turn?: Turn }> = ({ p, ai, sent, today, turn }) => {
+/** El detalle de un producto (plegado): la IA, sus ciudades, sus creativos y su trabajo. */
+const ProductDetail: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<string, Sent>; today: boolean; turn?: Turn }> = ({ p, ai, sent, today, turn }) => {
+    const t = useTokens();
+    const cityText = (city: string | null) => ai?.ciudades.find((c) => city && norm(c.ciudad) === norm(city))?.lectura;
+    const calls = p.creatives.length > 0 && p.creatives.every((cr) => cr.call);
+    const sub = { fontSize: 13, fontWeight: 600, color: t.muted, mt: 2, mb: 0.5 } as const;
     const copy = async () => {
         try { await navigator.clipboard.writeText(ai?.mensaje_editor ?? ""); toast.success("Mensaje copiado"); } catch { toast.error("No se pudo copiar"); }
     };
-    const cityText = (city: string | null) => ai?.ciudades.find((c) => city && norm(c.ciudad) === norm(city))?.lectura;
-    // .70: con la decisión de cada creativo, esa lista reemplaza a la de antes y a las "decisiones creativas" de la IA
-    const calls = p.creatives.length > 0 && p.creatives.every((cr) => cr.call);
     return (
-        <Paper elevation={0} sx={card}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Typography variant="h6" component="h3" fontWeight="bold">{p.product}</Typography>
-                {p.urgency && <Chip size="small" color={URGENCY_COLOR[p.urgency.level]} label={p.urgency.label} />}
-                {p.urgency && <Typography variant="caption" color="text.secondary">Batches a pedir: <b>{p.urgency.batches}</b></Typography>}
-                {p.mode !== "normal" && <Chip size="small" variant="outlined" label={`Modo: ${p.mode}`} />}
-            </Stack>
-            {ai?.diagnostico && <Typography variant="body2" sx={{ mt: 1 }}>{ai.diagnostico}</Typography>}
-            {p.alarms.map((t, i) => <Alert key={i} severity="warning" sx={{ mt: 1, py: 0 }}>{t}</Alert>)}
+        <Box sx={{ pb: 2 }}>
+            {(p.urgency || p.mode !== "normal") && (
+                <Typography sx={{ fontSize: 13, color: t.muted }}>
+                    {p.urgency ? `${p.urgency.label} · batches a pedir: ${p.urgency.batches}` : ""}{p.mode !== "normal" ? ` · modo ${p.mode}` : ""}
+                </Typography>
+            )}
+            {ai?.diagnostico && <Typography sx={{ fontSize: 14, mt: 1 }}>{ai.diagnostico}</Typography>}
 
-            {p.cities.length > 0 && (
-                <Box sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Ciudades</Typography>
-                    {p.cities.map((c) => (
-                        <Box key={c.campaign_meta_id} sx={{ mt: 0.75 }}>
-                            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                                <Typography variant="body2" fontWeight={700}>{c.city ?? "—"}</Typography>
-                                <Tooltip title={<Box>{c.action.data}<br />{c.action.reading}{c.action.proposal ? <><br />→ {c.action.proposal}</> : null}</Box>}>
-                                    <Chip size="small" color={c.action.tone} label={c.action.label} />
-                                </Tooltip>
-                            </Stack>
-                            <Typography variant="body2" color="text.secondary">{cityText(c.city) ?? `${c.action.reading} ${c.action.proposal ?? ""}`}</Typography>
-                            {[...c.notes, ...c.budget_notes].map((n, i) => <Typography key={i} variant="caption" color="text.secondary" component="div">• {n}</Typography>)}
-                        </Box>
-                    ))}
-                </Box>
-            )}
+            {p.cities.length > 0 && <>
+                <Typography sx={sub}>Ciudades</Typography>
+                {p.cities.map((c) => (
+                    <Box key={c.campaign_meta_id} sx={{ mb: 1 }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Dot color={toneColor(c.action.tone, t)} size={8} />
+                            <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{c.city ?? "—"}</Typography>
+                            <Typography sx={{ fontSize: 13, color: t.muted }}>{c.action.label}</Typography>
+                        </Stack>
+                        <Typography sx={{ fontSize: 13, color: t.muted, pl: 2 }}>{cityText(c.city) ?? `${c.action.reading} ${c.action.proposal ?? ""}`}</Typography>
+                        {c.action.data && <Typography sx={{ fontSize: 12, color: t.faint, pl: 2 }}>{c.action.data}</Typography>}
+                        {[...c.notes, ...c.budget_notes].map((n, i) => <Typography key={i} sx={{ fontSize: 12, color: t.faint, pl: 2 }}>{n}</Typography>)}
+                    </Box>
+                ))}
+            </>}
 
-            {p.stop_by_city && Object.keys(p.stop_by_city).length > 0 && (
-                <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Qué apagar hoy en Ads Manager, por ciudad</Typography>
-                    {Object.entries(p.stop_by_city).map(([city, labels]) => (
-                        <Typography key={city} variant="body2"><b>{city}:</b> {labels.join(", ")}</Typography>
-                    ))}
-                </Alert>
-            )}
+            {calls && <>
+                <Typography sx={sub}>Cada creativo, de más a menos gasto en 7 días</Typography>
+                {p.creatives.map((cr) => <CreativeCall key={cr.id} cr={cr} sent={sent[String(cr.id)]} today={today} turn={turn} />)}
+            </>}
+            {!calls && p.creatives.length > 0 && <>
+                <Typography sx={sub}>Creativos, de más a menos gasto en 7 días</Typography>
+                {p.creatives.map((cr) => (
+                    <Typography key={cr.id} sx={{ fontSize: 13, mb: 0.5 }}>
+                        <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} sx={{ color: t.ink, fontWeight: 500 }}>{cr.label}</Link>
+                        <Box component="span" sx={{ color: t.muted }}> · {cr.verdict}{cr.week ? ` · 7 días: ${fmt.money(cr.week.spend)}, ${fmt.num(cr.week.purchases)} compras` : ""}</Box>
+                    </Typography>
+                ))}
+                {ai && ai.decisiones_creativas.map((d, i) => <Typography key={i} sx={{ fontSize: 13 }}>• {d}</Typography>)}
+            </>}
 
-            {calls && (
-                <Box sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Qué hacer con cada creativo (de más a menos gasto en 7 días)</Typography>
-                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} sent={sent[String(cr.id)]} today={today} turn={turn} />)}
-                </Box>
-            )}
-            {!calls && p.creatives.length > 0 && (
-                <Box sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Creativos (de más a menos gasto en 7 días)</Typography>
-                    {p.creatives.map((cr, i) => (
-                        <Box key={cr.id} sx={{ mt: 0.5, display: "flex", gap: 1, alignItems: "baseline", flexWrap: "wrap" }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 22 }}>#{i + 1}</Typography>
-                            <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} variant="body2" fontWeight={700}>{cr.label}</Link>
-                            <Tooltip title={<Box>{cr.reading}{cr.proposal ? <><br />→ {cr.proposal}</> : null}</Box>}>
-                                <Chip size="small" color={cr.tone} variant="outlined" label={cr.verdict} />
-                            </Tooltip>
-                            {cr.cross && <Chip size="small" variant="outlined" label={cr.cross} />}
-                            {cr.funnel && <Typography variant="caption" color="text.secondary">{cr.funnel}</Typography>}
-                            {cr.week && <Typography variant="caption" color="text.secondary">
-                                7 días: {fmt.money(cr.week.spend)} · {fmt.num(cr.week.purchases)} compras{cr.week.cpa !== null ? ` · CPA ${fmt.money(cr.week.cpa)}` : ""}
-                            </Typography>}
-                        </Box>
-                    ))}
-                </Box>
-            )}
-
-            {!calls && ai && ai.decisiones_creativas.length > 0 && (
-                <Box sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Decisiones creativas</Typography>
-                    {ai.decisiones_creativas.map((t, i) => <Typography key={i} variant="body2">• {t}</Typography>)}
-                </Box>
-            )}
-            {(p.next_work.length > 0 || p.price.length > 0 || p.price_watch) && (
-                <Box sx={{ mt: 1.5 }}>
-                    <Typography variant="subtitle2">Trabajo y precio (de tus reglas)</Typography>
-                    {p.next_work.map((t, i) => <Typography key={i} variant="body2">• {t}</Typography>)}
-                    {[...p.price, ...(p.price_watch ? [p.price_watch] : [])].map((t, i) => <Typography key={`p${i}`} variant="caption" color="text.secondary" component="div">💲 {t}</Typography>)}
-                </Box>
-            )}
+            {(p.next_work.length > 0 || p.price.length > 0) && <>
+                <Typography sx={sub}>Trabajo y precio</Typography>
+                {p.next_work.map((w, i) => <Typography key={i} sx={{ fontSize: 13 }}>{w}</Typography>)}
+                {p.price.map((w, i) => <Typography key={`p${i}`} sx={{ fontSize: 13, color: t.muted }}>{w}</Typography>)}
+            </>}
             {!calls && ai?.mensaje_editor && (
-                <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, bgcolor: "action.hover" }}>
+                <Box sx={{ mt: 2, p: "8px 10px", borderRadius: "8px", bgcolor: t.soft }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography variant="subtitle2">Mensaje al editor líder (borrador, no se envía)</Typography>
-                        <Button size="small" startIcon={<ContentCopyRounded />} onClick={copy}>Copiar</Button>
+                        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>Mensaje al editor líder (borrador)</Typography>
+                        <TextAction onClick={copy} sx={{ fontSize: 13 }}>Copiar</TextAction>
                     </Stack>
-                    <Typography variant="body2" sx={{ whiteSpace: "pre-line", mt: 0.5 }}>{ai.mensaje_editor}</Typography>
+                    <Typography sx={{ fontSize: 13, whiteSpace: "pre-line", mt: 0.5 }}>{ai.mensaje_editor}</Typography>
                 </Box>
             )}
-            {ai?.aprendizaje && <Typography variant="body2" sx={{ mt: 1.5 }}><b>Aprendizaje:</b> {ai.aprendizaje}</Typography>}
-        </Paper>
+            {ai?.aprendizaje && <Typography sx={{ fontSize: 13, mt: 2, color: t.muted }}>Aprendizaje: {ai.aprendizaje}</Typography>}
+        </Box>
     );
 };
 
+/** El esqueleto de la pantalla mientras carga (la misma forma que el contenido). */
+const PageSkeleton: React.FC = () => (
+    <Box aria-busy="true" aria-label="Cargando el análisis">
+        <Skeleton variant="text" width={220} height={36} />
+        <Skeleton variant="rounded" height={8} sx={{ mt: 2, mb: 3 }} />
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={64} sx={{ mb: 0.75, borderRadius: "10px" }} />)}
+    </Box>
+);
+
 export const MetaAnalysisPage: React.FC = () => {
+    const t = useTokens();
     const { loadingSession, isValid } = useValidateSession();
     const [data, setData] = useState<Data | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const [date, setDate] = useState<string>("");
     const [version, setVersion] = useState<number | "">("");
     const [running, setRunning] = useState(false);
+    const [openProduct, setOpenProduct] = useState<number | null>(null);
+    const [slow, setSlow] = useState(false);
 
     const load = useCallback(() => {
         const q = new URLSearchParams();
         if (date) q.set("date", date);
         if (date && version !== "") q.set("version", String(version));
-        api<Data>(`/meta/analysis${q.toString() ? `?${q}` : ""}`).then(setData).catch((e) => toast.error(e.message));
+        setError(null);
+        api<Data>(`/meta/analysis${q.toString() ? `?${q}` : ""}`).then(setData).catch((e) => setError((e as Error).message));
     }, [date, version]);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
+    // Si tarda, decirlo (nunca una pantalla quieta sin explicación)
+    useEffect(() => {
+        if (data || error) return;
+        const id = setTimeout(() => setSlow(true), 8000);
+        return () => clearTimeout(id);
+    }, [data, error]);
 
     const run = async () => {
         setRunning(true);
@@ -262,79 +330,234 @@ export const MetaAnalysisPage: React.FC = () => {
             setData((d) => d ? { ...d, analysis: r.analysis, runs_left: r.runs_left } : d);
             setDate(r.analysis.date);
             setVersion(r.analysis.version);
-            toast.success("Análisis actualizado");
+            toast.success("Análisis hecho de nuevo");
         } catch (e) { toast.error((e as Error).message); } finally { setRunning(false); }
     };
+    // La casilla cambia al instante; si el servidor falla, vuelve como estaba
     const mark = async (key: string, status: Mark["status"] | null, note?: string) => {
-        if (!data?.analysis) return;
+        const a = data?.analysis;
+        if (!a) return;
+        const before = a.marks;
+        const next = { ...before };
+        if (status) next[key] = { status, note: note ?? null, by: null, at: new Date().toISOString() }; else delete next[key];
+        setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: next } } : d);
         try {
-            const r = await api<{ marks: Record<string, Mark> }>(`/meta/analysis/${data.analysis.id}/marks`, "PUT", { key, status, note: note ?? null });
+            const r = await api<{ marks: Record<string, Mark> }>(`/meta/analysis/${a.id}/marks`, "PUT", { key, status, note: note ?? null });
             setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: r.marks } } : d);
-        } catch (e) { toast.error((e as Error).message); }
+        } catch (e) {
+            setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: before } } : d);
+            toast.error(`No se guardó: ${(e as Error).message}`);
+        }
     };
 
-    if (loadingSession || !isValid || !data) return <Loading />;
-    const a = data.analysis;
+    const a = data?.analysis ?? null;
+    const tasks = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) !== "aviso"), [a]);
+    const notices = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) === "aviso"), [a]);
+    const doneCount = a ? tasks.filter((i) => a.marks[i.key]?.status === "done").length : 0;
+    const today = a?.date === todayYmd();
+
+    // Lo que ya tiene el equipo: los encargos de los creativos de este análisis
+    const team = useMemo(() => {
+        if (!a) return [];
+        const product = new Map<number, string>();
+        const label = new Map<number, string>();
+        a.facts.forEach((p) => p.creatives.forEach((cr) => { product.set(cr.id, p.product); label.set(cr.id, cr.label); }));
+        return Object.entries(a.sent ?? {}).map(([id, s]) => ({ ...s, product: product.get(Number(id)) ?? "", creative: label.get(Number(id)) ?? "" }));
+    }, [a]);
+
     const aiFor = (p: ProductFact, i: number) => a?.text?.productos.find((x) => norm(x.producto) === norm(p.product)) ?? a?.text?.productos[i];
-    const pending = a ? a.urgent.filter((i) => a.marks[i.key]?.status !== "done").length : 0;
+    const summaryOf = (p: ProductFact) => {
+        const mine = tasks.filter((i) => i.product_id === p.product_id && a?.marks[i.key]?.status !== "done");
+        const parts = GROUPS.map((g) => ({ g, n: mine.filter((i) => groupOf(i) === g.key).length })).filter((x) => x.n > 0);
+        return { color: parts[0] ? parts[0].g.color(t) : t.gray, text: parts.length ? parts.map((x) => `${x.n} para ${x.g.key}`).join(" · ") : "nada pendiente" };
+    };
+
+    const ink = { bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 }, borderRadius: "10px", px: 2 } as const;
 
     return (
         <Layout>
-            <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
-                <DescripcionDeVista title="Análisis del día" backPath="/meta-ads"
-                    description="Tus campañas con tus reglas, de lo más urgente a lo menos. Los montos y las acciones son de tus reglas; la IA explica y redacta. Nada de esto cambia Meta: lo haces tú." />
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }} justifyContent="space-between" sx={{ mb: 2 }}>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <TextField select size="small" label="Día" value={a?.date ?? ""} onChange={(e) => { setDate(e.target.value); setVersion(""); }} sx={{ minWidth: 160 }}>
-                            {data.dates.map((d) => <MenuItem key={d.date} value={d.date}>{d.date}</MenuItem>)}
-                        </TextField>
-                        {a && a.versions.length > 1 && (
-                            <TextField select size="small" label="Versión" value={a.version} onChange={(e) => { setDate(a.date); setVersion(Number(e.target.value)); }} sx={{ minWidth: 200 }}>
-                                {a.versions.map((v) => <MenuItem key={v.version} value={v.version}>{v.version} · {dateTime(v.created_at)}{v.auto ? " (automático)" : ""}</MenuItem>)}
-                            </TextField>
-                        )}
-                    </Stack>
-                    <Stack direction="row" spacing={1}>
-                        <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads">Ver métricas</Button>
-                        <Button size="small" variant="outlined" startIcon={running ? <CircularProgress size={14} /> : <RefreshRounded />} disabled={running || data.runs_left <= 0} onClick={run}>
-                            {running ? "Analizando…" : `Volver a analizar (${data.runs_left})`}
-                        </Button>
-                    </Stack>
-                </Stack>
-
-                {!a ? (
-                    <Alert severity="info">Todavía no hay análisis. Sale solo cada mañana a las 7:00, o tócalo ahora con "Volver a analizar".</Alert>
+            <Box sx={{ ...geist, color: t.ink, maxWidth: 640, mx: "auto", px: { xs: 0, sm: 1 }, pb: 6 }}>
+                {loadingSession || !isValid || (!data && !error) ? (
+                    <>
+                        <PageSkeleton />
+                        {slow && <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>Sigue cargando…</Typography>}
+                    </>
+                ) : !data ? (
+                    <Box role="alert" sx={{ ...cardSx(t), p: 3, mt: 2 }}>
+                        <Stack direction="row" spacing={1} alignItems="center"><ReportProblemRounded sx={{ color: t.red }} />
+                            <Typography sx={{ fontSize: 16, fontWeight: 600 }}>No se pudo abrir el análisis</Typography></Stack>
+                        <Typography sx={{ fontSize: 14, color: t.muted, mt: 1 }}>Revisa tu conexión a internet y vuelve a intentar.</Typography>
+                        <Button variant="contained" disableElevation sx={{ ...ink, mt: 2 }} onClick={load}>Reintentar</Button>
+                        <Typography sx={{ fontSize: 12, color: t.faint, mt: 2 }}>Detalle técnico: {error}</Typography>
+                    </Box>
                 ) : (
-                    <Stack spacing={2}>
-                        <Typography variant="caption" color="text.secondary">
-                            Hecho {dateTime(a.created_at)}{a.requested_by ? ` por ${a.requested_by}` : " (automático)"}{a.model ? ` · ${a.model}` : ""} · con los 3 días cerrados.
-                        </Typography>
-                        {a.status === "example" && <Alert severity="warning">Ejemplo: en esta PC no hay IA. La lista y los datos son los de tus reglas; el texto es una plantilla.</Alert>}
-                        {(a.status === "no_ai" || a.status === "error") && a.error && <Alert severity="warning">{a.error}</Alert>}
-                        {(data.queue_pending ?? 0) > 0 && (
-                            <Alert severity="info" action={<Button size="small" component={RouterLink} to="/meta-ads/cola">Ver la cola</Button>}>
-                                Hay <b>{data.queue_pending}</b> {data.queue_pending === 1 ? "encargo" : "encargos"} de creativos para aprobar.
-                            </Alert>
-                        )}
-                        {a.warnings.length > 0 && (
-                            <Alert severity="error">La IA escribió montos que no están en los datos: <b>{a.warnings.join(", ")}</b>. Fíate de la lista de arriba y de tus reglas, no de esos montos.</Alert>
-                        )}
-                        {a.text?.resumen && (
-                            <Paper elevation={0} sx={card}>
-                                <Typography variant="subtitle1" fontWeight="bold">Resumen</Typography>
-                                <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>{a.text.resumen}</Typography>
-                            </Paper>
-                        )}
-                        <Paper elevation={0} sx={card}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="subtitle1" fontWeight="bold">Lo urgente, de más a menos</Typography>
-                                <Typography variant="caption" color="text.secondary">{pending} de {a.urgent.length} por hacer</Typography>
-                            </Stack>
-                            {a.urgent.length === 0 ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Nada urgente hoy: tus campañas están en "mantener".</Typography>
-                                : a.urgent.map((i) => <UrgentRow key={i.key} item={i} mark={a.marks[i.key]} onMark={(s, n) => mark(i.key, s, n)} />)}
-                        </Paper>
-                        {a.facts.map((p, i) => <ProductSection key={p.product_id} p={p} ai={aiFor(p, i)} sent={a.sent ?? {}} today={a.date === todayYmd()} turn={a.turns?.[String(p.product_id)]} />)}
-                    </Stack>
+                    <>
+                        {/* 1. Qué día es y qué tan frescos son los datos */}
+                        <Stack direction="row" justifyContent="space-between" alignItems="baseline" flexWrap="wrap" useFlexGap spacing={1.5}>
+                            <Typography component="h1" sx={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" }}>Tu día en Meta Ads</Typography>
+                            <Typography component="div" sx={{ fontSize: 13, color: t.muted }}>
+                                {a ? (today ? `Análisis de las ${hour(a.created_at)}` : `Análisis del ${dateTime(a.created_at)}`) : "Sin análisis"}
+                                {" · "}
+                                {!today && a ? (
+                                    <TextAction onClick={() => { setDate(""); setVersion(""); }}>Ver el de hoy</TextAction>
+                                ) : (
+                                    <Tooltip title={data.runs_left > 0 ? `Lo vuelve a hacer con los datos de ahora. Te quedan ${data.runs_left} hoy.` : "Ya usaste las 10 de hoy."}>
+                                        <span>
+                                            <TextAction onClick={run} disabled={running || data.runs_left <= 0}>
+                                                {running ? <><CircularProgress size={11} sx={{ color: t.muted, mr: 0.75 }} />Analizando…</> : "Volver a analizar"}
+                                            </TextAction>
+                                        </span>
+                                    </Tooltip>
+                                )}
+                            </Typography>
+                        </Stack>
+
+                        {!a ? (
+                            // Vacío: qué significa y cómo avanzar
+                            <Box sx={{ ...cardSx(t), p: 3, mt: 3, textAlign: "center" }}>
+                                <ListAltRounded sx={{ fontSize: 36, color: t.faint }} />
+                                <Typography sx={{ fontSize: 16, fontWeight: 600, mt: 1 }}>Todavía no hay análisis</Typography>
+                                <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>Sale solo cada mañana a las 7:00 con los 3 días cerrados.</Typography>
+                                <Button variant="contained" disableElevation sx={{ ...ink, mt: 2 }} onClick={run} disabled={running || data.runs_left <= 0}
+                                    startIcon={running ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}>
+                                    {running ? "Analizando…" : "Analizar ahora"}
+                                </Button>
+                            </Box>
+                        ) : <>
+                            {/* 2. Cuánto falta */}
+                            {tasks.length === 0 ? (
+                                <Box sx={{ ...cardSx(t), p: "14px 16px", mt: 2, display: "flex", gap: 1.5, alignItems: "center" }}>
+                                    <TaskAltRounded sx={{ color: t.green }} />
+                                    <Box>
+                                        <Typography sx={{ fontSize: 15, fontWeight: 500 }}>Nada que tocar hoy en Ads Manager</Typography>
+                                        <Typography sx={{ fontSize: 13, color: t.muted }}>Tus campañas están en mantener o esperar.</Typography>
+                                    </Box>
+                                </Box>
+                            ) : doneCount === tasks.length ? (
+                                <Box role="status" sx={{ ...cardSx(t), p: 3, mt: 2, textAlign: "center" }}>
+                                    <TaskAltRounded sx={{ fontSize: 44, color: t.green }} />
+                                    <Typography sx={{ fontSize: 18, fontWeight: 600, mt: 0.5 }}>Listo por hoy</Typography>
+                                    <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>
+                                        Hiciste {tasks.length === 1 ? "la única cosa" : `las ${tasks.length} cosas`} de hoy en Ads Manager. El próximo análisis sale mañana a las 7:00.
+                                    </Typography>
+                                </Box>
+                            ) : (
+                                <Box sx={{ mt: 2 }}>
+                                    <Stack direction="row" justifyContent="space-between" spacing={1}>
+                                        <Typography sx={{ fontSize: 14 }}><b style={{ fontWeight: 600 }}>{tasks.length} {tasks.length === 1 ? "cosa" : "cosas"}</b> para hacer en Ads Manager</Typography>
+                                        <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "nowrap" }}>{doneCount} {doneCount === 1 ? "hecha" : "hechas"}</Typography>
+                                    </Stack>
+                                    <Box role="progressbar" aria-valuemin={0} aria-valuemax={tasks.length} aria-valuenow={doneCount} aria-label="Cosas hechas"
+                                        sx={{ height: 8, bgcolor: t.line, borderRadius: 6, mt: 0.75, overflow: "hidden" }}>
+                                        <Box sx={{ height: "100%", width: `${(doneCount / tasks.length) * 100}%`, bgcolor: t.ink, borderRadius: 6, transition: "width 200ms" }} />
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {/* 3. Las tareas, en el orden en que se hacen */}
+                            {GROUPS.map((g) => {
+                                const items = tasks.filter((i) => groupOf(i) === g.key);
+                                return items.length === 0 ? null : (
+                                    <Section key={g.key} dot={g.color(t)} name={g.name} hint={g.hint} mt={2.5}>
+                                        {items.map((i) => <TaskRow key={i.key} item={i} mark={a.marks[i.key]} onMark={(s, n) => mark(i.key, s, n)} />)}
+                                    </Section>
+                                );
+                            })}
+
+                            {/* 4. Lo que ya tiene el equipo: no hay que hacerlo */}
+                            {(team.length > 0 || (data.queue_pending ?? 0) > 0) && (
+                                <Section icon={<GroupsRounded />} name="Tu equipo" hint="esto ya lo tienen los editores">
+                                    <Box sx={{ ...cardSx(t), p: "10px 14px" }}>
+                                        {team.map((s, i) => (
+                                            <Typography key={i} sx={{ fontSize: 14, py: 0.25, overflowWrap: "anywhere" }}>
+                                                <b style={{ fontWeight: 600 }}>{s.code ?? "Encargo"}</b> {s.product}
+                                                <Box component="span" sx={{ color: t.muted }}> · {s.creative} · {s.status_label}{s.editor ? ` · lo hace ${s.editor}` : " · sin editor"}</Box>
+                                            </Typography>
+                                        ))}
+                                        {(data.queue_pending ?? 0) > 0 && (
+                                            <Typography sx={{ fontSize: 14, py: 0.25 }}>
+                                                {data.queue_pending === 1 ? "1 encargo espera que lo apruebes." : `${data.queue_pending} encargos esperan que los apruebes.`}
+                                            </Typography>
+                                        )}
+                                        <Link component={RouterLink} to="/meta-ads/cola" sx={{ fontSize: 13, color: t.muted, display: "inline-block", mt: 0.5 }}>Ver en Cola y banca</Link>
+                                    </Box>
+                                </Section>
+                            )}
+
+                            {/* 5. Avisos: no son de Ads Manager */}
+                            {notices.length > 0 && (
+                                <Section icon={<NotificationsNoneRounded />} name="Avisos" hint="no son de Ads Manager">
+                                    <Box sx={{ ...cardSx(t), p: "10px 14px" }}>
+                                        {notices.map((i) => (
+                                            <Typography key={i.key} sx={{ fontSize: 14, py: 0.25, overflowWrap: "anywhere" }}>
+                                                <b style={{ fontWeight: 600 }}>{i.product}</b> · {i.title ?? i.text}
+                                            </Typography>
+                                        ))}
+                                    </Box>
+                                </Section>
+                            )}
+
+                            {/* 6. Cada producto, plegado */}
+                            {a.facts.length > 0 && (
+                                <Section icon={<ListAltRounded />} name="Cada producto" hint="el detalle, si lo quieres ver">
+                                    <Box sx={{ ...cardSx(t), px: "14px" }}>
+                                        {a.facts.map((p, i) => {
+                                            const s = summaryOf(p);
+                                            const open = openProduct === p.product_id;
+                                            return (
+                                                <Box key={p.product_id} sx={{ borderTop: i ? `1px solid ${t.line}` : 0 }}>
+                                                    <ButtonBase onClick={() => setOpenProduct(open ? null : p.product_id)} aria-expanded={open}
+                                                        sx={{ width: "100%", py: 1.25, display: "flex", justifyContent: "space-between", gap: 1, textAlign: "left", font: "inherit",
+                                                            "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: "0 1 auto" }}>
+                                                            <Dot color={s.color} />
+                                                            <Typography sx={{ fontSize: 14, fontWeight: 500, overflowWrap: "anywhere" }}>{p.product}</Typography>
+                                                        </Stack>
+                                                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: t.muted, minWidth: 0, flex: "0 1 auto" }}>
+                                                            <Typography sx={{ fontSize: 13, textAlign: "right" }}>{s.text}</Typography>
+                                                            <ExpandMoreRounded sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
+                                                        </Stack>
+                                                    </ButtonBase>
+                                                    <Collapse in={open} unmountOnExit>
+                                                        <ProductDetail p={p} ai={aiFor(p, i)} sent={a.sent ?? {}} today={today} turn={a.turns?.[String(p.product_id)]} />
+                                                    </Collapse>
+                                                </Box>
+                                            );
+                                        })}
+                                    </Box>
+                                </Section>
+                            )}
+
+                            {/* 7. Lo de la IA y el historial, al final y en chico */}
+                            <Box sx={{ mt: 4, pt: 2, borderTop: `1px solid ${t.line}` }}>
+                                {a.text?.resumen && <>
+                                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: t.muted }}>Resumen de la IA</Typography>
+                                    <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", mt: 0.5 }}>{a.text.resumen}</Typography>
+                                </>}
+                                {a.status === "example" && <Typography sx={{ fontSize: 12, color: t.faint, mt: 1 }}>En esta PC no hay IA: el texto es una plantilla; las tareas y los montos son de tus reglas.</Typography>}
+                                {(a.status === "no_ai" || a.status === "error") && a.error && <Typography sx={{ fontSize: 12, color: t.faint, mt: 1 }}>{a.error}</Typography>}
+                                {a.warnings.length > 0 && (
+                                    <Typography sx={{ fontSize: 12, color: t.red, mt: 1 }}>
+                                        La IA escribió montos que no están en los datos ({a.warnings.join(", ")}). Fíate de las tareas de arriba, no de esos montos.
+                                    </Typography>
+                                )}
+                                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
+                                    <TextField select size="small" label="Día" value={a.date} onChange={(e) => { setDate(e.target.value); setVersion(""); }} sx={{ minWidth: 150 }}>
+                                        {data.dates.map((d) => <MenuItem key={d.date} value={d.date}>{d.date}</MenuItem>)}
+                                    </TextField>
+                                    {a.versions.length > 1 && (
+                                        <TextField select size="small" label="Versión" value={a.version} onChange={(e) => { setDate(a.date); setVersion(Number(e.target.value)); }} sx={{ minWidth: 190 }}>
+                                            {a.versions.map((v) => <MenuItem key={v.version} value={v.version}>{v.version} · {dateTime(v.created_at)}{v.auto ? " (automático)" : ""}</MenuItem>)}
+                                        </TextField>
+                                    )}
+                                    <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads" sx={{ color: t.ink }}>Ver métricas</Button>
+                                </Stack>
+                                <Typography sx={{ fontSize: 12, color: t.faint, mt: 1 }}>
+                                    Hecho {dateTime(a.created_at)}{a.requested_by ? ` por ${a.requested_by}` : " (automático)"}{a.model ? ` · ${a.model}` : ""} · con los 3 días cerrados. Nada de esto cambia Meta: lo haces tú.
+                                </Typography>
+                            </Box>
+                        </>}
+                    </>
                 )}
             </Box>
         </Layout>
