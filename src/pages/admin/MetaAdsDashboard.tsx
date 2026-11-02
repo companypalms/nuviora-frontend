@@ -17,7 +17,7 @@ import { Loading } from "../../components/ui/content/Loading";
 import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import {
-    COLUMNS, CityNode, DEFAULT_FILTERS, FilterOptions, Filters, Overview, ProductNode, ReportRow, api, dateTime, filtersQuery, fmt, shortDay,
+    COLUMNS, CityNode, DEFAULT_FILTERS, FilterOptions, Filters, Overview, ProductNode, ReportRow, TARGET_SOURCES, api, dateTime, filtersQuery, fmt, shortDay,
 } from "../../components/meta-ads/metaAds";
 import { MetaFilters } from "../../components/meta-ads/MetaFilters";
 import { MetricCell, RuleChips } from "../../components/meta-ads/MetaWidgets";
@@ -99,6 +99,8 @@ const ProductCard: React.FC<{ p: ProductNode; canSeeSpend: boolean; onOpenCity: 
                     ) : (
                         <Typography variant="body2" color="text.secondary">
                             Target CPA {fmt.money(p.target_cpa)} · Break-even {fmt.money(p.break_even_cpa)}
+                            {/* .79: un producto nuevo usa tu referencia hasta que el sistema tenga 30 compras de Meta maduras */}
+                            {p.target_cpa !== null && p.target_source && TARGET_SOURCES[p.target_source] && <> · {TARGET_SOURCES[p.target_source]}</>}
                             {p.target_cpa === null && p.break_even_cpa === null && <> · <RouterLink to="/admin/meta-ads?tab=targets">cargar objetivos</RouterLink></>}
                         </Typography>
                     )}

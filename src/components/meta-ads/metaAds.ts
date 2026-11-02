@@ -119,6 +119,15 @@ export type Node = {
     signals: { frequency: Signal; cpa: Signal; rules: RuleSignal[] };
 };
 
+/** De dónde salen el Target y el Break-even: el CPA financiero, o la referencia del dueño de un producto nuevo (.79). */
+export type TargetSource = "financial" | "manual" | "name";
+
+/** .79: cómo se dice cada referencia (el financiero no lleva nota). */
+export const TARGET_SOURCES: Partial<Record<TargetSource, string>> = {
+    manual: "tu referencia (Productos y objetivos), hasta que el sistema tenga 30 compras de Meta",
+    name: "referencia del nombre de la campaña, hasta que el sistema tenga 30 compras de Meta",
+};
+
 /** CPA financiero calculado (Módulo 4 de Fran, §70 a §72): reemplaza al manual cuando existe (R12). */
 export type FinancialCpa = {
     target: number | null; break_even: number | null; fully_loaded: number | null; viable: boolean | null; city_level: boolean;
@@ -128,12 +137,12 @@ export type FinancialCpa = {
 };
 export type CityNode = Node & {
     city_id: number; name: string; accounts: (Node & { account_id: number; name: string | null })[];
-    target_cpa?: number | null; break_even_cpa?: number | null; target_source?: "financial" | "manual"; financial?: FinancialCpa | null;
+    target_cpa?: number | null; break_even_cpa?: number | null; target_source?: TargetSource; financial?: FinancialCpa | null;
     actions?: CampaignAction[]; // Etapa 5, paso 2b
 };
 export type ProductNode = Node & {
     product_id: number; name: string; target_cpa: number | null; break_even_cpa: number | null; cities: CityNode[];
-    target_source?: "financial" | "manual"; manual_target_cpa?: number | null; manual_break_even_cpa?: number | null; financial?: FinancialCpa | null;
+    target_source?: TargetSource; manual_target_cpa?: number | null; manual_break_even_cpa?: number | null; financial?: FinancialCpa | null;
     plan?: ProductPlan | null; // Etapa 5, paso 2b
 };
 

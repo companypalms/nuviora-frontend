@@ -201,12 +201,15 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día.", fields: [
-            ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"], ["scale_big_below_pct", "Subida grande si el CPA está debajo de C por", "%"],
-            ["scale_big_pct", "Subida grande", "%"], ["scale_small_pct", "Subida chica", "%"], ["decrease_pct", "Bajar", "%"],
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El stock no frena la subida: solo avisa.", fields: [
+            ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"],
+            ["scale_small_pct", "Subir si el CPA está apenas debajo de C", "%"],
+            ["scale_mid_below_pct", "Subida media si está debajo de C desde", "%"], ["scale_mid_pct", "Subida media", "%"],
+            ["scale_big_below_pct", "Subida grande si está debajo de C desde", "%"], ["scale_big_pct", "Subida grande (tope 20 %)", "%"],
+            ["decrease_pct", "Bajar", "%"],
             ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
             ["last_test_budget_cpa", "Último test: por día", "×C"], ["last_test_days", "Último test: durante", "días"],
-            ["stock_days_min", "Escalar solo con stock para", "días de ventas"],
+            ["stock_warn_days", "Avisar poco stock con menos de", "días de ventas"],
         ],
     },
     {

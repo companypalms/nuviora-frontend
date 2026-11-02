@@ -10,7 +10,7 @@ import { CHART_METRICS, api, fmtKind } from "./metaAds";
 
 type Point = {
     date: string; value: number | null; previous: number | null; target_cpa: number | null; break_even_cpa: number | null;
-    target_source?: "financial" | "manual" | null; manual_target_cpa?: number | null;
+    target_source?: "financial" | "manual" | "name" | null; manual_target_cpa?: number | null;
 };
 
 export const MetaChart: React.FC<{ query: string; title?: string; compare: boolean; isVideo?: boolean; canSeeSpend?: boolean; initialMetric?: string }> = ({
