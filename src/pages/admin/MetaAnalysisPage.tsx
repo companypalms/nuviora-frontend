@@ -46,8 +46,11 @@ type Analysis = {
     versions: { version: number; created_at: string; auto: boolean }[];
     /** .71: por creativo, el encargo que ya tiene el equipo (se le mandó solo al editor líder). */
     sent: Record<string, Sent>;
+    /** .78: por producto, su turno: el creativo que va primero y sus encargos en camino o en la banca. */
+    turns?: Record<string, Turn>;
 };
 type Sent = { code: string | null; status: string; status_label: string; editor: string | null };
+type Turn = { pick: number; open: string[]; full: boolean };
 type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
 
 const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
@@ -97,7 +100,15 @@ const UrgentRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark
  * .70: un creativo con su decisión en grande, en qué se basa (sus números) y qué hacer el editor. .71: lo del editor ya no
  * se copia: le llega solo al editor líder como encargo (y aquí se ve en qué va).
  */
-const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: boolean }> = ({ cr, n, sent, today }) => {
+/** .78: por qué este creativo todavía no le llegó al editor líder (uno por producto a la vez, primero los ganadores). */
+const notYet = (cr: CreativeFact, turn?: Turn): string | null => {
+    if (!turn) return null;
+    if (turn.open.length > 0) return `Este producto ya tiene su encargo en camino o listo en la banca (${turn.open.join(", ")}): va uno a la vez.`;
+    if (turn.pick !== cr.id) return "Hoy va primero otro creativo de este producto (primero los ganadores).";
+    return "Hoy no cupo en el día de tus editores: le llega solo al editor líder mañana, si sigue igual.";
+};
+
+const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: boolean; turn?: Turn }> = ({ cr, n, sent, today, turn }) => {
     const call = cr.call!;
     return (
         <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, border: "1px solid", borderColor: "divider", borderLeft: "4px solid", borderLeftColor: `${call.tone}.main` }}>
@@ -118,9 +129,9 @@ const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: 
                         <Typography variant="caption" color="success.main" component="div" sx={{ mt: 0.5, fontWeight: 700 }}>
                             ✓ Le llegó al editor líder: {sent.code ?? "encargo"} · {sent.status_label} · {sent.editor ? `lo hace ${sent.editor}` : "todavía sin editor"}
                         </Typography>
-                    ) : today ? (
+                    ) : today && notYet(cr, turn) ? (
                         <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                            Hoy no cupo en el día de tus editores: le llega solo al editor líder mañana, si sigue igual.
+                            {notYet(cr, turn)}
                         </Typography>
                     ) : null}
                 </Box>
@@ -129,7 +140,7 @@ const CreativeCall: React.FC<{ cr: CreativeFact; n: number; sent?: Sent; today: 
     );
 };
 
-const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<string, Sent>; today: boolean }> = ({ p, ai, sent, today }) => {
+const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<string, Sent>; today: boolean; turn?: Turn }> = ({ p, ai, sent, today, turn }) => {
     const copy = async () => {
         try { await navigator.clipboard.writeText(ai?.mensaje_editor ?? ""); toast.success("Mensaje copiado"); } catch { toast.error("No se pudo copiar"); }
     };
@@ -168,7 +179,7 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<st
             {calls && (
                 <Box sx={{ mt: 1.5 }}>
                     <Typography variant="subtitle2">Qué hacer con cada creativo (de más a menos gasto en 7 días)</Typography>
-                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} sent={sent[String(cr.id)]} today={today} />)}
+                    {p.creatives.map((cr, i) => <CreativeCall key={cr.id} cr={cr} n={i + 1} sent={sent[String(cr.id)]} today={today} turn={turn} />)}
                 </Box>
             )}
             {!calls && p.creatives.length > 0 && (
@@ -311,7 +322,7 @@ export const MetaAnalysisPage: React.FC = () => {
                             {a.urgent.length === 0 ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Nada urgente hoy: tus campañas están en "mantener".</Typography>
                                 : a.urgent.map((i) => <UrgentRow key={i.key} item={i} mark={a.marks[i.key]} onMark={(s, n) => mark(i.key, s, n)} />)}
                         </Paper>
-                        {a.facts.map((p, i) => <ProductSection key={p.product_id} p={p} ai={aiFor(p, i)} sent={a.sent ?? {}} today={a.date === todayYmd()} />)}
+                        {a.facts.map((p, i) => <ProductSection key={p.product_id} p={p} ai={aiFor(p, i)} sent={a.sent ?? {}} today={a.date === todayYmd()} turn={a.turns?.[String(p.product_id)]} />)}
                     </Stack>
                 )}
             </Box>
