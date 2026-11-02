@@ -5,14 +5,18 @@
 // porqué"): la pantalla responde una sola pregunta, "¿qué hago hoy en Ads Manager?". Arriba, cuánto falta; después las
 // tareas en el orden en que se hacen (frenar pérdidas, arreglar, crecer), cada una con su porqué plegado; después lo que
 // ya tiene el equipo y los avisos que no son de Ads Manager; al final, cada producto plegado y lo de la IA, en chico. El
-// color es solo para las señales (rojo, ámbar, verde); los botones, en tinta.
+// color es solo para las señales (rojo, ámbar, verde); los botones, en tinta. Como un juego (dueño: "que todo tenga la lógica
+// y la usabilidad de un juego para que se vea fácil y se quiera usar y hacer"): una misión a la vez en grande, las 3 etapas
+// como un mapa (todas abiertas: el dueño eligió sin candado), un marcador con números de verdad (misiones, racha y
+// presupuesto movido), una celebración corta al terminar cada etapa y "Día completo" al final.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
     Stack, TextField, Tooltip, Typography, useTheme,
 } from "@mui/material";
 import {
-    CheckRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, NotificationsNoneRounded, ReportProblemRounded, TaskAltRounded,
+    CheckCircleRounded, CheckRounded, EmojiEventsRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, LocalFireDepartmentRounded,
+    NotificationsNoneRounded, RemoveRounded, ReportProblemRounded, TaskAltRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -27,6 +31,8 @@ type Group = "frenar" | "arreglar" | "crecer" | "aviso";
 type UrgentItem = {
     key: string; product_id: number; product: string; city: string | null; kind: string; label: string; text: string; tone: Tone; urgency: string | null;
     group?: Group; title?: string; why?: string | null; detail?: string[];
+    /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
+    money?: { cut: number | null; add: number | null } | null;
 };
 type Mark = { status: "done" | "disagree"; note: string | null; by: string | null; at: string };
 type CityFact = {
@@ -57,6 +63,8 @@ type Analysis = {
     sent: Record<string, Sent>;
     /** .78: por producto, su turno: el creativo que va primero y sus encargos en camino o en la banca. */
     turns?: Record<string, Turn>;
+    /** .82: días seguidos con todas las misiones resueltas, hasta el día anterior a este análisis. */
+    streak?: { before: number };
 };
 type Sent = { code: string | null; status: string; status_label: string; editor: string | null };
 type Turn = { pick: number; open: string[]; full: boolean };
@@ -71,18 +79,41 @@ const useTokens = () => {
     const dark = useTheme().palette.mode === "dark";
     return dark
         ? { card: "#1B1F26", line: "#2A303A", soft: "#232832", ink: "#E8EBF0", onInk: "#14171C", muted: "#A3ABB7", faint: "#7C8592",
-            red: "#F2686D", amber: "#F5B544", green: "#3CCB93", gray: "#5B6472" }
+            red: "#F2686D", amber: "#F5B544", green: "#3CCB93", gray: "#5B6472", greenSoft: "#16342A", greenInk: "#9FE5C6" }
         : { card: "#FFFFFF", line: "#E6E8EC", soft: "#F3F4F6", ink: "#1C2230", onInk: "#FFFFFF", muted: "#5E6672", faint: "#8A919C",
-            red: "#C62E34", amber: "#E8A100", green: "#0F7552", gray: "#B8BEC7" };
+            red: "#C62E34", amber: "#E8A100", green: "#0F7552", gray: "#B8BEC7", greenSoft: "#E6F4EE", greenInk: "#0B5A3F" };
 };
 type Tokens = ReturnType<typeof useTokens>;
 
 /** Los grupos, en el orden en que se hacen, con su porqué. */
-const GROUPS: { key: Exclude<Group, "aviso">; name: string; hint: string; color: (t: Tokens) => string }[] = [
-    { key: "frenar", name: "Frenar pérdidas", hint: "primero esto: hoy te cuesta plata", color: (t) => t.red },
-    { key: "arreglar", name: "Arreglar", hint: "va mal pero tiene arreglo", color: (t) => t.amber },
-    { key: "crecer", name: "Crecer", hint: "al final, con lo de arriba resuelto", color: (t) => t.green },
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** Las etapas del día, en el orden en que se hacen, con su porqué, qué se logró y su celebración. */
+const GROUPS: { key: Exclude<Group, "aviso">; name: string; hint: string; color: (t: Tokens) => string; did: (n: number) => string;
+    cheer: (items: UrgentItem[], marks: Record<string, Mark>) => string }[] = [
+    { key: "frenar", name: "Frenar pérdidas", hint: "primero esto: hoy te cuesta plata", color: (t) => t.red,
+        did: (n) => `frenaste ${plural(n, "pérdida", "pérdidas")}`,
+        cheer: (items, m) => {
+            const cut = items.filter((i) => m[i.key]?.status === "done").reduce((sum, i) => sum + (i.money?.cut ?? 0), 0);
+            return `Etapa completa: frenaste ${plural(items.length, "pérdida", "pérdidas")}.${cut > 0 ? ` Bajaste ${fmt.money(cut)} por día en lo que pierde.` : ""}`;
+        } },
+    { key: "arreglar", name: "Arreglar", hint: "va mal pero tiene arreglo", color: (t) => t.amber,
+        did: (n) => `arreglaste ${plural(n, "cosa", "cosas")}`,
+        cheer: (items) => `Etapa completa: arreglaste ${plural(items.length, "cosa", "cosas")}.` },
+    { key: "crecer", name: "Crecer", hint: "al final, con lo de arriba resuelto", color: (t) => t.green,
+        did: (n) => `subiste ${plural(n, "ganador", "ganadores")}`,
+        cheer: (items, m) => {
+            const add = items.filter((i) => m[i.key]?.status === "done").reduce((sum, i) => sum + (i.money?.add ?? 0), 0);
+            return `Etapa completa: subiste ${plural(items.length, "ganador", "ganadores")}.${add > 0 ? ` Le das ${fmt.money(add)} más por día a lo que gana.` : ""}`;
+        } },
 ];
+/** "Frenaste 3 pérdidas, arreglaste 2 cosas y subiste 3 ganadores." (y en cuántas no estuvo de acuerdo) */
+const daySummary = (tasks: UrgentItem[], marks: Record<string, Mark>) => {
+    const parts = GROUPS.map((g) => ({ g, n: tasks.filter((i) => groupOf(i) === g.key).length })).filter((x) => x.n > 0).map((x) => x.g.did(x.n));
+    const no = tasks.filter((i) => marks[i.key]?.status === "disagree").length;
+    const text = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}` : parts[0] ?? "";
+    return `${text.charAt(0).toUpperCase()}${text.slice(1)}.${no ? ` En ${plural(no, "misión", "misiones")} no estuviste de acuerdo: quedó tu nota.` : ""}`;
+};
 /** El grupo de cada cosa para los análisis de antes de la .82 (el mismo de UrgentList::GROUP). */
 const KIND_GROUP: Record<string, Group> = {
     drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
@@ -125,59 +156,170 @@ const Section: React.FC<{ icon?: React.ReactNode; dot?: string; name: string; hi
 
 const cardSx = (t: Tokens) => ({ bgcolor: t.card, border: `1px solid ${t.line}`, borderRadius: "10px" });
 
-/** Una cosa que hacer: la casilla, la frase con los montos y, plegado, su porqué y "No estoy de acuerdo". */
+/** Hecho o "no estoy de acuerdo": las dos resuelven la misión (la segunda, porque decidiste no hacerla). */
+const isResolved = (m?: Mark) => m?.status === "done" || m?.status === "disagree";
+const inkSx = (t: Tokens) => ({ bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 }, borderRadius: "10px", px: 2 }) as const;
+/** Lo que aparece (la misión siguiente, el día completo) entra suave; nada se mueve si el sistema pide menos movimiento. */
+const appear = {
+    animation: "nx-appear 220ms ease-out", "@keyframes nx-appear": { from: { opacity: 0, transform: "translateY(6px)" }, to: { opacity: 1, transform: "none" } },
+    "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+} as const;
+
+/** "No estoy de acuerdo" con una nota: resuelve la misión y sirve para ajustar tus reglas. Se monta al abrirse. */
+const DisagreeDialog: React.FC<{ item: UrgentItem; mark?: Mark; onClose: () => void; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onClose, onMark }) => {
+    const t = useTokens();
+    const [note, setNote] = useState(mark?.status === "disagree" ? mark.note ?? "" : "");
+    return (
+        <Dialog open onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: geist }}>
+            <DialogTitle sx={{ fontSize: 18, fontWeight: 600 }}>No estoy de acuerdo</DialogTitle>
+            <DialogContent>
+                <Typography sx={{ fontSize: 14, mb: 1.5 }}>{titleOf(item)}</Typography>
+                <TextField label="¿Qué harías tú y por qué?" value={note} onChange={(e) => setNote(e.target.value)} multiline minRows={3} fullWidth autoFocus
+                    inputProps={{ maxLength: 500 }} helperText="La misión queda resuelta y tu nota sirve para ajustar tus reglas." />
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                {mark?.status === "disagree" && <Button sx={{ color: t.muted, mr: "auto" }} onClick={() => { onMark(null); onClose(); }}>Quitar mi nota</Button>}
+                <Button sx={{ color: t.ink }} onClick={onClose}>Cancelar</Button>
+                <Button variant="contained" disableElevation sx={inkSx(t)} onClick={() => { onMark("disagree", note); onClose(); }}>Guardar nota</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+/** El porqué de una misión, plegado: los números en palabras y la regla. */
+const WhyBox: React.FC<{ item: UrgentItem; children?: React.ReactNode }> = ({ item, children }) => {
+    const t = useTokens();
+    return (
+        <Box sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", mt: 1, lineHeight: 1.55 }}>
+            {(item.detail?.length ? item.detail : [item.text]).map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}>{d}</Typography>)}
+            {children}
+        </Box>
+    );
+};
+
+/** Una misión de la lista: la casilla (se puede hacer en cualquier orden), la frase con los montos y su porqué plegado. */
 const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
     const [dialog, setDialog] = useState(false);
-    const [note, setNote] = useState(mark?.note ?? "");
     const done = mark?.status === "done";
-    const detail = item.detail?.length ? item.detail : [item.text];
+    const disagree = mark?.status === "disagree";
     const box = { width: 22, height: 22, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" } as const;
     return (
-        <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75, transition: "opacity 150ms" }}>
-            <Checkbox checked={done} onChange={(e) => onMark(e.target.checked ? "done" : null)} disableRipple sx={{ p: 0, mt: "1px" }}
+        <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75 }}>
+            <Checkbox checked={done} indeterminate={disagree} onChange={(e) => onMark(e.target.checked ? "done" : null)} disableRipple sx={{ p: 0, mt: "1px" }}
                 inputProps={{ "aria-label": `Hecho: ${titleOf(item)}` }}
                 icon={<Box sx={{ ...box, border: `1.5px solid ${t.faint}` }} />}
-                checkedIcon={<Box sx={{ ...box, bgcolor: t.ink, color: t.onInk }}><CheckRounded sx={{ fontSize: 16 }} /></Box>} />
+                checkedIcon={<Box sx={{ ...box, bgcolor: t.ink, color: t.onInk }}><CheckRounded sx={{ fontSize: 16 }} /></Box>}
+                indeterminateIcon={<Box sx={{ ...box, bgcolor: t.soft, border: `1.5px solid ${t.faint}`, color: t.muted }}><RemoveRounded sx={{ fontSize: 16 }} /></Box>} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: 15, fontWeight: done ? 400 : 500, lineHeight: 1.4, overflowWrap: "anywhere",
-                    color: done ? t.faint : t.ink, textDecoration: done ? "line-through" : "none" }}>
+                <Typography sx={{ fontSize: 15, fontWeight: done || disagree ? 400 : 500, lineHeight: 1.4, overflowWrap: "anywhere",
+                    color: done || disagree ? t.faint : t.ink, textDecoration: done ? "line-through" : "none" }}>
                     {titleOf(item)}
                 </Typography>
-                {!done && (
+                {disagree ? (
+                    <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
+                        No estás de acuerdo{mark?.note ? `: ${mark.note}` : ""} · <TextAction onClick={() => setDialog(true)} sx={{ color: t.muted }}>Cambiar tu nota</TextAction>
+                    </Typography>
+                ) : !done && (
                     <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
                         {item.why && <>{item.why} · </>}
                         <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
                     </Typography>
                 )}
-                {mark?.status === "disagree" && (
-                    <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>No estás de acuerdo{mark.note ? `: ${mark.note}` : ""}</Typography>
-                )}
-                <Collapse in={open && !done} unmountOnExit>
-                    <Box sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", mt: 1, fontSize: 13, lineHeight: 1.55 }}>
-                        {detail.map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}>{d}</Typography>)}
-                        <TextAction onClick={() => { setNote(mark?.note ?? ""); setDialog(true); }} sx={{ mt: 1, fontSize: 13, color: t.muted }}>
-                            {mark?.status === "disagree" ? "Cambiar tu nota" : "No estoy de acuerdo"}
-                        </TextAction>
-                    </Box>
+                <Collapse in={open && !done && !disagree} unmountOnExit>
+                    <WhyBox item={item}>
+                        <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>
+                    </WhyBox>
                 </Collapse>
             </Box>
-            <Dialog open={dialog} onClose={() => setDialog(false)} fullWidth maxWidth="sm" PaperProps={{ sx: geist }}>
-                <DialogTitle sx={{ fontSize: 18, fontWeight: 600 }}>No estoy de acuerdo</DialogTitle>
-                <DialogContent>
-                    <Typography sx={{ fontSize: 14, mb: 1.5 }}>{titleOf(item)}</Typography>
-                    <TextField label="¿Qué harías tú y por qué?" value={note} onChange={(e) => setNote(e.target.value)} multiline minRows={3} fullWidth autoFocus
-                        inputProps={{ maxLength: 500 }} helperText="Sirve para ajustar tus reglas." />
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    {mark?.status === "disagree" && <Button sx={{ color: t.muted, mr: "auto" }} onClick={() => { onMark(null); setDialog(false); }}>Quitar mi nota</Button>}
-                    <Button sx={{ color: t.ink }} onClick={() => setDialog(false)}>Cancelar</Button>
-                    <Button variant="contained" disableElevation sx={{ bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 } }}
-                        onClick={() => { onMark("disagree", note); setDialog(false); }}>Guardar nota</Button>
-                </DialogActions>
-            </Dialog>
+            {dialog && <DisagreeDialog item={item} mark={mark} onClose={() => setDialog(false)} onMark={onMark} />}
         </Box>
+    );
+};
+
+/** La misión de ahora, en grande: una sola cosa, con "Hecho" y "No estoy de acuerdo". La siguiente entra sola. */
+const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: number; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, n, total, onMark }) => {
+    const t = useTokens();
+    const [open, setOpen] = useState(false);
+    const [dialog, setDialog] = useState(false);
+    const g = GROUPS.find((x) => x.key === groupOf(item)) ?? GROUPS[0];
+    return (
+        <Box component="section" aria-label="Misión de ahora" sx={{ ...cardSx(t), p: "16px 18px", mt: 2, borderColor: t.ink, ...appear }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+                <Dot color={g.color(t)} size={9} />
+                <Typography sx={{ fontSize: 13, color: t.muted }}>Misión {n} de {total} · {g.name}</Typography>
+            </Stack>
+            <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.35, mt: 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
+            <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
+                {item.why && <>{item.why} · </>}
+                <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
+            </Typography>
+            <Collapse in={open} unmountOnExit><WhyBox item={item} /></Collapse>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
+                <Button variant="contained" disableElevation startIcon={<CheckRounded />} sx={{ ...inkSx(t), minHeight: 40 }} onClick={() => onMark("done")}>Hecho</Button>
+                <Button variant="outlined" sx={{ color: t.ink, borderColor: t.line, borderRadius: "10px", minHeight: 40, "&:hover": { borderColor: t.faint, bgcolor: "transparent" } }}
+                    onClick={() => setDialog(true)}>No estoy de acuerdo</Button>
+            </Stack>
+            {dialog && <DisagreeDialog item={item} mark={mark} onClose={() => setDialog(false)} onMark={onMark} />}
+        </Box>
+    );
+};
+
+/** El marcador: 3 números, todos de verdad (misiones, días seguidos y presupuesto movido). */
+const Hud: React.FC<{ resolved: number; total: number; streak: number; cut: number; add: number }> = ({ resolved, total, streak, cut, add }) => {
+    const t = useTokens();
+    const tiles: { label: React.ReactNode; value: React.ReactNode; help: string }[] = [
+        { label: "Misiones", value: `${resolved} de ${total}`, help: "Las que resolviste hoy: hechas o con \"No estoy de acuerdo\"." },
+        { label: <><LocalFireDepartmentRounded sx={{ fontSize: 14, verticalAlign: "-2px", mr: 0.25 }} />Racha</>, value: plural(streak, "día", "días"),
+            help: "Días seguidos en que resolviste todas tus misiones. Un día sin misiones no la corta." },
+        { label: "Presupuesto hoy",
+            help: "Presupuesto que moviste hoy, por día: lo que bajaste o pausaste (rojo) y lo que subiste (verde). Apagar creativos no cuenta: con CBO, Meta pasa esa plata a los otros anuncios.",
+            value: cut || add ? <>{cut > 0 && <Box component="span" sx={{ color: t.red, display: "inline-block", whiteSpace: "nowrap", mr: 1 }}>−{fmt.money(cut)}</Box>}
+                {add > 0 && <Box component="span" sx={{ color: t.green, display: "inline-block", whiteSpace: "nowrap" }}>+{fmt.money(add)}</Box>}</> : "$0" },
+    ];
+    return (
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1, mt: 2 }}>
+            {tiles.map((x, i) => (
+                <Tooltip key={i} title={x.help}>
+                    <Box tabIndex={0} sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", minWidth: 0, "&:focus-visible": { outline: `2px solid ${t.ink}` } }}>
+                        <Typography sx={{ fontSize: 12, color: t.muted }}>{x.label}</Typography>
+                        <Typography component="div" sx={{ fontSize: { xs: 15, sm: 18 }, fontWeight: 600, mt: 0.25, lineHeight: 1.3 }}>{x.value}</Typography>
+                    </Box>
+                </Tooltip>
+            ))}
+        </Box>
+    );
+};
+
+/** Las 3 etapas del día, como un mapa: las terminadas con su marca, la de ahora resaltada. Todas abiertas (el dueño eligió sin candado). */
+const StageTrack: React.FC<{ stats: Record<string, { n: number; d: number }>; current: Group | null }> = ({ stats, current }) => {
+    const t = useTokens();
+    return (
+        <Stack direction="row" alignItems="flex-start" sx={{ mt: 2.5 }} role="list" aria-label="Etapas del día">
+            {GROUPS.map((g, k) => {
+                const { n, d } = stats[g.key];
+                const done = n > 0 && d === n;
+                const on = current === g.key;
+                const c = g.color(t);
+                const prev = k > 0 ? stats[GROUPS[k - 1].key] : null;
+                return (
+                    <React.Fragment key={g.key}>
+                        {prev && <Box aria-hidden sx={{ flex: 1, height: 2, mt: "16px", bgcolor: prev.d === prev.n ? GROUPS[k - 1].color(t) : t.line, transition: "background-color 200ms" }} />}
+                        <Stack role="listitem" alignItems="center" sx={{ width: 96, flex: "none", textAlign: "center" }}>
+                            <Box sx={{ width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 600,
+                                transition: "all 200ms",
+                                ...(done ? { bgcolor: c, color: t.onInk } : n === 0 ? { border: `1.5px dashed ${t.line}`, color: t.faint }
+                                    : on ? { border: `2px solid ${c}`, color: c } : { border: `1.5px solid ${t.line}`, color: t.muted }) }}>
+                                {done || n === 0 ? <CheckRounded sx={{ fontSize: 18 }} /> : k + 1}
+                            </Box>
+                            <Typography sx={{ fontSize: 13, mt: 0.5, lineHeight: 1.3, color: on ? t.ink : t.muted, fontWeight: on ? 600 : 400 }}>{g.name}</Typography>
+                            <Typography sx={{ fontSize: 12, color: t.faint }}>{n === 0 ? "nada hoy" : `${d} de ${n}`}</Typography>
+                        </Stack>
+                    </React.Fragment>
+                );
+            })}
+        </Stack>
     );
 };
 
@@ -307,6 +449,13 @@ export const MetaAnalysisPage: React.FC = () => {
     const [running, setRunning] = useState(false);
     const [openProduct, setOpenProduct] = useState<number | null>(null);
     const [slow, setSlow] = useState(false);
+    const [cheer, setCheer] = useState<string | null>(null);
+    // La celebración de una etapa se va sola
+    useEffect(() => {
+        if (!cheer) return;
+        const id = setTimeout(() => setCheer(null), 6000);
+        return () => clearTimeout(id);
+    }, [cheer]);
 
     const load = useCallback(() => {
         const q = new URLSearchParams();
@@ -341,6 +490,11 @@ export const MetaAnalysisPage: React.FC = () => {
         const next = { ...before };
         if (status) next[key] = { status, note: note ?? null, by: null, at: new Date().toISOString() }; else delete next[key];
         setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: next } } : d);
+        // ¿Esta marca terminó una etapa (y no el día, que tiene su propio cierre)?
+        const all = a.urgent.filter((i) => groupOf(i) !== "aviso");
+        const left = (m: Record<string, Mark>, g?: Group) => all.filter((i) => (!g || groupOf(i) === g) && !isResolved(m[i.key])).length;
+        const g = GROUPS.find((x) => all.some((i) => i.key === key && groupOf(i) === x.key));
+        setCheer(g && left(before, g.key) > 0 && left(next, g.key) === 0 && left(next) > 0 ? g.cheer(all.filter((i) => groupOf(i) === g.key), next) : null);
         try {
             const r = await api<{ marks: Record<string, Mark> }>(`/meta/analysis/${a.id}/marks`, "PUT", { key, status, note: note ?? null });
             setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: r.marks } } : d);
@@ -353,8 +507,21 @@ export const MetaAnalysisPage: React.FC = () => {
     const a = data?.analysis ?? null;
     const tasks = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) !== "aviso"), [a]);
     const notices = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) === "aviso"), [a]);
-    const doneCount = a ? tasks.filter((i) => a.marks[i.key]?.status === "done").length : 0;
     const today = a?.date === todayYmd();
+    // El juego: cuántas resueltas, la misión de ahora (la primera sin resolver, en el orden de las etapas), la racha y el presupuesto movido
+    const marks = a?.marks ?? {};
+    const ordered = GROUPS.flatMap((g) => tasks.filter((i) => groupOf(i) === g.key));
+    const resolved = ordered.filter((i) => isResolved(marks[i.key])).length;
+    const current = ordered.find((i) => !isResolved(marks[i.key])) ?? null;
+    const allDone = tasks.length > 0 && resolved === tasks.length;
+    const streak = (a?.streak?.before ?? 0) + (allDone ? 1 : 0);
+    const doneTasks = tasks.filter((i) => marks[i.key]?.status === "done");
+    const cut = doneTasks.reduce((sum, i) => sum + (i.money?.cut ?? 0), 0);
+    const add = doneTasks.reduce((sum, i) => sum + (i.money?.add ?? 0), 0);
+    const stats = Object.fromEntries(GROUPS.map((g) => {
+        const items = tasks.filter((i) => groupOf(i) === g.key);
+        return [g.key, { n: items.length, d: items.filter((i) => isResolved(marks[i.key])).length }];
+    })) as Record<string, { n: number; d: number }>;
 
     // Lo que ya tiene el equipo: los encargos de los creativos de este análisis
     const team = useMemo(() => {
@@ -367,12 +534,12 @@ export const MetaAnalysisPage: React.FC = () => {
 
     const aiFor = (p: ProductFact, i: number) => a?.text?.productos.find((x) => norm(x.producto) === norm(p.product)) ?? a?.text?.productos[i];
     const summaryOf = (p: ProductFact) => {
-        const mine = tasks.filter((i) => i.product_id === p.product_id && a?.marks[i.key]?.status !== "done");
+        const mine = tasks.filter((i) => i.product_id === p.product_id && !isResolved(marks[i.key]));
         const parts = GROUPS.map((g) => ({ g, n: mine.filter((i) => groupOf(i) === g.key).length })).filter((x) => x.n > 0);
         return { color: parts[0] ? parts[0].g.color(t) : t.gray, text: parts.length ? parts.map((x) => `${x.n} para ${x.g.key}`).join(" · ") : "nada pendiente" };
     };
 
-    const ink = { bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 }, borderRadius: "10px", px: 2 } as const;
+    const ink = inkSx(t);
 
     return (
         <Layout>
@@ -424,42 +591,53 @@ export const MetaAnalysisPage: React.FC = () => {
                                 </Button>
                             </Box>
                         ) : <>
-                            {/* 2. Cuánto falta */}
+                            {/* 2. El marcador, las etapas y la misión de ahora */}
                             {tasks.length === 0 ? (
                                 <Box sx={{ ...cardSx(t), p: "14px 16px", mt: 2, display: "flex", gap: 1.5, alignItems: "center" }}>
                                     <TaskAltRounded sx={{ color: t.green }} />
                                     <Box>
                                         <Typography sx={{ fontSize: 15, fontWeight: 500 }}>Nada que tocar hoy en Ads Manager</Typography>
-                                        <Typography sx={{ fontSize: 13, color: t.muted }}>Tus campañas están en mantener o esperar.</Typography>
+                                        <Typography sx={{ fontSize: 13, color: t.muted }}>Tus campañas están en mantener o esperar. Tu racha sigue.</Typography>
                                     </Box>
                                 </Box>
-                            ) : doneCount === tasks.length ? (
-                                <Box role="status" sx={{ ...cardSx(t), p: 3, mt: 2, textAlign: "center" }}>
-                                    <TaskAltRounded sx={{ fontSize: 44, color: t.green }} />
-                                    <Typography sx={{ fontSize: 18, fontWeight: 600, mt: 0.5 }}>Listo por hoy</Typography>
-                                    <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>
-                                        Hiciste {tasks.length === 1 ? "la única cosa" : `las ${tasks.length} cosas`} de hoy en Ads Manager. El próximo análisis sale mañana a las 7:00.
-                                    </Typography>
-                                </Box>
-                            ) : (
-                                <Box sx={{ mt: 2 }}>
-                                    <Stack direction="row" justifyContent="space-between" spacing={1}>
-                                        <Typography sx={{ fontSize: 14 }}><b style={{ fontWeight: 600 }}>{tasks.length} {tasks.length === 1 ? "cosa" : "cosas"}</b> para hacer en Ads Manager</Typography>
-                                        <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "nowrap" }}>{doneCount} {doneCount === 1 ? "hecha" : "hechas"}</Typography>
-                                    </Stack>
-                                    <Box role="progressbar" aria-valuemin={0} aria-valuemax={tasks.length} aria-valuenow={doneCount} aria-label="Cosas hechas"
-                                        sx={{ height: 8, bgcolor: t.line, borderRadius: 6, mt: 0.75, overflow: "hidden" }}>
-                                        <Box sx={{ height: "100%", width: `${(doneCount / tasks.length) * 100}%`, bgcolor: t.ink, borderRadius: 6, transition: "width 200ms" }} />
+                            ) : <>
+                                <Hud resolved={resolved} total={tasks.length} streak={streak} cut={cut} add={add} />
+                                <StageTrack stats={stats} current={current ? groupOf(current) : null} />
+                                {cheer && (
+                                    <Box role="status" sx={{ mt: 2, p: "10px 14px", borderRadius: "8px", display: "flex", gap: 1, alignItems: "center",
+                                        bgcolor: t.greenSoft, color: t.greenInk, ...appear }}>
+                                        <CheckCircleRounded sx={{ fontSize: 20 }} /><Typography sx={{ fontSize: 14, color: "inherit" }}>{cheer}</Typography>
                                     </Box>
-                                </Box>
-                            )}
+                                )}
+                                {allDone ? (
+                                    <Box role="status" sx={{ ...cardSx(t), p: 3, mt: 2, textAlign: "center", ...appear }}>
+                                        <EmojiEventsRounded sx={{ fontSize: 48, color: t.green }} />
+                                        <Typography sx={{ fontSize: 20, fontWeight: 600, mt: 0.5 }}>Día completo</Typography>
+                                        <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.75 }}>{daySummary(tasks, marks)}</Typography>
+                                        {(cut > 0 || add > 0) && (
+                                            <Typography sx={{ fontSize: 14, color: t.muted }}>
+                                                Presupuesto por día: {[cut > 0 && `−${fmt.money(cut)} en lo que pierde`, add > 0 && `+${fmt.money(add)} en lo que gana`].filter(Boolean).join(" y ")}.
+                                            </Typography>
+                                        )}
+                                        <Typography sx={{ fontSize: 14, color: t.muted }}>
+                                            Racha: {plural(streak, "día seguido", "días seguidos")}.{today ? " Tu próxima misión sale mañana a las 7:00." : ""}
+                                        </Typography>
+                                    </Box>
+                                ) : current && (
+                                    <MissionCard key={current.key} item={current} mark={marks[current.key]} n={resolved + 1} total={tasks.length}
+                                        onMark={(st, n) => mark(current.key, st, n)} />
+                                )}
+                            </>}
 
-                            {/* 3. Las tareas, en el orden en que se hacen */}
+                            {/* 3. Todas las misiones, por etapa: se pueden hacer en cualquier orden */}
+                            {tasks.length > (current ? 1 : 0) && (
+                                <Typography sx={{ fontSize: 13, color: t.muted, mt: 3 }}>{allDone ? "Tus misiones de hoy." : "Todas tus misiones de hoy. Puedes hacerlas en el orden que quieras."}</Typography>
+                            )}
                             {GROUPS.map((g) => {
-                                const items = tasks.filter((i) => groupOf(i) === g.key);
+                                const items = tasks.filter((i) => groupOf(i) === g.key && i.key !== current?.key);
                                 return items.length === 0 ? null : (
-                                    <Section key={g.key} dot={g.color(t)} name={g.name} hint={g.hint} mt={2.5}>
-                                        {items.map((i) => <TaskRow key={i.key} item={i} mark={a.marks[i.key]} onMark={(s, n) => mark(i.key, s, n)} />)}
+                                    <Section key={g.key} dot={g.color(t)} name={g.name} hint={g.hint} mt={1.5}>
+                                        {items.map((i) => <TaskRow key={i.key} item={i} mark={marks[i.key]} onMark={(st, n) => mark(i.key, st, n)} />)}
                                     </Section>
                                 );
                             })}
