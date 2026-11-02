@@ -22,9 +22,9 @@ export type CreativeDecision = {
     cities: (Verdict & { campaign_meta_id: string; city: string | null })[];
     funnel: Funnel | null;
     video: {
-        window: string; grades: Record<"hook" | "hold" | "ctr" | "visit" | "conversion" | "watch", Grade>;
-        leaves: "opening" | "body" | "end" | null; watch_pct: number | null; diagnosis: string[];
-        iterate: "hook" | "duration" | "cta" | "landing" | "format" | null;
+        window: string; grades: Partial<Record<"hook" | "hold" | "middle" | "close" | "ctr" | "visit" | "conversion" | "watch", Grade>>;
+        leaves: "after_hook" | "opening" | "body" | "end" | null; watch_pct: number | null; diagnosis: string[];
+        iterate: string | null;
     } | null;
 };
 
@@ -32,7 +32,9 @@ const GRADE: Record<string, { label: string; color: "success" | "default" | "err
     good: { label: "bueno", color: "success" }, ok: { label: "regular", color: "default" }, weak: { label: "flojo", color: "error" },
 };
 const ITERATE: Record<string, string> = {
-    hook: "el hook (los primeros segundos)", duration: "la duración o el ritmo", cta: "el cierre (CTA)", landing: "la landing, sin cambiar el creativo", format: "el formato (probar en imagen)",
+    hook: "el hook (los primeros 3 segundos)", after_hook: "lo que viene justo después del hook", middle: "el medio del video (ritmo y duración)",
+    close: "el cierre (CTA)", click: "la oferta y el llamado a la acción", landing: "la landing, sin cambiar el creativo", format: "el formato (probar en imagen)",
+    duration: "la duración o el ritmo", cta: "el cierre (CTA)",
 };
 
 /** El veredicto en una etiqueta; al pasar el mouse, el dato, la lectura y la propuesta. */
@@ -92,9 +94,9 @@ export const CreativeDecisionBox: React.FC<{ d: CreativeDecision | null | undefi
                     <Box>
                         <Typography variant="caption" color="text.secondary">{d.video.grades.hook !== null ? "Video" : "Anuncio"} ({d.video.window})</Typography>
                         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                            {(["hook", "hold", "ctr", "visit", "conversion", "watch"] as const).filter((k) => d.video!.grades[k]).map((k) => (
+                            {(["hook", "hold", "middle", "close", "ctr", "visit", "conversion", "watch"] as const).filter((k) => d.video!.grades[k]).map((k) => (
                                 <Chip key={k} size="small" variant="outlined" color={GRADE[d.video!.grades[k]!].color}
-                                    label={`${{ hook: "Hook", hold: "Hold", ctr: "CTR único", visit: "Visita", conversion: "Compra", watch: "Tiempo visto" }[k]}: ${GRADE[d.video!.grades[k]!].label}`} />
+                                    label={`${{ hook: "Hook", hold: "Después del hook", middle: "Medio", close: "Cierre", ctr: "CTR único", visit: "Visita", conversion: "Compra", watch: "Tiempo visto" }[k]}: ${GRADE[d.video!.grades[k]!].label}`} />
                             ))}
                             {d.video.watch_pct !== null && <Chip size="small" variant="outlined" label={`Ven en promedio el ${fmt.pct(d.video.watch_pct)} del video`} />}
                         </Stack>
@@ -192,11 +194,12 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Video y anuncio", help: "Bueno desde / flojo debajo de. Además, flojo si está muy debajo de la mediana de tus ganadores del mismo producto.", fields: [
-            ["hook_good", "Hook bueno desde", "%"], ["hook_weak", "Hook flojo debajo de", "%"], ["hold_good", "Hold bueno desde", "%"], ["hold_weak", "Hold flojo debajo de", "%"],
+        title: "Video y anuncio", help: "El video se lee por tramos (hook, justo después del hook, medio, cierre y clic), cada uno sobre la gente que llega a él. Bueno desde / flojo debajo de; además, flojo si está muy debajo de la mediana de tus ganadores del mismo producto. Al editor le llega solo el primer tramo flojo.", fields: [
+            ["hook_good", "Hook bueno desde", "%"], ["hook_weak", "Hook flojo debajo de", "%"],
+            ["hold_good", "Justo después del hook (hold rate) bueno desde", "%"], ["hold_weak", "Justo después del hook (hold rate) flojo debajo de", "%"],
             ["ctr_good", "CTR único bueno desde", "%"], ["ctr_weak", "CTR único flojo debajo de", "%"], ["visit_ok", "Visita normal desde", "%"], ["visit_leak", "Visita: fuga debajo de", "%"],
-            ["retention_open", "Se van al principio si llega al 25 % menos del", "%"], ["retention_body", "Se van en el medio si del 25 % al 75 % sigue menos del", "%"],
-            ["retention_end", "Se van al final si del 75 % al final sigue menos del", "%"], ["watch_good", "Tiempo visto bueno desde", "% del video"],
+            ["retention_body", "El medio está flojo si del 25 % al 75 % sigue menos del", "%"],
+            ["retention_end", "El cierre está flojo si del 75 % al final sigue menos del", "%"], ["watch_good", "Tiempo visto bueno desde", "% del video"],
             ["watch_weak", "Tiempo visto flojo debajo de", "% del video"], ["winners_gap_pct", "Flojo si está debajo de tus ganadores por", "%"],
         ],
     },

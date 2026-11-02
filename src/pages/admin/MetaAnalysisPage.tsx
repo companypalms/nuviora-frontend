@@ -29,7 +29,7 @@ type CreativeFact = {
     funnel: string | null; week: { spend: number; purchases: number; cpa: number | null } | null;
     video: { window: string; diagnosis: string[]; iterate: string | null } | null;
     /** .70: ESCALAR, MANTENER, PARAR o ITERAR (de tus reglas), sus números y qué hacer el editor (en palabras). Los análisis viejos no lo traen. */
-    call?: { key: "scale" | "keep" | "stop" | "iterate"; label: string; tone: Tone; todo: string; editor: string | null };
+    call?: { key: "scale" | "keep" | "stop" | "iterate" | "stop_city"; label: string; tone: Tone; todo: string; editor: string | null };
     numbers?: string[];
 };
 type ProductFact = {
@@ -37,6 +37,8 @@ type ProductFact = {
     urgency: { level: number; label: string; batches: string; reasons: string[] } | null;
     next_work: string[]; price: string[]; price_watch: string | null; alarms: string[];
     cities: CityFact[]; creatives: CreativeFact[]; batches: { name: string; verdict: string; reading: string; proposal: string | null }[];
+    /** .80: qué apagar hoy en cada ciudad (los creativos que ahí pierden y siguen activos). Los análisis viejos no lo traen. */
+    stop_by_city?: Record<string, string[]>;
 };
 type AiProduct = { producto: string; diagnostico: string; ciudades: { ciudad: string; lectura: string }[]; decisiones_creativas: string[]; mensaje_editor: string; aprendizaje: string };
 type Analysis = {
@@ -174,6 +176,15 @@ const ProductSection: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<st
                         </Box>
                     ))}
                 </Box>
+            )}
+
+            {p.stop_by_city && Object.keys(p.stop_by_city).length > 0 && (
+                <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
+                    <Typography variant="subtitle2">Qué apagar hoy en Ads Manager, por ciudad</Typography>
+                    {Object.entries(p.stop_by_city).map(([city, labels]) => (
+                        <Typography key={city} variant="body2"><b>{city}:</b> {labels.join(", ")}</Typography>
+                    ))}
+                </Alert>
             )}
 
             {calls && (
