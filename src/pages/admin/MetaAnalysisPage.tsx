@@ -11,6 +11,8 @@
 // presupuesto movido), una celebración corta al terminar cada etapa y "Día completo" al final.
 // .83 (dueño: "debo poder saber en 3 segundos qué es lo que debo hacer"): cada misión dice dónde (producto corto y ciudad),
 // qué (una frase corta con el verbo primero) y cómo (los pasos en Ads Manager con los nombres exactos entre « »).
+// .84: si "Volver a analizar" se queda sin respuesta (el servidor cortó la espera, pero el análisis sigue), la pantalla no
+// muestra un error: dice "Sigue analizando…" y revisa sola hasta que aparece el análisis nuevo.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
@@ -131,6 +133,10 @@ const whereOf = (i: UrgentItem) => i.where ?? (i.title ? null : `${i.product}${i
 /** Las de antes de la .82 no traen ni pasos ni porqué: se muestra lo que decía la regla. */
 const oldRule = (i: UrgentItem) => !i.steps?.length && !i.why && !i.detail?.length ? i.text : null;
 const toneColor = (tone: Tone, t: Tokens) => ({ error: t.red, warning: t.amber, success: t.green, info: t.ink, default: t.gray }[tone]);
+
+/** .84: cada cuánto y cuántas veces se revisa si ya está el análisis nuevo (10 s × 18 = 3 minutos). */
+const WAIT_MS = 10000;
+const WAIT_TRIES = 18;
 
 /** Hoy en Caracas ("AAAA-MM-DD"), para saber si el análisis que se ve es el de hoy. */
 const todayYmd = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
@@ -491,6 +497,7 @@ export const MetaAnalysisPage: React.FC = () => {
     const [openProduct, setOpenProduct] = useState<number | null>(null);
     const [slow, setSlow] = useState(false);
     const [cheer, setCheer] = useState<string | null>(null);
+    const [waiting, setWaiting] = useState(false);
     // La celebración de una etapa se va sola
     useEffect(() => {
         if (!cheer) return;
@@ -513,15 +520,47 @@ export const MetaAnalysisPage: React.FC = () => {
         return () => clearTimeout(id);
     }, [data, error]);
 
+    const show = (a: Analysis) => {
+        setDate(a.date);
+        setVersion(a.version);
+    };
+    /** .84: después de que se cortó la espera, revisa cada 10 segundos (hasta 3 minutos) si ya está el análisis nuevo. */
+    const waitForNew = async (before: number): Promise<Data | null> => {
+        for (let k = 0; k < WAIT_TRIES; k++) {
+            await new Promise((r) => setTimeout(r, WAIT_MS));
+            try {
+                const r = await api<Data>("/meta/analysis");
+                if (r.analysis && r.analysis.id > before) return r;
+            } catch { /* sigue esperando */ }
+        }
+        return null;
+    };
     const run = async () => {
+        const before = data?.analysis?.id ?? 0;
         setRunning(true);
         try {
             const r = await api<{ analysis: Analysis; runs_left: number }>("/meta/analysis/run", "POST");
             setData((d) => d ? { ...d, analysis: r.analysis, runs_left: r.runs_left } : d);
-            setDate(r.analysis.date);
-            setVersion(r.analysis.version);
+            show(r.analysis);
             toast.success("Análisis hecho de nuevo");
-        } catch (e) { toast.error((e as Error).message); } finally { setRunning(false); }
+        } catch (e) {
+            const status = (e as { status?: number }).status ?? 0;
+            if (status !== 0 && status < 502) {
+                toast.error((e as Error).message);
+            } else {
+                // Sin respuesta o el servidor cortó la espera: el análisis sigue haciéndose
+                setWaiting(true);
+                const r = await waitForNew(before);
+                setWaiting(false);
+                if (r?.analysis) {
+                    setData(r);
+                    show(r.analysis);
+                    toast.success("Análisis hecho de nuevo");
+                } else {
+                    toast.info("Todavía no terminó. Recarga la página en unos minutos.");
+                }
+            }
+        } finally { setRunning(false); }
     };
     // La casilla cambia al instante; si el servidor falla, vuelve como estaba
     const mark = async (key: string, status: Mark["status"] | null, note?: string) => {
@@ -612,7 +651,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                     <Tooltip title={data.runs_left > 0 ? `Lo vuelve a hacer con los datos de ahora. Te quedan ${data.runs_left} hoy.` : "Ya usaste las 10 de hoy."}>
                                         <span>
                                             <TextAction onClick={run} disabled={running || data.runs_left <= 0}>
-                                                {running ? <><CircularProgress size={11} sx={{ color: t.muted, mr: 0.75 }} />Analizando…</> : "Volver a analizar"}
+                                                {running ? <><CircularProgress size={11} sx={{ color: t.muted, mr: 0.75 }} />{waiting ? "Sigue analizando…" : "Analizando…"}</> : "Volver a analizar"}
                                             </TextAction>
                                         </span>
                                     </Tooltip>
@@ -620,6 +659,11 @@ export const MetaAnalysisPage: React.FC = () => {
                             </Typography>
                         </Stack>
 
+                        {waiting && (
+                            <Typography role="status" sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                                Está tardando más de lo normal, pero sigue analizando. La pantalla se actualiza sola cuando termine.
+                            </Typography>
+                        )}
                         {!a ? (
                             // Vacío: qué significa y cómo avanzar
                             <Box sx={{ ...cardSx(t), p: 3, mt: 3, textAlign: "center" }}>

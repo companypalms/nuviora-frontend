@@ -281,9 +281,15 @@ export const COLUMNS: { key: string; label: string; kind: "money" | "pct" | "num
     { key: "hold_rate", label: "Hold Rate", kind: "pct", video: true },
 ];
 
-/** GET/POST/PUT/DELETE al backend; devuelve el JSON o lanza el mensaje del backend. */
+/**
+ * GET/POST/PUT/DELETE al backend; devuelve el JSON o lanza el mensaje del backend. `.84`: si no llegó respuesta (se cortó la
+ * conexión o el servidor tardó demasiado), lanza un error con status 0 y un mensaje claro.
+ */
 export const api = async <T = unknown>(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "GET", body?: unknown): Promise<T> => {
     const { status, response } = await request(url, method, body as Parameters<typeof request>[2]);
+    if (typeof response?.json !== "function") {
+        throw Object.assign(new Error("No llegó la respuesta del servidor. Revisa tu conexión y vuelve a intentar."), { status: 0 });
+    }
     const json = await response.json().catch(() => ({}));
     if (status >= 400) {
         const message = json?.message || (json?.errors ? Object.values(json.errors).flat().join(" ") : null) || `Error ${status}`;
