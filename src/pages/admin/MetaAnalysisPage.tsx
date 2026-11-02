@@ -9,6 +9,8 @@
 // y la usabilidad de un juego para que se vea fácil y se quiera usar y hacer"): una misión a la vez en grande, las 3 etapas
 // como un mapa (todas abiertas: el dueño eligió sin candado), un marcador con números de verdad (misiones, racha y
 // presupuesto movido), una celebración corta al terminar cada etapa y "Día completo" al final.
+// .83 (dueño: "debo poder saber en 3 segundos qué es lo que debo hacer"): cada misión dice dónde (producto corto y ciudad),
+// qué (una frase corta con el verbo primero) y cómo (los pasos en Ads Manager con los nombres exactos entre « »).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
@@ -31,6 +33,8 @@ type Group = "frenar" | "arreglar" | "crecer" | "aviso";
 type UrgentItem = {
     key: string; product_id: number; product: string; city: string | null; kind: string; label: string; text: string; tone: Tone; urgency: string | null;
     group?: Group; title?: string; why?: string | null; detail?: string[];
+    /** .83: dónde ("FlexiStep · Aragua") y cómo (los pasos en Ads Manager; los nombres exactos van entre « »). */
+    where?: string; steps?: string[];
     /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
     money?: { cut: number | null; add: number | null } | null;
 };
@@ -121,7 +125,11 @@ const KIND_GROUP: Record<string, Group> = {
     scale: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
 };
 const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";
-const titleOf = (i: UrgentItem) => i.title ?? `${i.label} · ${i.product}${i.city ? ` en ${i.city}` : ""}`;
+const titleOf = (i: UrgentItem) => i.title ?? i.label;
+/** Dónde. Las de la .82 ya traen el producto y la ciudad en la frase; las de antes, no. */
+const whereOf = (i: UrgentItem) => i.where ?? (i.title ? null : `${i.product}${i.city ? ` · ${i.city}` : ""}`);
+/** Las de antes de la .82 no traen ni pasos ni porqué: se muestra lo que decía la regla. */
+const oldRule = (i: UrgentItem) => !i.steps?.length && !i.why && !i.detail?.length ? i.text : null;
 const toneColor = (tone: Tone, t: Tokens) => ({ error: t.red, warning: t.amber, success: t.green, info: t.ink, default: t.gray }[tone]);
 
 /** Hoy en Caracas ("AAAA-MM-DD"), para saber si el análisis que se ve es el de hoy. */
@@ -173,7 +181,7 @@ const DisagreeDialog: React.FC<{ item: UrgentItem; mark?: Mark; onClose: () => v
         <Dialog open onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: geist }}>
             <DialogTitle sx={{ fontSize: 18, fontWeight: 600 }}>No estoy de acuerdo</DialogTitle>
             <DialogContent>
-                <Typography sx={{ fontSize: 14, mb: 1.5 }}>{titleOf(item)}</Typography>
+                <Typography sx={{ fontSize: 14, mb: 1.5 }}>{whereOf(item) && <>{whereOf(item)}: </>}{titleOf(item)}</Typography>
                 <TextField label="¿Qué harías tú y por qué?" value={note} onChange={(e) => setNote(e.target.value)} multiline minRows={3} fullWidth autoFocus
                     inputProps={{ maxLength: 500 }} helperText="La misión queda resuelta y tu nota sirve para ajustar tus reglas." />
             </DialogContent>
@@ -186,18 +194,43 @@ const DisagreeDialog: React.FC<{ item: UrgentItem; mark?: Mark; onClose: () => v
     );
 };
 
+/** .83: un texto con los nombres exactos entre « » (campaña, anuncios, batch): cada nombre se ve como una etiqueta. */
+const Rich: React.FC<{ text: string }> = ({ text }) => {
+    const t = useTokens();
+    return <>{text.split(/«([^»]+)»/).map((part, i) => i % 2 === 1
+        ? <Box key={i} component="span" sx={{ fontFamily: "ui-monospace, Consolas, monospace", fontSize: "0.88em", bgcolor: t.soft, border: `1px solid ${t.line}`,
+            borderRadius: "5px", px: 0.75, py: "1px", overflowWrap: "anywhere" }}>{part}</Box>
+        : <React.Fragment key={i}>{part}</React.Fragment>)}</>;
+};
+
+/** .83: cómo, paso a paso, en Ads Manager. */
+const Steps: React.FC<{ steps: string[]; size?: number }> = ({ steps, size = 15 }) => {
+    const t = useTokens();
+    return (
+        <Box component="ol" aria-label="Pasos en Ads Manager" sx={{ listStyle: "none", p: 0, m: 0, mt: 1.25 }}>
+            {steps.map((s, i) => (
+                <Box component="li" key={i} sx={{ display: "flex", gap: 1.25, alignItems: "flex-start", py: 0.5 }}>
+                    <Box aria-hidden sx={{ flex: "none", width: 22, height: 22, borderRadius: "50%", bgcolor: t.soft, color: t.muted, fontSize: 12, fontWeight: 600,
+                        display: "flex", alignItems: "center", justifyContent: "center", mt: "1px" }}>{i + 1}</Box>
+                    <Typography sx={{ fontSize: size, lineHeight: 1.45, overflowWrap: "anywhere" }}><Rich text={s} /></Typography>
+                </Box>
+            ))}
+        </Box>
+    );
+};
+
 /** El porqué de una misión, plegado: los números en palabras y la regla. */
 const WhyBox: React.FC<{ item: UrgentItem; children?: React.ReactNode }> = ({ item, children }) => {
     const t = useTokens();
     return (
         <Box sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", mt: 1, lineHeight: 1.55 }}>
-            {(item.detail?.length ? item.detail : [item.text]).map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}>{d}</Typography>)}
+            {(item.detail?.length ? item.detail : [item.text]).map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}><Rich text={d} /></Typography>)}
             {children}
         </Box>
     );
 };
 
-/** Una misión de la lista: la casilla (se puede hacer en cualquier orden), la frase con los montos y su porqué plegado. */
+/** Una misión de la lista: la casilla (se puede hacer en cualquier orden), qué y dónde; los pasos y el porqué, plegados. */
 const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
@@ -208,7 +241,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
     return (
         <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75 }}>
             <Checkbox checked={done} indeterminate={disagree} onChange={(e) => onMark(e.target.checked ? "done" : null)} disableRipple sx={{ p: 0, mt: "1px" }}
-                inputProps={{ "aria-label": `Hecho: ${titleOf(item)}` }}
+                inputProps={{ "aria-label": `Hecho: ${whereOf(item) ? `${whereOf(item)}, ` : ""}${titleOf(item)}` }}
                 icon={<Box sx={{ ...box, border: `1.5px solid ${t.faint}` }} />}
                 checkedIcon={<Box sx={{ ...box, bgcolor: t.ink, color: t.onInk }}><CheckRounded sx={{ fontSize: 16 }} /></Box>}
                 indeterminateIcon={<Box sx={{ ...box, bgcolor: t.soft, border: `1.5px solid ${t.faint}`, color: t.muted }}><RemoveRounded sx={{ fontSize: 16 }} /></Box>} />
@@ -221,13 +254,16 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                     <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
                         No estás de acuerdo{mark?.note ? `: ${mark.note}` : ""} · <TextAction onClick={() => setDialog(true)} sx={{ color: t.muted }}>Cambiar tu nota</TextAction>
                     </Typography>
-                ) : !done && (
+                ) : !done ? (
                     <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
-                        {item.why && <>{item.why} · </>}
-                        <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
+                        {[whereOf(item), item.why].filter(Boolean).join(" · ")}{(whereOf(item) || item.why) && " · "}
+                        <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>
+                            {open ? "Ocultar" : item.steps?.length ? "Cómo y por qué" : "¿Por qué?"}
+                        </TextAction>
                     </Typography>
-                )}
+                ) : whereOf(item) && <Typography sx={{ fontSize: 13, color: t.faint, mt: 0.25 }}>{whereOf(item)}</Typography>}
                 <Collapse in={open && !done && !disagree} unmountOnExit>
+                    {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
                     <WhyBox item={item}>
                         <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>
                     </WhyBox>
@@ -250,12 +286,17 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
                 <Dot color={g.color(t)} size={9} />
                 <Typography sx={{ fontSize: 13, color: t.muted }}>Misión {n} de {total} · {g.name}</Typography>
             </Stack>
-            <Typography component="h2" sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.35, mt: 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
-            <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>
-                {item.why && <>{item.why} · </>}
-                <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
-            </Typography>
-            <Collapse in={open} unmountOnExit><WhyBox item={item} /></Collapse>
+            {whereOf(item) && <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}</Typography>}
+            <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: whereOf(item) ? 0.25 : 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
+            {item.steps?.length ? <Steps steps={item.steps} /> : null}
+            {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
+            {!oldRule(item) && <>
+                <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 1.25, overflowWrap: "anywhere" }}>
+                    {item.why && <>{item.why} · </>}
+                    <TextAction onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ color: t.muted }}>{open ? "Ocultar" : "¿Por qué?"}</TextAction>
+                </Typography>
+                <Collapse in={open} unmountOnExit><WhyBox item={item} /></Collapse>
+            </>}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
                 <Button variant="contained" disableElevation startIcon={<CheckRounded />} sx={{ ...inkSx(t), minHeight: 40 }} onClick={() => onMark("done")}>Hecho</Button>
                 <Button variant="outlined" sx={{ color: t.ink, borderColor: t.line, borderRadius: "10px", minHeight: 40, "&:hover": { borderColor: t.faint, bgcolor: "transparent" } }}
