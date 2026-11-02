@@ -23,7 +23,7 @@ type Page = {
     products: { id: number; name: string; tested: number }[]; product_id: number | null; kinds: Record<string, string>; styles: Record<string, string>;
     summary?: { works: string[]; fails: string[]; untested: string[] } | null; status?: string | null; model?: string | null; error?: string | null;
     unknown_numbers?: string[]; generated_at?: string | null; stale?: boolean; tested?: number; totals?: { won: number; lost: number; tie: number };
-    groups?: Record<"angle" | "persona" | "style", Group[]>; untested?: { angle: string[]; persona: string[]; style: string[] }; batches?: TestedBatch[]; notes?: Note[];
+    groups?: Record<"angle" | "persona" | "style", Group[]>; piece_groups?: Group[]; untested?: { angle: string[]; persona: string[]; style: string[] }; batches?: TestedBatch[]; notes?: Note[];
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -43,9 +43,10 @@ const SummaryList: React.FC<{ title: string; items?: string[]; color: "success" 
     </Paper>
 );
 
-const GroupRows: React.FC<{ title: string; rows: Group[] }> = ({ title, rows }) => (
+const GroupRows: React.FC<{ title: string; rows: Group[]; unit?: [string, string]; help?: string }> = ({ title, rows, unit = ["batch", "batches"], help }) => (
     <Paper elevation={0} sx={card}>
         <Typography variant="subtitle1" fontWeight="bold">{title}</Typography>
+        {help && <Typography variant="caption" color="text.secondary" component="div">{help}</Typography>}
         {rows.length === 0 ? <Typography variant="body2" color="text.secondary">Todavía nada testeado.</Typography> : rows.map((g) => (
             <Box key={g.label} sx={{ py: 1, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
                 <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -53,7 +54,7 @@ const GroupRows: React.FC<{ title: string; rows: Group[] }> = ({ title, rows }) 
                     {g.won > 0 && <Chip size="small" color="success" label={`Ganó ${g.won}`} />}
                     {g.lost > 0 && <Chip size="small" color="error" label={`Perdió ${g.lost}`} />}
                     {g.tie > 0 && <Chip size="small" label={`Empate ${g.tie}`} />}
-                    <Typography variant="caption" color="text.secondary">de {g.total} {g.total === 1 ? "batch" : "batches"}</Typography>
+                    <Typography variant="caption" color="text.secondary">de {g.total} {g.total === 1 ? unit[0] : unit[1]}</Typography>
                 </Stack>
                 {g.lessons.slice(0, 3).map((l, i) => <Typography key={i} variant="caption" color="text.secondary" component="div" sx={{ overflowWrap: "anywhere" }}>· {l}</Typography>)}
             </Box>
@@ -204,6 +205,11 @@ export const MetaMemoryPage: React.FC = () => {
                             <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems="flex-start">
                                 {DIMENSIONS.map((d) => <Box key={d.key} sx={{ flex: 1, minWidth: 0, width: "100%" }}><GroupRows title={d.title} rows={data.groups?.[d.key] ?? []} /></Box>)}
                             </Stack>
+                        )}
+                        {/* .81: qué probó cada pieza (un hook nuevo, otro formato, arreglar el medio…) y si ganó */}
+                        {(data.piece_groups?.length ?? 0) > 0 && (
+                            <GroupRows title="Pieza por pieza" rows={data.piece_groups ?? []} unit={["pieza", "piezas"]}
+                                help="Qué probó cada pieza de los encargos y cómo le fue al terminar su test." />
                         )}
                         <Paper elevation={0} sx={card}>
                             <Typography variant="subtitle1" fontWeight="bold">Tus notas</Typography>

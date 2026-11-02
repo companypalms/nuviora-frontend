@@ -28,7 +28,10 @@ import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
-type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
+/** .81: qué prueba la pieza, su formato, su hipótesis, por qué ese formato y, al terminar el test, si ganó. */
+type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null;
+    test_label?: string | null; style_label?: string | null; hypothesis?: string | null; reason?: string | null; result?: string | null };
+const RESULT_COLOR: Record<string, "success" | "error" | "default"> = { "Ganó": "success", "Perdió": "error", "Empate": "default" };
 type Verdict = { city: string | null; key: string; label: string };
 type Batch = {
     id: number; code: string | null; product_id: number; product: string; status: Status; status_label: string; status_at: string | null; status_by: string | null;
@@ -332,8 +335,15 @@ const BatchCard: React.FC<{
                 <Box component="ol" sx={{ m: 0, mt: 0.75, pl: 2.5 }}>
                     {b.pieces.map((p, i) => (
                         <Typography key={p.id ?? i} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                            {p.code && <b>{p.code} </b>}{p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
+                            {p.code && <b>{p.code} </b>}{p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}: </b>}
+                            {p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
                             {p.link && <> · <a href={p.link} target="_blank" rel="noopener noreferrer">video <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></a></>}
+                            {p.result && <> <Chip size="small" color={RESULT_COLOR[p.result] ?? "default"} label={p.result} sx={{ height: 18, ml: 0.5 }} /></>}
+                            {(p.hypothesis || p.reason) && (
+                                <Typography variant="caption" color="text.secondary" component="div">
+                                    {[p.hypothesis && `Qué probamos: ${p.hypothesis}`, p.reason && `Por qué este formato: ${p.reason}`].filter(Boolean).join(" · ")}
+                                </Typography>
+                            )}
                         </Typography>
                     ))}
                 </Box>

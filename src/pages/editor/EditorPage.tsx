@@ -18,7 +18,9 @@ import { EditorFields, EditorOption, dueLabel, notifyEditorChanged } from "../..
 import { PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
 
 type Status = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
-type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null };
+/** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis (las del análisis las traen). */
+type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null;
+    test_label?: string | null; style_label?: string | null; hypothesis?: string | null };
 type EBatch = EditorFields & {
     id: number; code: string | null; product: string; status: Status; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
@@ -132,15 +134,19 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                             </Box>
                         </Stack>
                     )}
-                    {b.pieces.length > 0 && (
+                    {b.pieces.length > 0 && (b.pieces.some((p) => p.hypothesis) ? (
+                        <Typography variant="body2" fontWeight={700} sx={{ mt: 1.25 }}>Qué hacer en cada pieza</Typography>
+                    ) : (
                         <Typography variant="body2" fontWeight={700} sx={{ mt: 1.25 }}>Ideas para cada versión <Typography component="span" variant="caption" color="text.secondary">(tú decides cómo)</Typography></Typography>
-                    )}
+                    ))}
                     {b.pieces.length > 0 && (
                         <Box component="ol" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
                             {b.pieces.map((p) => (
                                 <Typography key={p.id} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                                    {p.code && <b>{p.code} </b>}{p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
+                                    {p.code && <b>{p.code} </b>}{p.hypothesis && p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}: </b>}
+                                    {p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
                                     {p.format && p.format !== b.format && <> ({(FORMATS[p.format] ?? p.format).toLowerCase()})</>}
+                                    {p.hypothesis && <Typography variant="caption" color="text.secondary" component="div">Qué probamos: {p.hypothesis}</Typography>}
                                 </Typography>
                             ))}
                         </Box>
