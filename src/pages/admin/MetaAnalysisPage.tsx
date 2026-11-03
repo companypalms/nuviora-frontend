@@ -124,7 +124,7 @@ const daySummary = (tasks: UrgentItem[], marks: Record<string, Mark>) => {
 /** El grupo de cada cosa para los análisis de antes de la .82 (el mismo de UrgentList::GROUP). */
 const KIND_GROUP: Record<string, Group> = {
     drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
-    intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar",
+    intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar", few_batches: "arreglar",
     scale: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
 };
 const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";
@@ -765,7 +765,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                     <Box sx={{ ...cardSx(t), p: "10px 14px" }}>
                                         {notices.map((i) => (
                                             <Typography key={i.key} sx={{ fontSize: 14, py: 0.25, overflowWrap: "anywhere" }}>
-                                                <b style={{ fontWeight: 600 }}>{i.product}</b> · {i.title ?? i.text}
+                                                <b style={{ fontWeight: 600 }}>{i.where ?? i.product}</b> · {i.title ?? i.text}
                                             </Typography>
                                         ))}
                                     </Box>

@@ -49,6 +49,8 @@ type Batch = {
     approved_by: string | null; discard_reason: string | null; testing_at: string | null; tested_at: string | null;
     result: { verdicts: Verdict[]; spend: number; purchases: number; cpa: number | null } | null; learning: string | null; pieces: Piece[];
     meta_names: { adset: string | null; ads: string[] }; brief: string;
+    /** .87: en qué ciudades salió en Meta y para cuáles sigue en banca (solo los que ya salieron). */
+    cities?: { launched: string[]; bank_for: string[] } | null;
 } & EditorFields;
 type ProductRow = {
     id: number; name: string; active_campaigns: number; bank: number; ready: number;
@@ -85,6 +87,8 @@ const STATUS_COLOR: Record<Status, "default" | "info" | "primary" | "secondary" 
     proposed: "default", approved: "info", production: "primary", review: "secondary", bank: "success", testing: "warning", tested: "success", discarded: "default",
 };
 const VERDICT_COLOR: Record<string, "success" | "warning" | "error" | "default"> = { proven: "success", promising: "success", intermediate: "warning", failing: "warning", loser: "error" };
+/** .87: "Aragua", "Carabobo y Caracas", "Aragua, Carabobo y Caracas". */
+const andList = (xs: string[]) => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
 const URGENCY_COLOR: Record<number, "error" | "warning" | "success" | "default"> = { 1: "error", 2: "warning", 3: "success", 4: "default", 5: "default" };
 const QUEUE: Status[] = ["approved", "production", "review"];
 const MANUAL: Status[] = ["approved", "production", "review", "bank", "testing", "tested", "discarded"];
@@ -331,6 +335,12 @@ const BatchCard: React.FC<{
                     b.status_at && `${b.status_label} ${dateTime(b.status_at)}${b.status_by ? ` por ${b.status_by}` : b.status === "testing" || b.status === "tested" ? " (solo)" : ""}`]
                     .filter(Boolean).join(" · ")}
             </Typography>
+            {b.cities && (
+                <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}>
+                    <b>Lanzado en</b> {andList(b.cities.launched)}
+                    {b.cities.bank_for.length > 0 && <> · <b>en banca para</b> {andList(b.cities.bank_for)}</>}
+                </Typography>
+            )}
             {b.pieces.length > 0 && (
                 <Box component="ol" sx={{ m: 0, mt: 0.75, pl: 2.5 }}>
                     {b.pieces.map((p, i) => (
@@ -546,7 +556,7 @@ export const MetaQueuePage: React.FC = () => {
                     {section("Para aprobar", "Al aprobar, el sistema le da su número y entra al final de la cola.", byStatus.proposed, "Nada para aprobar.")}
                     {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen. Las entregas del editor líder las revisas tú.", byStatus.queue, "La cola está vacía.", true)}
                     {section("En banca", "Listos para lanzar: \"Copiar encargo\" trae el enlace de cada video. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}
-                    {section("En test", "Ya están en Meta. Cuando tus reglas les dan un veredicto en cada ciudad, pasan solos a Testeado.", byStatus.testing, "Nada en test.")}
+                    {section("En test", "Ya están en Meta. Cuando tus reglas les dan un veredicto en cada ciudad, pasan solos a Testeado. Si salió en una sola ciudad, sigue en banca para las demás: el análisis te dice cuándo lanzarlo ahí.", byStatus.testing, "Nada en test.")}
                     <Paper elevation={0} sx={card}>
                         <Button size="small" onClick={() => setHistory(!history)} endIcon={history ? <ExpandLessRounded /> : <ExpandMoreRounded />} sx={{ textTransform: "none", fontWeight: 700 }}>
                             Testeados y descartados ({byStatus.closed.length})
