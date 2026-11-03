@@ -23,6 +23,7 @@ import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVis
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
+import type { StoredFile } from "../../components/meta-ads/fileUpload";
 import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
@@ -30,7 +31,7 @@ import { Forecast, ForecastCard, Unfilled } from "../../components/meta-ads/edit
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: qué prueba la pieza, su formato, su hipótesis, por qué ese formato y, al terminar el test, si ganó. */
-type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null;
+type Piece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null;
     test_label?: string | null; style_label?: string | null; hypothesis?: string | null; reason?: string | null; result?: string | null };
 const RESULT_COLOR: Record<string, "success" | "error" | "default"> = { "Ganó": "success", "Perdió": "error", "Empate": "default" };
 type Verdict = { city: string | null; key: string; label: string };
@@ -355,7 +356,9 @@ const BatchCard: React.FC<{
                         <Typography key={p.id ?? i} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
                             {p.code && <b>{p.code} </b>}{p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}: </b>}
                             {p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
-                            {p.link && <> · <a href={p.link} target="_blank" rel="noopener noreferrer">video <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></a></>}
+                            {/* .90: el archivo en el sistema (ver y bajar con su nombre); los viejos, en Drive */}
+                            {p.file?.url ? <> · <a href={p.file.url} target="_blank" rel="noopener noreferrer">ver</a>{p.file.download_url && <> · <a href={p.file.download_url}>bajar «{p.file.name}»</a></>}</>
+                                : p.link && <> · <a href={p.link} target="_blank" rel="noopener noreferrer">video <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></a></>}
                             {p.result && <> <Chip size="small" color={RESULT_COLOR[p.result] ?? "default"} label={p.result} sx={{ height: 18, ml: 0.5 }} /></>}
                             {(p.hypothesis || p.reason) && (
                                 <Typography variant="caption" color="text.secondary" component="div">

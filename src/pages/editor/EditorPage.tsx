@@ -1,8 +1,8 @@
 // src/pages/editor/EditorPage.tsx
 // Etapa 5, paso 5a (2026-10-30): las pantallas de los editores de video. "Mis encargos" (los dos editores): lo que les
-// asignaron, con todo el encargo, para empezarlo y entregarlo con el enlace de Drive de cada pieza. "Encargos del equipo"
-// (solo el editor líder): asignar lo aprobado por el dueño y revisar lo entregado (aprobar a la banca o devolver). Sin
-// dinero: los resultados llegan en el paso 5b.
+// asignaron, con todo el encargo, para empezarlo y entregarlo con el archivo de cada pieza (.90: subido al sistema; sin
+// almacén, el enlace de Drive). "Encargos del equipo" (solo el editor líder): asignar lo aprobado por el dueño y revisar
+// lo entregado (aprobar a la banca o devolver). Sin dinero: los resultados llegan en el paso 5b.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { CheckRounded, PlayArrowRounded, RateReviewRounded, UploadRounded } from "@mui/icons-material";
@@ -16,12 +16,13 @@ import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel, notifyEditorChanged } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
-import { PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
+import { AngleInfo, PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
+import type { StoredFile } from "../../components/meta-ads/fileUpload";
 
 type Status = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis (las del análisis las traen). */
 type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null;
-    test_label?: string | null; style_label?: string | null; hypothesis?: string | null };
+    test_label?: string | null; style_label?: string | null; hypothesis?: string | null; file?: StoredFile | null };
 type EBatch = EditorFields & {
     id: number; code: string | null; product: string; status: Status; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
@@ -31,6 +32,8 @@ type EBatch = EditorFields & {
     test_idea?: string | null;
     /** .64: lo del producto (de su ficha) y SOLO el buyer persona de este encargo. */
     product_info?: ProductInfo | null; persona?: PersonaInfo | null;
+    /** .90: la ficha completa (todos los buyer personas y ángulos), las fotos del producto y si se entrega subiendo el archivo. */
+    personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[]; uploads?: boolean;
     /** .66: el estilo del encargo (testimonio, video animado…). */
     style_label?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
@@ -48,6 +51,8 @@ type Data = {
     unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
     /** .89: entrega + estos días de correcciones = lista en la banca. */
     corrections_days?: number;
+    /** .90: se entrega subiendo cada archivo al sistema (apagado: con el enlace de Drive). */
+    uploads?: boolean;
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -122,7 +127,8 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                     <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
                         {[b.format && FORMATS[b.format], b.style_label && `Estilo: ${b.style_label}`, b.offer].filter(Boolean).join(" · ")}
                     </Typography>
-                    <ProductBox product={b.product} info={b.product_info} />
+                    <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos}
+                        persona={b.persona?.name} angle={b.angle_code} />
                     {b.reference && (
                         <Stack direction="row" spacing={1.25} sx={{ mt: 1, p: 1, borderRadius: 2, bgcolor: "action.hover" }}>
                             {b.reference_thumbnail && (
@@ -161,7 +167,9 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                     <Field label="Entregables" value={b.deliverables} />
                     {b.meta_names.adset && (
                         <Typography variant="caption" component="div" sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
-                            <b>Nombra cada archivo de Drive con su código:</b> {b.meta_names.ads.join(", ")} (van en el ad set {b.meta_names.adset})
+                            {b.uploads
+                                ? <><b>Al entregar, sube cada archivo en su pieza:</b> queda con su nombre solo ({b.meta_names.ads.join(", ")}, en el ad set {b.meta_names.adset})</>
+                                : <><b>Nombra cada archivo de Drive con su código:</b> {b.meta_names.ads.join(", ")} (van en el ad set {b.meta_names.adset})</>}
                         </Typography>
                     )}
                 </Box>
@@ -192,7 +200,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                 {!done && <CopyBrief text={b.brief} />}
             </Stack>
 
-            <DeliverDialog<EBatch> open={deliver} code={b.code ?? "el encargo"} pieces={b.pieces} url={`/editor/queue/${b.id}/deliver`}
+            <DeliverDialog<EBatch> open={deliver} code={b.code ?? "el encargo"} pieces={b.pieces} url={`/editor/queue/${b.id}/deliver`} uploads={!!b.uploads} batchId={b.id}
                 concept={b.deliveries[0]?.concept ?? b.concept ?? ""} angle={b.deliveries[0]?.angle ?? [b.angle_code, b.angle_name].filter(Boolean).join(" — ")}
                 onClose={() => setDeliver(false)} onDone={changed} />
             <ReviewDialog<EBatch> open={review} title={b.code ?? "el encargo"} delivery={b.deliveries.find((d) => d.review === "pending") ?? null}
@@ -262,7 +270,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     </>
                 ) : (
                     <>
-                        <DescripcionDeVista title="Mis encargos" description='Los encargos de video que te asignaron, lo más urgente arriba. Toca "Empezar" cuando lo empieces y "Entregar" con el enlace de Drive de cada video, el hook de cada uno, el concepto y el ángulo.' />
+                        <DescripcionDeVista title="Mis encargos" description={`Los encargos de video que te asignaron, lo más urgente arriba. Toca "Empezar" cuando lo empieces y "Entregar" con ${data.uploads ? "el archivo de cada video (lo subes aquí mismo)" : "el enlace de Drive de cada video"}, el hook de cada uno, el concepto y el ángulo.`} />
                         {leader && (data.pending.to_assign > 0 || data.pending.to_review > 0) && (
                             <Alert severity="info" sx={{ mb: 2 }} action={<Button color="inherit" size="small" component={RouterLink} to="/editor/equipo">Ver</Button>}>
                                 En el equipo hay {data.pending.to_assign} para asignar y {data.pending.to_review} para revisar.

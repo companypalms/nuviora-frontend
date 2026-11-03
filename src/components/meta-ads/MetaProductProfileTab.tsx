@@ -5,13 +5,18 @@
 // escribe nada. Se llena aquí o se la pasa al asistente (texto, PDF o fotos), que deja una tarjeta para aprobar.
 // .65: los ángulos de venta (del más fuerte al más débil) y la fase: "En testeo" pide 3 batches (1 por cada uno de los 3
 // primeros ángulos; con 2 ángulos, 2 del más fuerte y 1 del otro; con 1, 2 batches) y "Iterar lo que funciona".
+// .90: las fotos del producto (las ven los editores) y su documento de estrategia (solo el dueño), subidos al sistema.
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
-import { AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, AutoAwesomeRounded, DeleteOutlineRounded, SaveRounded } from "@mui/icons-material";
+import { Alert, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import {
+    AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, AutoAwesomeRounded, DeleteOutlineRounded, SaveRounded, UploadFileRounded,
+} from "@mui/icons-material";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import { TestingBox, TestingSummary } from "./productProfile";
+import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
+import { FileView } from "./fileView";
 
 type FieldKey = "what_it_is" | "benefits" | "mechanism" | "not_this" | "key_info" | "photos_url";
 type PersonaKey = "name" | "who" | "pain" | "wants" | "objections";
@@ -24,7 +29,10 @@ type Data = {
     /** .65 */
     phase?: Phase; phases?: Record<Phase, string>; angles?: { code: string; name: string | null; hypothesis: string | null; persona: string | null }[];
     testing?: TestingSummary | null; tested_angles?: string[];
+    /** .90 */
+    files?: ProductFilesData;
 };
+type ProductFilesData = { on: boolean; photos: StoredFile[]; strategy: StoredFile[] };
 type Phase = "testing" | "iterate";
 type Angle = { key: string; code: string; name: string; hypothesis: string; persona: string };
 
@@ -62,6 +70,83 @@ const toPersona = (p: ApiPersona): Persona => ({ id: p.id, key: `id${p.id}`, nam
 const emptyPersona = (): Persona => ({ id: null, key: newKey(), name: "", who: "", pain: "", wants: "", objections: "" });
 const emptyProfile = (): Record<FieldKey, string> => ({ what_it_is: "", benefits: "", mechanism: "", not_this: "", key_info: "", photos_url: "" });
 const emptyAngle = (): Angle => ({ key: newKey(), code: "", name: "", hypothesis: "", persona: "" });
+
+/** .90: las fotos y el documento de estrategia del producto, en el sistema. Se guardan solos (no esperan "Guardar la ficha"). */
+const ProductFiles: React.FC<{ productId: number; files?: ProductFilesData; onChange: (f: ProductFilesData) => void }> = ({ productId, files, onChange }) => {
+    const [progress, setProgress] = useState<{ kind: "photo" | "strategy"; name: string; percent: number } | null>(null);
+    if (!files) return null;
+    const upload = async (kind: "photo" | "strategy", list: FileList | null) => {
+        for (const file of Array.from(list ?? [])) {
+            const problem = fileProblem(kind, file);
+            if (problem) { toast.error(problem); continue; }
+            setProgress({ kind, name: file.name, percent: 0 });
+            try {
+                const r = await sendFile<{ files: ProductFilesData }>(`/meta/product-profiles/${productId}/files`, { kind }, file, (id) => `/meta/files/${id}/confirm`,
+                    (percent) => setProgress({ kind, name: file.name, percent }));
+                onChange(r.files);
+            } catch (e) { toast.error((e as Error).message); }
+        }
+        setProgress(null);
+    };
+    const remove = async (f: StoredFile) => {
+        if (!window.confirm(`¿Quitar "${f.name}" del producto? Se borra del sistema.`)) return;
+        try { onChange((await api<{ files: ProductFilesData }>(`/meta/files/${f.id}`, "DELETE")).files); } catch (e) { toast.error((e as Error).message); }
+    };
+    const picker = (kind: "photo" | "strategy", label: string) => (
+        <Button component="label" size="small" startIcon={<UploadFileRounded />} disabled={!!progress} sx={{ mt: 1 }}>
+            {label}
+            <input hidden type="file" multiple={kind === "photo"} accept={ACCEPT[kind]} onChange={(e) => { upload(kind, e.target.files); e.target.value = ""; }} />
+        </Button>
+    );
+    const bar = (kind: "photo" | "strategy") => (progress?.kind === kind ? (
+        <Box sx={{ mt: 1 }}>
+            <LinearProgress variant="determinate" value={progress.percent} />
+            <Typography variant="caption" color="text.secondary">Subiendo {progress.name}… {progress.percent} %</Typography>
+        </Box>
+    ) : null);
+    return (
+        <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
+            <Typography variant="subtitle1" fontWeight="bold">Fotos y documento de estrategia</Typography>
+            {!files.on ? (
+                <Alert severity="info" sx={{ mt: 1 }}>
+                    Para subir las fotos y la estrategia aquí falta conectar el almacén de archivos (Cloudflare R2) en el servidor. Mientras tanto, pon arriba el link de la carpeta de Drive.
+                </Alert>
+            ) : (
+                <>
+                    <Typography variant="body2" color="text.secondary">
+                        Las fotos las ven los editores en cada encargo de este producto. El documento de estrategia solo lo ves tú. Si se los pasas a tu asistente con la ficha, se guardan solos.
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} sx={{ mt: 1.5 }}>Fotos ({files.photos.length})</Typography>
+                    <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        {files.photos.map((f) => (
+                            <Box key={f.id} sx={{ position: "relative" }}>
+                                {f.url && <Box component="img" src={f.url} alt={f.name} loading="lazy" sx={{ width: 104, height: 104, objectFit: "cover", borderRadius: 1.5, display: "block" }} />}
+                                <IconButton size="small" aria-label={`Quitar ${f.name}`} onClick={() => remove(f)}
+                                    sx={{ position: "absolute", top: 2, right: 2, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper" } }}>
+                                    <DeleteOutlineRounded fontSize="small" />
+                                </IconButton>
+                            </Box>
+                        ))}
+                    </Stack>
+                    {bar("photo")}
+                    {picker("photo", "Subir fotos")}
+                    <Typography variant="body2" fontWeight={700} sx={{ mt: 1.5 }}>Documento de estrategia (solo tú)</Typography>
+                    <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                        {files.strategy.map((f) => (
+                            <Stack key={f.id} direction="row" spacing={1} alignItems="center">
+                                <FileView file={f} />
+                                <IconButton size="small" aria-label={`Quitar ${f.name}`} onClick={() => remove(f)}><DeleteOutlineRounded fontSize="small" /></IconButton>
+                            </Stack>
+                        ))}
+                        {files.strategy.length === 0 && <Typography variant="caption" color="text.secondary">Todavía no hay ninguno.</Typography>}
+                    </Stack>
+                    {bar("strategy")}
+                    {picker("strategy", "Subir documento")}
+                </>
+            )}
+        </Paper>
+    );
+};
 
 export const MetaProductProfileTab: React.FC = () => {
     const [params] = useSearchParams();
@@ -136,7 +221,8 @@ export const MetaProductProfileTab: React.FC = () => {
         <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
                 Lo que la IA tiene que saber de cada producto para escribir bien los encargos de los editores y las landings. <b>Sin la ficha completa, la IA no le
-                propone encargos a ese producto.</b> El editor ve lo básico del producto y solo el buyer persona de su encargo, nunca la lista completa.
+                propone encargos a ese producto.</b> El editor ve toda la ficha (sin precios): el producto, todos los buyer personas y todos los ángulos con de qué trata cada uno.
+                No ve el orden de fuerza de los ángulos, lo que sabemos ni el documento de estrategia.
             </Typography>
             <Alert severity="info" icon={<AutoAwesomeRounded />}>
                 También la puede llenar tu asistente: pásale toda la información del producto (escrita, en un PDF o en fotos) y te deja una tarjeta con la ficha completa para que la confirmes.
@@ -186,7 +272,7 @@ export const MetaProductProfileTab: React.FC = () => {
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">Buyer personas</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                            Un tipo de cliente por tarjeta. La IA elige a cuál le habla cada encargo y el editor solo ve ese. Hace falta al menos uno con quién es y qué le duele.
+                            Un tipo de cliente por tarjeta. La IA elige a cuál le habla cada encargo; el editor los ve todos, con el de su encargo marcado. Hace falta al menos uno con quién es y qué le duele.
                         </Typography>
                         <Stack spacing={1.5}>
                             {personas.map((p, i) => (
@@ -219,7 +305,7 @@ export const MetaProductProfileTab: React.FC = () => {
                         <Typography variant="subtitle1" fontWeight="bold">Ángulos de venta</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                             Del más fuerte al más débil (ordénalos con las flechas). En el testeo se prueban los 3 primeros. El código es el que va en los nombres
-                            de Meta (por ejemplo "B0123 GINE"). La hipótesis solo la ves tú.
+                            de Meta (por ejemplo "B0123 GINE"). El editor ve la hipótesis como "de qué trata" el ángulo (sin precios); el orden, solo tú.
                         </Typography>
                         <Stack spacing={1.5}>
                             {angles.map((a, i) => (
@@ -246,7 +332,7 @@ export const MetaProductProfileTab: React.FC = () => {
                                             <MenuItem value="">Ninguno en particular</MenuItem>
                                             {personas.filter((p) => p.name.trim()).map((p) => <MenuItem key={p.key} value={p.name.trim()}>{p.name.trim()}</MenuItem>)}
                                         </TextField>
-                                        <TextField size="small" label="Hipótesis (solo la ves tú)" value={a.hypothesis} fullWidth multiline onChange={(e) => setAngle(i, "hypothesis", e.target.value)}
+                                        <TextField size="small" label='Hipótesis (el editor la ve como "de qué trata")' value={a.hypothesis} fullWidth multiline onChange={(e) => setAngle(i, "hypothesis", e.target.value)}
                                             inputProps={{ maxLength: 1000 }} placeholder="Por qué puede vender: qué dolor o deseo toca y por qué compraría" />
                                     </Stack>
                                 </Box>
@@ -257,6 +343,7 @@ export const MetaProductProfileTab: React.FC = () => {
                             Agregar ángulo
                         </Button>
                     </Paper>
+                    {productId && <ProductFiles productId={productId} files={data.files} onChange={(files) => setData((d) => (d ? { ...d, files } : d))} />}
                     <Box sx={{ display: "flex", justifyContent: "flex-end", position: "sticky", bottom: 8 }}>
                         <Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveRounded />} disabled={saving || !dirty} onClick={save}>
                             Guardar la ficha

@@ -14,7 +14,7 @@ type Plan = {
     adset_name: string | null;
     status: string;
     texts: { from: string | null; title: string | null; body: string | null; landing_url: string | null; url_tags: string } | null;
-    ads: { code: string | null; name: string | null; format: string | null; hook: string | null; link: string | null; file_ok: boolean; file_note: string | null; size_mb: number | null }[];
+    ads: { code: string | null; name: string | null; format: string | null; hook: string | null; link: string | null; file_name?: string | null; file_ok: boolean; file_note: string | null; size_mb: number | null }[];
     problems: string[];
     warnings: string[];
     ready: boolean;
@@ -94,6 +94,7 @@ export const UploadPlanDialog: React.FC<{ batchId: number; code: string | null; 
                                     {a.file_ok ? <CheckCircleRounded color="success" fontSize="small" /> : <ErrorOutlineRounded color="error" fontSize="small" />}
                                     <Box sx={{ minWidth: 0 }}>
                                         <Typography variant="body2"><b>{a.name ?? a.code ?? "Pieza"}</b>{a.format ? ` · ${a.format}` : ""}{a.size_mb != null ? ` · ${a.size_mb} MB` : ""}</Typography>
+                                        {a.file_name && <Typography variant="caption" component="div" color="text.secondary">Archivo en el sistema: {a.file_name}</Typography>}
                                         {a.hook && <Typography variant="caption" component="div" color="text.secondary">Hook: {a.hook}</Typography>}
                                         {a.file_note && <Typography variant="caption" component="div" color={a.file_ok ? "text.secondary" : "error.main"}>{a.file_note}</Typography>}
                                     </Box>

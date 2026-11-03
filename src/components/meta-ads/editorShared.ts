@@ -1,10 +1,12 @@
 // src/components/meta-ads/editorShared.ts
 // Etapa 5, paso 5a: lo que comparten las pantallas de los editores, la Cola y banca del dueño y el número del menú (los
 // tipos, los roles, el enlace de Drive y el aviso de que algo cambió). Los componentes están en editorWork.tsx.
+import type { StoredFile } from "./fileUpload";
 
 export type Delivery = {
     id: number; version: string; editor: string | null; delivered_at: string | null; concept: string | null; angle: string | null; notes: string | null;
-    pieces: { piece_id: number; code: string | null; link: string; hook: string }[];
+    // .90: el archivo en el sistema (las entregas viejas, el enlace de Drive)
+    pieces: { piece_id: number; code: string | null; link: string | null; file_id?: number | null; file?: StoredFile | null; hook: string }[];
     review: "pending" | "approved" | "returned"; review_label: string; reviewed_by: string | null; reviewed_at: string | null; comment: string | null;
 };
 export type EditorFields = {
@@ -27,7 +29,7 @@ export const onEditorChanged = (fn: () => void) => {
     return () => window.removeEventListener(EVENT, fn);
 };
 
-/** Lo mismo que EditorRules::driveFileId del servidor: el id del archivo en un enlace de Drive, o null. */
+/** Lo mismo que EditorRules::driveFileId del servidor: el id del archivo en un enlace de Drive, o null (`.90`: solo sin almacén). */
 export const driveFileId = (url: string): string | null => {
     try {
         const u = new URL(url.trim());

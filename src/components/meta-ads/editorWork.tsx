@@ -2,16 +2,20 @@
 // Etapa 5, paso 5a (2026-10-30): lo de los editores en la cola de producción, compartido entre sus pantallas (Mis encargos y
 // Encargos del equipo) y la Cola y banca del dueño: entregar (un enlace de Drive por pieza y la ficha), revisar (aprobar a
 // la banca o devolver con un comentario), asignar y el historial de versiones (V01, V02…).
+// .90: con el almacén encendido, cada pieza se sube al sistema (no más enlaces de Drive) y se ve ahí mismo.
 import React, { useState } from "react";
 import {
-    Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, Menu, MenuItem, Stack, TextField, Typography,
+    Alert, Box, Button, Chip, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Link, Menu, MenuItem, Stack,
+    TextField, Typography,
 } from "@mui/material";
-import { ContentCopyRounded, ExpandLessRounded, ExpandMoreRounded, OpenInNewRounded, PersonAddAlt1Rounded } from "@mui/icons-material";
+import { ContentCopyRounded, ExpandLessRounded, ExpandMoreRounded, OpenInNewRounded, PersonAddAlt1Rounded, UploadFileRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import { Delivery, EditorOption, driveFileId } from "./editorShared";
+import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
+import { FileView } from "./fileView";
 
-type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; hook?: string | null };
+type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null };
 
 const REVIEW_COLOR: Record<Delivery["review"], "secondary" | "success" | "error"> = { pending: "secondary", approved: "success", returned: "error" };
 
@@ -70,7 +74,7 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone }: {
     );
 };
 
-/** Las versiones entregadas, la más nueva arriba, con el enlace y el hook de cada pieza y lo que dijo la revisión. */
+/** Las versiones entregadas, la más nueva arriba, con el archivo (o el enlace) y el hook de cada pieza y lo que dijo la revisión. */
 export const DeliveriesList: React.FC<{ deliveries: Delivery[]; defaultOpen?: boolean }> = ({ deliveries, defaultOpen = false }) => {
     const [open, setOpen] = useState(defaultOpen);
     if (deliveries.length === 0) return null;
@@ -96,11 +100,16 @@ export const DeliveriesList: React.FC<{ deliveries: Delivery[]; defaultOpen?: bo
                                 </Typography>
                             )}
                             {d.pieces.map((p) => (
-                                <Typography key={p.piece_id} variant="caption" component="div" sx={{ overflowWrap: "anywhere" }}>
-                                    <b>{p.code ?? "Pieza"}</b>{" "}
-                                    <Link href={p.link} target="_blank" rel="noopener noreferrer" underline="hover">abrir <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></Link>
-                                    {p.hook && <> · hook: {p.hook}</>}
-                                </Typography>
+                                <Box key={p.piece_id} sx={{ mt: 0.5 }}>
+                                    <Typography variant="caption" component="div" sx={{ overflowWrap: "anywhere" }}>
+                                        <b>{p.code ?? "Pieza"}</b>
+                                        {!p.file && p.link && (
+                                            <>{" "}<Link href={p.link} target="_blank" rel="noopener noreferrer" underline="hover">abrir en Drive <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></Link></>
+                                        )}
+                                        {p.hook && <> · hook: {p.hook}</>}
+                                    </Typography>
+                                    {p.file && <FileView file={p.file} />}
+                                </Box>
                             ))}
                             {d.notes && <Typography variant="caption" component="div" color="text.secondary">Notas: {d.notes}</Typography>}
                             {d.comment && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>{d.review === "returned" ? "Para cambiar" : "Comentario"}:</b> {d.comment}</Typography>}
@@ -148,13 +157,19 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
     );
 };
 
-/** Entregar: el enlace de Drive y el hook de cada pieza, y la ficha (concepto y ángulo). */
-export const DeliverDialog = <B,>({ open, code, pieces, angle, concept, url, onClose, onDone }: {
-    open: boolean; code: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; onClose: () => void; onDone: (b: B) => void;
+type FormPiece = { id: number; code: string | null; link: string; hook: string; file: StoredFile | null; progress: number | null; error: string | null };
+
+/**
+ * Entregar: el archivo (`.90`, subido al sistema; sin almacén, el enlace de Drive) y el hook de cada pieza, y la ficha
+ * (concepto y ángulo). En una corrección cada pieza parte con su archivo de antes: se vuelve a subir solo la que cambió.
+ */
+export const DeliverDialog = <B,>({ open, code, pieces, angle, concept, url, uploads, batchId, onClose, onDone }: {
+    open: boolean; code: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; uploads: boolean; batchId: number;
+    onClose: () => void; onDone: (b: B) => void;
 }) => {
     const fresh = () => ({
         concept, angle, notes: "",
-        pieces: pieces.map((p) => ({ id: p.id as number, code: p.code ?? null, link: p.link ?? "", hook: p.hook ?? "" })),
+        pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null, progress: null, error: null })),
     });
     const [form, setForm] = useState(fresh);
     const [busy, setBusy] = useState(false);
@@ -167,17 +182,37 @@ export const DeliverDialog = <B,>({ open, code, pieces, angle, concept, url, onC
     }
 
     const linkError = (link: string) => (link.trim() === "" ? "Falta el enlace." : driveFileId(link) ? null : linkProblem(link));
-    const ok = form.concept.trim() !== "" && form.angle.trim() !== "" && form.pieces.every((p) => !linkError(p.link) && p.hook.trim() !== "");
-    const setPiece = (i: number, patch: Partial<{ link: string; hook: string }>) =>
+    const fileError = (p: FormPiece) => (p.file ? null : "Falta el video o la imagen.");
+    const uploading = form.pieces.some((p) => p.progress !== null);
+    const ok = form.concept.trim() !== "" && form.angle.trim() !== "" && !uploading
+        && form.pieces.every((p) => !(uploads ? fileError(p) : linkError(p.link)) && p.hook.trim() !== "");
+    const setPiece = (i: number, patch: Partial<FormPiece>) =>
         setForm((f) => ({ ...f, pieces: f.pieces.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
+
+    /** Sube el archivo de una pieza (queda con el nombre de su anuncio). */
+    const upload = async (i: number, file: File | undefined) => {
+        if (!file) return;
+        const problem = fileProblem("piece", file);
+        if (problem) { setPiece(i, { error: problem }); return; }
+        setPiece(i, { progress: 0, error: null });
+        try {
+            const r = await sendFile<{ file: StoredFile }>(`/editor/queue/${batchId}/pieces/${form.pieces[i].id}/upload`, {}, file,
+                (id) => `/editor/files/${id}/confirm`, (percent) => setPiece(i, { progress: percent }));
+            setPiece(i, { file: r.file, progress: null });
+        } catch (e) { setPiece(i, { progress: null, error: (e as Error).message }); }
+    };
 
     const send = async () => {
         setTried(true);
         if (!ok) return;
         setBusy(true);
         try {
-            const r = await api<{ batch: B }>(url, "POST", form);
-            toast.success(`${code} entregado: queda en revisión`);
+            const r = await api<{ batch: B }>(url, "POST", {
+                concept: form.concept, angle: form.angle, notes: form.notes,
+                pieces: form.pieces.map((p) => (uploads ? { id: p.id, file_id: p.file?.id ?? null, hook: p.hook } : { id: p.id, link: p.link, hook: p.hook })),
+            });
+            // .89: lo que entrega el editor líder pasa directo a la banca
+            toast.success((r.batch as { status?: string } | null)?.status === "bank" ? `${code} entregado: pasa directo a la banca` : `${code} entregado: queda en revisión`);
             onDone(r.batch);
             onClose();
         } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -188,17 +223,37 @@ export const DeliverDialog = <B,>({ open, code, pieces, angle, concept, url, onC
             <DialogTitle>Entregar {code}</DialogTitle>
             <DialogContent>
                 <Alert severity="info" sx={{ mb: 1.5 }}>
-                    Sube cada video a Drive y pega el enlace <b>de cada archivo</b> (no de la carpeta). Dale acceso al dueño. Ponle a cada archivo su número (por ejemplo, C0457).
+                    {uploads
+                        ? <>Sube el video o la imagen de cada pieza. Queda guardado con el nombre de su anuncio (por ejemplo, C0457 POSP): no hace falta renombrarlo.</>
+                        : <>Sube cada video a Drive y pega el enlace <b>de cada archivo</b> (no de la carpeta). Dale acceso al dueño. Ponle a cada archivo su número (por ejemplo, C0457).</>}
                 </Alert>
                 <Stack spacing={1.5}>
                     {form.pieces.map((p, i) => {
-                        const err = tried || p.link ? linkError(p.link) : null;
+                        const err = uploads ? p.error ?? (tried ? fileError(p) : null) : tried || p.link ? linkError(p.link) : null;
                         return (
                             <Box key={p.id}>
                                 <Typography variant="subtitle2">{p.code ?? `Pieza ${i + 1}`}</Typography>
                                 {pieces[i]?.change && <Typography variant="caption" color="text.secondary" component="div">{pieces[i].change}</Typography>}
-                                <TextField size="small" label="Enlace de Drive del video" value={p.link} onChange={(e) => setPiece(i, { link: e.target.value })} fullWidth sx={{ mt: 0.75 }}
-                                    error={!!err} helperText={err ?? " "} inputProps={{ maxLength: 1000, inputMode: "url" }} />
+                                {uploads ? (
+                                    <Box sx={{ mt: 0.75, mb: 1 }}>
+                                        {p.file && p.progress === null && <FileView file={p.file} height={160} />}
+                                        {p.progress !== null && (
+                                            <Stack spacing={0.5}>
+                                                <LinearProgress variant="determinate" value={p.progress} />
+                                                <Typography variant="caption" color="text.secondary">Subiendo… {p.progress} %</Typography>
+                                            </Stack>
+                                        )}
+                                        <Button component="label" size="small" variant={p.file ? "text" : "outlined"} startIcon={<UploadFileRounded />} disabled={p.progress !== null || busy}
+                                            sx={{ mt: 0.5 }}>
+                                            {p.file ? "Cambiar archivo" : "Elegir video o imagen"}
+                                            <input hidden type="file" accept={ACCEPT.piece} onChange={(e) => { upload(i, e.target.files?.[0]); e.target.value = ""; }} />
+                                        </Button>
+                                        {err && <Typography variant="caption" color="error" component="div">{err}</Typography>}
+                                    </Box>
+                                ) : (
+                                    <TextField size="small" label="Enlace de Drive del video" value={p.link} onChange={(e) => setPiece(i, { link: e.target.value })} fullWidth sx={{ mt: 0.75 }}
+                                        error={!!err} helperText={err ?? " "} inputProps={{ maxLength: 1000, inputMode: "url" }} />
+                                )}
                                 <TextField size="small" label="Hook (o el texto principal, si es imagen)" value={p.hook} onChange={(e) => setPiece(i, { hook: e.target.value })} fullWidth
                                     error={tried && p.hook.trim() === ""} helperText={tried && p.hook.trim() === "" ? "Falta el hook." : " "} inputProps={{ maxLength: 300 }} />
                             </Box>
@@ -214,7 +269,7 @@ export const DeliverDialog = <B,>({ open, code, pieces, angle, concept, url, onC
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose} disabled={busy}>Cancelar</Button>
-                <Button variant="contained" disabled={busy} onClick={send}>{busy ? "Entregando…" : "Entregar"}</Button>
+                <Button variant="contained" disabled={busy || uploading} onClick={send}>{busy ? "Entregando…" : uploading ? "Subiendo…" : "Entregar"}</Button>
             </DialogActions>
         </Dialog>
     );
