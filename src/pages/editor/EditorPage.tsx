@@ -161,7 +161,7 @@ const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; on
                     <Field label="Entregables" value={b.deliverables} />
                     {b.meta_names.adset && (
                         <Typography variant="caption" component="div" sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
-                            Nombres de los archivos: {b.meta_names.ads.join(", ")} (ad set {b.meta_names.adset})
+                            <b>Nombra cada archivo de Drive con su código:</b> {b.meta_names.ads.join(", ")} (van en el ad set {b.meta_names.adset})
                         </Typography>
                     )}
                 </Box>
