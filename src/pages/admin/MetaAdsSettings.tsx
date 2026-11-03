@@ -16,6 +16,7 @@ import { MetaCampaignsTab, MetaRulesTab, MetaTargetsTab } from "../../components
 import { MetaAnglesTab, MetaProductModes } from "../../components/meta-ads/MetaAnglesTab";
 import { MetaProductProfileTab } from "../../components/meta-ads/MetaProductProfileTab";
 import { MetaDecisionSettings } from "../../components/meta-ads/MetaDecisionWidgets";
+import { StoreCheckCard } from "../../components/meta-ads/fileView";
 
 const TABS = [
     { key: "connections", label: "Conexiones" },
@@ -46,7 +47,8 @@ export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
                         {TABS.map((t) => <Tab key={t.key} value={t.key} label={t.label} />)}
                     </Tabs>
                 </Paper>
-                {tab === "connections" && <MetaConnections />}
+                {/* .91: el almacén de archivos (Cloudflare R2) es una conexión: va aquí, con su estado */}
+                {tab === "connections" && <Stack spacing={3}><MetaConnections /><StoreCheckCard /></Stack>}
                 {tab === "campaigns" && <MetaCampaignsTab />}
                 {tab === "profile" && <MetaProductProfileTab />}
                 {tab === "angles" && <MetaAnglesTab />}

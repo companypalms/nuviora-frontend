@@ -1,292 +1,478 @@
 // src/pages/editor/EditorPage.tsx
-// Etapa 5, paso 5a (2026-10-30): las pantallas de los editores de video. "Mis encargos" (los dos editores): lo que les
-// asignaron, con todo el encargo, para empezarlo y entregarlo con el archivo de cada pieza (.90: subido al sistema; sin
-// almacén, el enlace de Drive). "Encargos del equipo" (solo el editor líder): asignar lo aprobado por el dueño y revisar
-// lo entregado (aprobar a la banca o devolver). Sin dinero: los resultados llegan en el paso 5b.
+// Etapa 5, paso 5a (2026-10-30): las pantallas de los editores de video. "Mis encargos" (los dos editores) y "Encargos del
+// equipo" (solo el editor líder: asignar y revisar). Sin dinero.
+// .91 (dueño, 2026-11-03: "se debe saber en menos de 3 segundos qué se debe hacer, cómo se debe hacer… debe ser muy
+// intuitivo todo"): rehechas con las reglas del juego (guias/DISENO-UX-UI.md). Cada una responde una pregunta:
+// - Mis encargos: "¿Qué entrego ahora?" → arriba la misión (el encargo más urgente: lo devuelto, lo atrasado, por fecha)
+//   con dónde, qué, los pasos y un solo botón ("Entregar"); el marcador (por entregar, atrasados, en revisión); lo demás
+//   debajo. Sin "Empezar": el primer archivo lo empieza solo.
+// - Encargos del equipo: "¿Qué reviso o asigno ahora?" → arriba lo más urgente con su botón ("Revisar" o "Asignar"); el
+//   marcador (para revisar, sin asignar, atrasados); "Lo que necesitamos" (cada uno se toca); "¿Alcanza el equipo?" en
+//   una línea; las listas debajo.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
-import { CheckRounded, PlayArrowRounded, RateReviewRounded, UploadRounded } from "@mui/icons-material";
+import { Box, Button, Collapse, Link, Skeleton, Stack, Typography } from "@mui/material";
+import { CheckCircleRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
-import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
-import { Loading } from "../../components/ui/content/Loading";
-import { DescripcionDeVista } from "../../components/ui/content/DescripcionDeVista";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
-import { EditorFields, EditorOption, dueLabel, notifyEditorChanged } from "../../components/meta-ads/editorShared";
+import { EditorBatch, EditorOption, dueLabel, notifyEditorChanged, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
-import { AngleInfo, PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
-import type { StoredFile } from "../../components/meta-ads/fileUpload";
+import { PersonaBox, ProductBox } from "../../components/meta-ads/productProfile";
+import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
+import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
-type Status = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
-/** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis (las del análisis las traen). */
-type Piece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null;
-    test_label?: string | null; style_label?: string | null; hypothesis?: string | null; file?: StoredFile | null };
-type EBatch = EditorFields & {
-    id: number; code: string | null; product: string; status: Status; status_label: string; status_at: string | null; position: number | null;
-    kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
-    /** .63: lo que buscamos, lo que funcionó (no se toca) y lo que hay que mejorar. */
-    goal?: string | null; improve?: string | null;
-    /** .63: qué estamos probando (la hipótesis contada para el editor, sin números ni el proceso del dueño). */
-    test_idea?: string | null;
-    /** .64: lo del producto (de su ficha) y SOLO el buyer persona de este encargo. */
-    product_info?: ProductInfo | null; persona?: PersonaInfo | null;
-    /** .90: la ficha completa (todos los buyer personas y ángulos), las fotos del producto y si se entrega subiendo el archivo. */
-    personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[]; uploads?: boolean;
-    /** .66: el estilo del encargo (testimonio, video animado…). */
-    style_label?: string | null;
-    reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
-    /** .56: lo que dice el video de la referencia, si es un ganador transcrito. */
-    reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
-    offer: string | null; deliverables: string | null; due_date: string | null; pieces: Piece[];
-    meta_names: { adset: string | null; ads: string[] }; brief: string;
-    /** .88: por qué hace falta y para cuándo (en palabras, sin montos). */
-    need?: string | null;
-};
 type Data = {
-    me: { id: number; name: string; leader: boolean }; batches: EBatch[]; editors: EditorOption[];
+    me: { id: number; name: string; leader: boolean }; batches: EditorBatch[]; editors: EditorOption[];
     pending: { todo: number; to_assign: number; to_review: number; total: number };
     /** .88: para el líder: lo que hace falta y no se pudo pedir, si alcanza el equipo y el día de hoy (hora de Venezuela). */
     unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
-    /** .89: entrega + estos días de correcciones = lista en la banca. */
-    corrections_days?: number;
-    /** .90: se entrega subiendo cada archivo al sistema (apagado: con el enlace de Drive). */
-    uploads?: boolean;
+    /** .89: entrega + estos días de correcciones = lista en la banca. .90: se entrega subiendo el archivo. */
+    corrections_days?: number; uploads?: boolean;
 };
 
-const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
 const FORMATS: Record<string, string> = { video: "Video", image: "Imagen", mixed: "Video e imagen" };
-const STATUS_COLOR: Record<Status, "info" | "primary" | "secondary" | "success" | "warning" | "default"> = {
-    approved: "info", production: "primary", review: "secondary", bank: "success", testing: "warning", tested: "success", discarded: "default",
+const DONE = ["bank", "testing", "tested", "discarded"];
+const TODO = ["approved", "production"];
+
+const addDays = (date: string, n: number) => {
+    const d = new Date(`${date}T12:00:00`);
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-const DONE: Status[] = ["bank", "testing", "tested", "discarded"];
+/** La fecha que cuenta: la entrega; lo entregado o devuelto, "lista" (entrega + correcciones del líder). */
+const dueOf = (b: EditorBatch, corrections: number) => ((b.returned || b.status === "review") && b.due_date ? addDays(b.due_date, corrections) : b.due_date);
+/** Lo devuelto primero, después lo atrasado, por fecha y por el orden de la cola. */
+const byUrgency = (corrections: number) => (a: EditorBatch, b: EditorBatch) =>
+    Number(!!b.returned) - Number(!!a.returned) || Number(b.overdue) - Number(a.overdue)
+    || (dueOf(a, corrections) ?? "9").localeCompare(dueOf(b, corrections) ?? "9") || (a.position ?? 1e9) - (b.position ?? 1e9) || a.id - b.id;
+const signal = (t: Tokens, level: string) => (level === "late" ? t.red : level === "today" ? t.amber : t.gray);
+const angleOf = (b: EditorBatch) => b.angle_name ?? b.angle_code;
+const piecesText = (b: EditorBatch) => plural(b.pieces.length, "pieza", "piezas");
 
-/** Lo más urgente arriba: lo atrasado, después por plazo y por el orden de la cola. */
-const byDue = (a: EBatch, b: EBatch) => Number(b.overdue) - Number(a.overdue) || (a.due_date ?? "9").localeCompare(b.due_date ?? "9")
-    || (a.position ?? 1e9) - (b.position ?? 1e9) || a.id - b.id;
-
-const Field: React.FC<{ label: string; value: string | null }> = ({ label, value }) => (value && value.trim()
-    ? <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}><b>{label}:</b> {value}</Typography> : null);
-
-/** .63: un bloque destacado del encargo ("Lo que buscamos", "Lo que funcionó", "Lo que hay que mejorar"). */
-const Block: React.FC<{ title: string; text?: string | null; tone: "info" | "success" | "warning" | "secondary" }> = ({ title, text, tone }) => (text && text.trim() ? (
-    <Box sx={{ mt: 1, p: 1.25, borderRadius: 2, borderLeft: "4px solid", borderColor: `${tone}.main`, bgcolor: "action.hover" }}>
-        <Typography variant="caption" fontWeight={700} color={`${tone}.main`} component="div">{title}</Typography>
-        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>{text}</Typography>
-    </Box>
-) : null);
-
-const EditorBatchCard: React.FC<{ b: EBatch; data: Data; showEditor: boolean; onChanged: () => void }> = ({ b, data, showEditor, onChanged }) => {
-    const [busy, setBusy] = useState(false);
-    const [deliver, setDeliver] = useState(false);
-    const [review, setReview] = useState(false);
-    const done = DONE.includes(b.status);
-    const changed = () => { onChanged(); notifyEditorChanged(); };
-
-    const start = async () => {
-        setBusy(true);
-        try {
-            await api(`/editor/queue/${b.id}/start`, "POST");
-            toast.success(`${b.code}: en producción`);
-            changed();
-        } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
-    };
-
-    return (
-        <Box sx={{ py: 1.5, borderBottom: "1px solid", borderColor: "divider", "&:last-child": { borderBottom: 0 } }}>
-            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-                <Chip size="small" color="primary" label={b.code ?? "—"} sx={{ fontWeight: 700 }} />
-                <Typography variant="body2" fontWeight={700}>{b.product}</Typography>
-                <Chip size="small" variant="outlined" label={b.kind_label} />
-                {b.angle_code && <Chip size="small" variant="outlined" label={b.angle_name ? `${b.angle_code} · ${b.angle_name}` : b.angle_code} />}
-                <Chip size="small" color={STATUS_COLOR[b.status]} label={b.status_label} />
-                {b.due_date && !done && <Chip size="small" color={b.overdue ? "error" : "default"} variant={b.overdue ? "filled" : "outlined"}
-                    label={b.overdue ? `Atrasado: era para el ${dueLabel(b.due_date)}` : `Plazo: ${dueLabel(b.due_date)}`} />}
-                {showEditor && (b.editor || !done) && <Chip size="small" variant="outlined" color={b.editor ? "default" : "warning"} label={b.editor ? `Editor: ${b.editor}` : "Sin asignar"} />}
+/** Un bloque del encargo con su título chico (lo que buscamos, lo que funcionó…). El punto de color va siempre con palabra. */
+const Block: React.FC<{ title: string; text?: string | null; dot?: string }> = ({ title, text, dot }) => {
+    const t = useTokens();
+    return text && text.trim() ? (
+        <Box sx={{ mt: 1.25 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center">
+                {dot && <Dot color={dot} size={8} />}
+                <Typography sx={{ fontSize: 13, color: t.muted }}>{title}</Typography>
             </Stack>
+            <Typography sx={{ fontSize: 14, lineHeight: 1.5, overflowWrap: "anywhere", whiteSpace: "pre-line" }}>{text}</Typography>
+        </Box>
+    ) : null;
+};
 
-            {b.returned && (
-                <Alert severity="warning" sx={{ mt: 1 }}>
-                    <b>{b.editor_id === data.me.id ? "Te lo devolvieron" : "Devuelto"} ({b.returned.version}{b.returned.by ? `, ${b.returned.by}` : ""}):</b> {b.returned.comment}
-                </Alert>
-            )}
-            {b.review_by_owner && <Alert severity="info" sx={{ mt: 1 }}>Es tu entrega: la revisa el dueño.</Alert>}
-
-            {!done && (
-                <Box sx={{ mt: 1 }}>
-                    <Block title="Qué estamos probando" text={b.test_idea} tone="secondary" />
-                    <Block title="Lo que buscamos" text={b.goal} tone="info" />
-                    <PersonaBox persona={b.persona} />
-                    <Block title="Lo que funcionó (no lo cambies)" text={b.keep} tone="success" />
-                    <Block title="Lo que hay que mejorar" text={b.improve} tone="warning" />
-                    <Box sx={{ mt: 1 }}>
-                        <Field label="Dolor o público" value={b.audience} />
-                        <Field label="Concepto" value={b.concept} />
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
-                        {[b.format && FORMATS[b.format], b.style_label && `Estilo: ${b.style_label}`, b.offer].filter(Boolean).join(" · ")}
-                    </Typography>
-                    <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos}
-                        persona={b.persona?.name} angle={b.angle_code} />
-                    {b.reference && (
-                        <Stack direction="row" spacing={1.25} sx={{ mt: 1, p: 1, borderRadius: 2, bgcolor: "action.hover" }}>
-                            {b.reference_thumbnail && (
-                                <Box component="img" src={b.reference_thumbnail} alt={`Miniatura de ${b.reference}`} loading="lazy"
-                                    sx={{ width: 72, height: 72, objectFit: "cover", borderRadius: 1.5, flexShrink: 0 }} />
-                            )}
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2"><b>Referencia:</b> {b.reference}</Typography>
-                                {b.reference_texts.map((t, i) => <Typography key={i} variant="caption" component="div" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>“{t}”</Typography>)}
-                                {b.reference_script?.hook && (
-                                    <Typography variant="caption" component="div" sx={{ mt: 0.5, overflowWrap: "anywhere" }}><b>Hook de su video:</b> «{b.reference_script.hook}»</Typography>
-                                )}
-                                {b.reference_script?.text && (
-                                    <Typography variant="caption" component="div" color="text.secondary" sx={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>
-                                )}
-                            </Box>
-                        </Stack>
-                    )}
-                    {b.pieces.length > 0 && (b.pieces.some((p) => p.hypothesis) ? (
-                        <Typography variant="body2" fontWeight={700} sx={{ mt: 1.25 }}>Qué hacer en cada pieza</Typography>
-                    ) : (
-                        <Typography variant="body2" fontWeight={700} sx={{ mt: 1.25 }}>Ideas para cada versión <Typography component="span" variant="caption" color="text.secondary">(tú decides cómo)</Typography></Typography>
-                    ))}
-                    {b.pieces.length > 0 && (
-                        <Box component="ol" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
-                            {b.pieces.map((p) => (
-                                <Typography key={p.id} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                                    {p.code && <b>{p.code} </b>}{p.hypothesis && p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}: </b>}
-                                    {p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
-                                    {p.format && p.format !== b.format && <> ({(FORMATS[p.format] ?? p.format).toLowerCase()})</>}
-                                    {p.hypothesis && <Typography variant="caption" color="text.secondary" component="div">Qué probamos: {p.hypothesis}</Typography>}
-                                </Typography>
-                            ))}
-                        </Box>
-                    )}
-                    <Field label="Entregables" value={b.deliverables} />
-                    {b.meta_names.adset && (
-                        <Typography variant="caption" component="div" sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
-                            {b.uploads
-                                ? <><b>Al entregar, sube cada archivo en su pieza:</b> queda con su nombre solo ({b.meta_names.ads.join(", ")}, en el ad set {b.meta_names.adset})</>
-                                : <><b>Nombra cada archivo de Drive con su código:</b> {b.meta_names.ads.join(", ")} (van en el ad set {b.meta_names.adset})</>}
-                        </Typography>
-                    )}
-                </Box>
-            )}
-            {done && (
-                <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                    {b.status_label}{b.status_at ? ` desde el ${dateTime(b.status_at)}` : ""}
+/** Todo el encargo: qué probamos, lo que buscamos, a quién le hablas, el producto, la referencia y qué lleva cada pieza. */
+const BriefDetail: React.FC<{ b: EditorBatch }> = ({ b }) => {
+    const t = useTokens();
+    const planned = b.pieces.some((p) => p.hypothesis);
+    return (
+        <Box sx={{ mt: 0.5 }}>
+            <Block title="Qué estamos probando" text={b.test_idea} />
+            <Block title="Lo que buscamos" text={b.goal} />
+            <PersonaBox persona={b.persona} />
+            <Block title="Lo que funcionó (no lo cambies)" text={b.keep} dot={t.green} />
+            <Block title="Lo que hay que mejorar" text={b.improve} dot={t.amber} />
+            <Block title="Concepto" text={b.concept} />
+            <Block title="Dolor o público" text={b.audience} />
+            {(b.format || b.style_label || b.offer) && (
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                    {[b.format && FORMATS[b.format], b.style_label && `Estilo: ${b.style_label}`, b.offer].filter(Boolean).join(" · ")}
                 </Typography>
             )}
-
-            <DeliveriesList deliveries={b.deliveries} />
-
-            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                {b.can.start && (
-                    <Button size="small" variant="outlined" startIcon={busy ? <CircularProgress size={14} /> : <PlayArrowRounded />} disabled={busy} onClick={start}>Empezar</Button>
-                )}
-                {b.can.deliver && (
-                    <Button size="small" variant="contained" startIcon={<UploadRounded />} onClick={() => setDeliver(true)}>
-                        {b.returned ? "Entregar de nuevo" : "Entregar"}
-                    </Button>
-                )}
-                {b.can.review && (
-                    <Button size="small" variant="contained" color="secondary" startIcon={<RateReviewRounded />} onClick={() => setReview(true)}>Revisar entrega</Button>
-                )}
-                {b.can.assign && (
-                    <AssignButton<EBatch> editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={changed} />
-                )}
-                {!done && <CopyBrief text={b.brief} />}
-            </Stack>
-
-            <DeliverDialog<EBatch> open={deliver} code={b.code ?? "el encargo"} pieces={b.pieces} url={`/editor/queue/${b.id}/deliver`} uploads={!!b.uploads} batchId={b.id}
-                concept={b.deliveries[0]?.concept ?? b.concept ?? ""} angle={b.deliveries[0]?.angle ?? [b.angle_code, b.angle_name].filter(Boolean).join(" — ")}
-                onClose={() => setDeliver(false)} onDone={changed} />
-            <ReviewDialog<EBatch> open={review} title={b.code ?? "el encargo"} delivery={b.deliveries.find((d) => d.review === "pending") ?? null}
-                url={`/editor/queue/${b.id}/review`} onClose={() => setReview(false)} onDone={changed} />
+            {b.pieces.length > 0 && (
+                <Box sx={{ mt: 1.5 }}>
+                    <Typography sx={{ fontSize: 13, color: t.muted }}>{planned ? "Qué lleva cada pieza" : "Ideas para cada pieza (tú decides cómo)"}</Typography>
+                    <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                        {b.pieces.map((p, i) => (
+                            <Box key={p.id}>
+                                <Typography sx={{ fontSize: 14, lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                                    <b style={{ fontWeight: 600 }}>{p.code ?? `Pieza ${i + 1}`}</b>
+                                    {p.hypothesis && p.test_label && <> · {p.test_label}{p.style_label ? ` (${p.style_label})` : ""}</>}
+                                    {": "}{p.change || <span style={{ color: t.faint }}>sin detalle</span>}
+                                    {p.format && p.format !== b.format && <> ({(FORMATS[p.format] ?? p.format).toLowerCase()})</>}
+                                </Typography>
+                                {p.hypothesis && <Typography sx={{ fontSize: 13, color: t.muted }}>Qué probamos: {p.hypothesis}</Typography>}
+                            </Box>
+                        ))}
+                    </Stack>
+                </Box>
+            )}
+            <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos} persona={b.persona?.name} angle={b.angle_code} />
+            {b.reference && (
+                <Stack direction="row" spacing={1.25} sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
+                    {b.reference_thumbnail && (
+                        <Box component="img" src={b.reference_thumbnail} alt={`Miniatura de ${b.reference}`} loading="lazy"
+                            sx={{ width: 72, height: 72, objectFit: "cover", borderRadius: "8px", flexShrink: 0 }} />
+                    )}
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 13, color: t.muted }}>La referencia</Typography>
+                        <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{b.reference}</Typography>
+                        {b.reference_texts.map((x, i) => <Typography key={i} sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>“{x}”</Typography>)}
+                        {b.reference_script?.hook && <Typography sx={{ fontSize: 13, mt: 0.5, overflowWrap: "anywhere" }}><b>Hook de su video:</b> «{b.reference_script.hook}»</Typography>}
+                        {b.reference_script?.text && <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>}
+                    </Box>
+                </Stack>
+            )}
+            <Block title="Entregables" text={b.deliverables} />
+            {b.meta_names.ads.length > 0 && (
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1.25, overflowWrap: "anywhere" }}>
+                    {b.uploads ? <>Los archivos se nombran solos al subirlos: {b.meta_names.ads.join(", ")} (ad set {b.meta_names.adset}).</>
+                        : <>Nombra cada archivo de Drive con su código: {b.meta_names.ads.join(", ")} (van en el ad set {b.meta_names.adset}).</>}
+                </Typography>
+            )}
         </Box>
     );
 };
 
+/** Lo que te devolvieron: lo que pidió el líder, a la vista. */
+const Returned: React.FC<{ b: EditorBatch }> = ({ b }) => {
+    const t = useTokens();
+    return b.returned ? (
+        <Box sx={{ mt: 1.25, p: "10px 12px", borderRadius: "8px", bgcolor: t.soft, borderLeft: `3px solid ${t.amber}` }}>
+            <Typography sx={{ fontSize: 13, color: t.muted }}>Lo que pidió {b.returned.by ?? "el líder"} ({b.returned.version})</Typography>
+            <Typography sx={{ fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{b.returned.comment}</Typography>
+        </Box>
+    ) : null;
+};
+
+/** Un encargo de la lista: qué es, para cuándo y su botón; todo el encargo, plegado. */
+const BatchRow: React.FC<{
+    b: EditorBatch; sub: string; dot: string; open: boolean; onToggle: () => void; action?: React.ReactNode; extra?: React.ReactNode;
+}> = ({ b, sub, dot, open, onToggle, action, extra }) => {
+    const t = useTokens();
+    return (
+        <Box id={`encargo-${b.id}`} sx={{ ...cardSx(t), p: "12px 14px", mb: 0.75, scrollMarginTop: 80 }}>
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                <Box sx={{ pt: "6px" }}><Dot color={dot} size={9} /></Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 500, overflowWrap: "anywhere" }}>
+                        {b.code ?? "Encargo"} · {b.product}{angleOf(b) ? ` · ${angleOf(b)}` : ""}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>{sub}</Typography>
+                    <TextAction onClick={onToggle} aria-expanded={open} sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>{open ? "Ocultar" : "Ver el encargo"}</TextAction>
+                </Box>
+                {action && <Box sx={{ flex: "none" }}>{action}</Box>}
+            </Stack>
+            <Collapse in={open} unmountOnExit>
+                <Box sx={{ pl: { xs: 0, sm: 2.5 } }}>
+                    <Returned b={b} />
+                    <BriefDetail b={b} />
+                    <DeliveriesList deliveries={b.deliveries} />
+                    <Stack direction="row" columnGap={2} rowGap={0.5} flexWrap="wrap" sx={{ mt: 1, fontSize: 14 }}>
+                        <CopyBrief text={b.brief} asLink />
+                        {extra}
+                    </Stack>
+                </Box>
+            </Collapse>
+        </Box>
+    );
+};
+
+/** Un botón con borde para la lista (lo principal de cada fila). */
+const RowButton: React.FC<{ onClick: () => void; children: React.ReactNode; icon?: React.ReactNode }> = ({ onClick, children, icon }) => {
+    const t = useTokens();
+    return <Button variant="outlined" size="small" startIcon={icon} onClick={onClick} sx={{ ...lineSx(t), ...tapSx, whiteSpace: "nowrap" }}>{children}</Button>;
+};
+
+const PageSkeleton: React.FC = () => (
+    <Box aria-busy="true" aria-label="Cargando tus encargos">
+        <Skeleton width={220} height={34} />
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, mt: 2 }}>{[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={58} />)}</Box>
+        <Skeleton variant="rounded" height={230} sx={{ mt: 2 }} />
+        <Skeleton variant="rounded" height={64} sx={{ mt: 3 }} />
+        <Skeleton variant="rounded" height={64} sx={{ mt: 1 }} />
+    </Box>
+);
+
 export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
+    const t = useTokens();
     const { loadingSession, isValid } = useValidateSession();
     const [data, setData] = useState<Data | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [openId, setOpenId] = useState<number | null>(null);
+    const [deliverId, setDeliverId] = useState<number | null>(null);
+    const [reviewId, setReviewId] = useState<number | null>(null);
+    const [missionOpen, setMissionOpen] = useState(false);
+    // El aviso verde de lo que acabas de hacer, solo en la pantalla donde lo hiciste
+    const [cheerAt, setCheer] = useState<{ team: boolean; text: string } | null>(null);
+    const cheer = cheerAt && cheerAt.team === team ? cheerAt.text : null;
+    const [showDone, setShowDone] = useState(false);
 
-    const load = useCallback(() => { api<Data>("/editor/queue").then(setData).catch((e) => toast.error(e.message)); }, []);
+    const load = useCallback(() => {
+        setError(null);
+        api<Data>("/editor/queue").then(setData).catch((e) => setError((e as Error).message));
+    }, []);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
 
+    const today = data?.today ?? todayVe();
+    const corrections = data?.corrections_days ?? 1;
     const lists = useMemo(() => {
         const all = data?.batches ?? [];
         const mine = all.filter((b) => b.editor_id === data?.me.id);
+        const urgent = byUrgency(corrections);
         return {
-            todo: mine.filter((b) => b.status === "approved" || b.status === "production").sort(byDue),
+            todo: mine.filter((b) => TODO.includes(b.status)).sort(urgent),
             inReview: mine.filter((b) => b.status === "review"),
             done: mine.filter((b) => DONE.includes(b.status)),
-            toAssign: all.filter((b) => b.status === "approved" && !b.editor_id).sort(byDue),
-            toReview: all.filter((b) => b.status === "review"),
-            working: all.filter((b) => (b.status === "approved" && b.editor_id) || b.status === "production").sort(byDue),
+            toReview: all.filter((b) => b.status === "review").sort((a, b) => Number(b.can.review) - Number(a.can.review) || urgent(a, b)),
+            toAssign: all.filter((b) => b.status === "approved" && !b.editor_id).sort(urgent),
+            working: all.filter((b) => (b.status === "approved" && b.editor_id) || b.status === "production").sort(urgent),
             bank: all.filter((b) => b.status === "bank"),
         };
-    }, [data]);
+    }, [data, corrections]);
 
-    if (loadingSession || !isValid || !data) return <Loading />;
+    const changed = (message?: string) => { if (message) setCheer({ team, text: message }); setMissionOpen(false); load(); notifyEditorChanged(); };
+    const toggle = (id: number) => setOpenId((o) => (o === id ? null : id));
+    /** Desde "Lo que necesitamos": abre ese encargo y lo trae a la vista. */
+    const openFromNeeds = (id: number) => {
+        setOpenId(id);
+        setTimeout(() => document.getElementById(`encargo-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    };
+
+    const frame = (children: React.ReactNode) => (
+        <Layout><Box sx={{ ...geist, maxWidth: 640, mx: "auto", px: { xs: 0, sm: 2 }, py: 2, color: t.ink }}>{children}</Box></Layout>
+    );
+    if (loadingSession || !isValid) return frame(<PageSkeleton />);
+    if (error && !data) {
+        return frame(
+            <Box role="alert" sx={{ ...cardSx(t), p: 3 }}>
+                <Stack direction="row" spacing={1} alignItems="center"><ReportProblemRounded sx={{ color: t.red }} />
+                    <Typography sx={{ fontSize: 16, fontWeight: 600 }}>No se pudieron abrir tus encargos</Typography></Stack>
+                <Typography sx={{ fontSize: 14, color: t.muted, mt: 1 }}>Revisa tu conexión a internet y vuelve a intentar.</Typography>
+                <Button variant="contained" disableElevation sx={{ ...inkSx(t), ...tapSx, mt: 2 }} onClick={load}>Reintentar</Button>
+                <Typography sx={{ fontSize: 12, color: t.faint, mt: 2 }}>Detalle técnico: {error}</Typography>
+            </Box>,
+        );
+    }
+    if (!data) return frame(<PageSkeleton />);
     const leader = data.me.leader;
-    const section = (title: string, help: string, list: EBatch[], empty: string, showEditor = false) => (
-        <Paper elevation={0} sx={card}>
-            <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="subtitle1" fontWeight="bold">{title}</Typography>
-                <Typography variant="caption" color="text.secondary">{list.length}</Typography>
-            </Stack>
-            <Typography variant="caption" color="text.secondary">{help}</Typography>
-            {list.length === 0 ? <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{empty}</Typography>
-                : list.map((b) => <EditorBatchCard key={b.id} b={b} data={data} showEditor={showEditor} onChanged={load} />)}
-        </Paper>
+    if (team && !leader) {
+        return frame(<Typography sx={{ fontSize: 15 }}>Esta pantalla es del editor líder. Tus encargos están en <RouterLink to="/editor">Mis encargos</RouterLink>.</Typography>);
+    }
+    const byId = (id: number | null) => data.batches.find((b) => b.id === id) ?? null;
+    const deliverBatch = byId(deliverId);
+    const reviewBatch = byId(reviewId);
+    const when = (b: EditorBatch) => whenLabel(dueOf(b, corrections), today);
+    const late = (list: EditorBatch[]) => list.filter((b) => when(b).level === "late").length;
+
+    const header = (title: string, hint: string) => (
+        <>
+            <Typography component="h1" sx={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" }}>{title}</Typography>
+            <Typography sx={{ fontSize: 13, color: t.muted }}>{hint} · hoy {dueLabel(today)} (hora de Venezuela)</Typography>
+            {cheer && (
+                <Box role="status" sx={{ mt: 2, p: "10px 14px", borderRadius: "8px", display: "flex", gap: 1, alignItems: "center", bgcolor: t.greenSoft, color: t.greenInk, ...appear }}>
+                    <CheckCircleRounded sx={{ fontSize: 20 }} /><Typography sx={{ fontSize: 14, color: "inherit" }}>{cheer}</Typography>
+                </Box>
+            )}
+        </>
+    );
+    const empty = (title: string, hint: string) => (
+        <Box sx={{ ...cardSx(t), p: "14px 16px", mt: 2, display: "flex", gap: 1.5, alignItems: "center" }}>
+            <TaskAltRounded sx={{ color: t.green }} />
+            <Box>
+                <Typography sx={{ fontSize: 15, fontWeight: 500 }}>{title}</Typography>
+                <Typography sx={{ fontSize: 13, color: t.muted }}>{hint}</Typography>
+            </Box>
+        </Box>
+    );
+    const missionFrame = (label: string, dot: string, where: string, title: string, children: React.ReactNode) => (
+        <Box component="section" aria-label="Lo de ahora" sx={{ ...cardSx(t), p: "16px 18px", mt: 2, borderColor: t.ink, ...appear }}>
+            <Stack direction="row" spacing={1} alignItems="center"><Dot color={dot} size={9} /><Typography sx={{ fontSize: 13, color: t.muted }}>{label}</Typography></Stack>
+            <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{where}</Typography>
+            <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: 0.25, overflowWrap: "anywhere" }}>{title}</Typography>
+            {children}
+        </Box>
+    );
+    const dialogs = (
+        <>
+            {deliverBatch && (
+                <DeliverDialog<EditorBatch> open={!!deliverBatch} code={deliverBatch.code ?? "el encargo"} product={`${deliverBatch.product}${angleOf(deliverBatch) ? ` · ${angleOf(deliverBatch)}` : ""}`}
+                    pieces={deliverBatch.pieces} url={`/editor/queue/${deliverBatch.id}/deliver`} uploads={!!(data.uploads ?? deliverBatch.uploads)} own={leader} batchId={deliverBatch.id}
+                    concept={deliverBatch.deliveries[0]?.concept ?? deliverBatch.concept ?? ""}
+                    angle={deliverBatch.deliveries[0]?.angle ?? [deliverBatch.angle_code, deliverBatch.angle_name].filter(Boolean).join(" — ")}
+                    onClose={() => setDeliverId(null)}
+                    onDone={(r) => changed(r?.status === "bank" ? `${deliverBatch.code} entregado: pasa directo a la banca.` : `${deliverBatch.code} entregado: va a revisión del líder.`)} />
+            )}
+            {reviewBatch && (
+                <ReviewDialog<EditorBatch> open={!!reviewBatch} title={reviewBatch.code ?? "el encargo"} delivery={reviewBatch.deliveries.find((d) => d.review === "pending") ?? null}
+                    url={`/editor/queue/${reviewBatch.id}/review`} onClose={() => setReviewId(null)}
+                    onDone={(r) => changed(r?.status === "bank" ? `${reviewBatch.code} aprobado: pasa a la banca.` : `${reviewBatch.code} devuelto: le llega al editor con tus cambios.`)} />
+            )}
+        </>
     );
 
-    if (team && !leader) {
-        return <Layout><Box sx={{ p: 2 }}><Alert severity="info">Esta pantalla es del editor líder. Tus encargos están en "Mis encargos".</Alert></Box></Layout>;
+    // ---------- Encargos del equipo (el líder): ¿qué reviso o asigno ahora? ----------
+    if (team) {
+        const reviewable = lists.toReview.filter((b) => b.can.review);
+        const nextReview = reviewable[0];
+        const nextAssign = nextReview ? null : lists.toAssign[0];
+        const lateWorking = late(lists.working);
+        return frame(
+            <>
+                {header("Encargos del equipo", "Lo más urgente primero")}
+                {lists.todo.length > 0 && (
+                    <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                        Tú también tienes {plural(lists.todo.length, "encargo por entregar", "encargos por entregar")} · <Link component={RouterLink} to="/editor" sx={{ color: t.ink }}>Ir a Mis encargos</Link>
+                    </Typography>
+                )}
+                <Scoreboard tiles={[
+                    { label: "Para revisar", value: reviewable.length, color: reviewable.length ? t.amber : undefined, help: "Entregas de los editores que esperan tu revisión. Las tuyas las revisa el dueño." },
+                    { label: "Sin asignar", value: lists.toAssign.length, help: "Encargos aprobados que todavía no tienen editor." },
+                    { label: "Atrasados", value: lateWorking, color: lateWorking ? t.red : undefined, help: "Encargos en curso que pasaron su fecha de entrega (o de correcciones)." },
+                ]} />
+                {nextReview ? missionFrame(`Para revisar · ${when(nextReview).text}`, signal(t, when(nextReview).level), `${nextReview.product}${angleOf(nextReview) ? ` · ${angleOf(nextReview)}` : ""}`,
+                    `Revisa ${nextReview.code}: lo entregó ${nextReview.deliveries.find((d) => d.review === "pending")?.editor ?? nextReview.editor ?? "el editor"}`, <>
+                        <NumberedSteps label="Cómo revisar" steps={[
+                            `Mira ${nextReview.pieces.length === 1 ? "la pieza" : `las ${nextReview.pieces.length} piezas`} en grande, una por una.`,
+                            "En cada una toca «Está bien» o «Cambiar algo» y escribe qué cambiar.",
+                            "Aprueba (pasa a la banca) o devuélvelo con los cambios.",
+                        ]} />
+                        <Button variant="contained" disableElevation startIcon={<RateReviewRounded />} onClick={() => setReviewId(nextReview.id)}
+                            sx={{ ...inkSx(t), ...tapSx, mt: 2, width: { xs: "100%", sm: "auto" } }}>Revisar {nextReview.code}</Button>
+                    </>)
+                    : nextAssign ? missionFrame(`Sin asignar · ${when(nextAssign).text}`, signal(t, when(nextAssign).level), `${nextAssign.product}${angleOf(nextAssign) ? ` · ${angleOf(nextAssign)}` : ""}`,
+                        `Asigna ${nextAssign.code}: ${piecesText(nextAssign)}`, <>
+                            {nextAssign.need && <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>Por qué: {nextAssign.need}</Typography>}
+                            <NumberedSteps label="Cómo asignar" steps={["Toca «Asignar» y elige quién lo hace (puedes ser tú).", "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
+                            <Box sx={{ mt: 2 }}><AssignButton<EditorBatch> primary editors={data.editors} current={null} url={`/editor/queue/${nextAssign.id}/editor`} allowNone onDone={() => changed(`${nextAssign.code} asignado.`)} /></Box>
+                        </>)
+                    : empty("Todo en orden: nada para revisar ni asignar", "Cuando alguien entregue o llegue un encargo nuevo, aparece aquí.")}
+
+                <Box sx={{ mt: 3 }}>
+                    <ForecastCard f={data.forecast} compact />
+                    <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={today} correctionsDays={corrections} onOpen={openFromNeeds} />
+                </Box>
+
+                {lists.toReview.length > 0 && (
+                    <Section dot={t.amber} name="Para revisar" hint="entregados" mt={2}>
+                        {lists.toReview.map((b) => (
+                            <BatchRow key={b.id} b={b} dot={t.amber} open={openId === b.id} onToggle={() => toggle(b.id)}
+                                sub={b.can.review ? `Lo entregó ${b.deliveries.find((d) => d.review === "pending")?.editor ?? b.editor ?? "el editor"} · ${when(b).text}` : "Es tu entrega: la revisa el dueño"}
+                                action={b.can.review ? <RowButton icon={<RateReviewRounded />} onClick={() => setReviewId(b.id)}>Revisar</RowButton> : undefined} />
+                        ))}
+                    </Section>
+                )}
+                {lists.toAssign.length > 0 && (
+                    <Section dot={t.gray} name="Sin asignar" hint="lo más urgente arriba">
+                        {lists.toAssign.map((b) => (
+                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${piecesText(b)} · ${when(b).text}`}
+                                action={<AssignButton<EditorBatch> asLink editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
+                        ))}
+                    </Section>
+                )}
+                {lists.working.length > 0 && (
+                    <Section dot={t.ink} name="En curso" hint="asignados o en producción">
+                        {lists.working.map((b) => (
+                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
+                                sub={`Lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}`}
+                                extra={b.can.assign ? <AssignButton<EditorBatch> asLink editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
+                        ))}
+                    </Section>
+                )}
+                {lists.bank.length > 0 && (
+                    <Section dot={t.green} name="En banca" hint="aprobados: el dueño los lanza en Meta">
+                        {lists.bank.map((b) => (
+                            <BatchRow key={b.id} b={b} dot={t.green} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`Lo hizo ${b.editor ?? "—"}${b.status_at ? ` · en banca desde el ${dateTime(b.status_at)}` : ""}`} />
+                        ))}
+                    </Section>
+                )}
+                {dialogs}
+            </>,
+        );
     }
 
-    return (
-        <Layout>
-            <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1000, mx: "auto" }}>
-                {team ? (
-                    <>
-                        <DescripcionDeVista title="Encargos del equipo" description="Todo lo que necesitamos para mantener cada producto y seguir escalando, con su fecha y su porqué: asígnalo (a ti o a otro editor) y revisa lo entregado. Si lo apruebas pasa a la banca; si lo devuelves, escribe qué cambiar con algo que se vea. Tus propias entregas las revisa el dueño." />
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-                            <Chip color={data.pending.to_assign ? "warning" : "default"} label={`Para asignar: ${data.pending.to_assign}`} />
-                            <Chip color={data.pending.to_review ? "secondary" : "default"} label={`Para revisar: ${data.pending.to_review}`} />
-                        </Stack>
-                        {/* .88: si alcanza el equipo, y todo lo que hace falta por fecha */}
-                        <ForecastCard f={data.forecast} />
-                        <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={data.today ?? new Date().toISOString().slice(0, 10)} correctionsDays={data.corrections_days} />
-                        <Stack spacing={2}>
-                            {section("Para asignar", "Lo que necesitamos, lo más urgente arriba.", lists.toAssign, "Nada para asignar.")}
-                            {section("Para revisar", "Entregados: mira cada video y apruébalo o devuélvelo.", lists.toReview, "Nada para revisar.", true)}
-                            {section("En curso", "Asignados o en producción.", lists.working, "Nadie está con un encargo.", true)}
-                            {section("En banca", "Aprobados: el dueño los sube a Meta.", lists.bank, "Nada en banca.", true)}
-                        </Stack>
-                    </>
-                ) : (
-                    <>
-                        <DescripcionDeVista title="Mis encargos" description={`Los encargos de video que te asignaron, lo más urgente arriba. Toca "Empezar" cuando lo empieces y "Entregar" con ${data.uploads ? "el archivo de cada video (lo subes aquí mismo)" : "el enlace de Drive de cada video"}, el hook de cada uno, el concepto y el ángulo.`} />
-                        {leader && (data.pending.to_assign > 0 || data.pending.to_review > 0) && (
-                            <Alert severity="info" sx={{ mb: 2 }} action={<Button color="inherit" size="small" component={RouterLink} to="/editor/equipo">Ver</Button>}>
-                                En el equipo hay {data.pending.to_assign} para asignar y {data.pending.to_review} para revisar.
-                            </Alert>
-                        )}
-                        <Stack spacing={2}>
-                            {section("Por hacer", "Por empezar y en producción (también lo que te devolvieron).", lists.todo, "No tienes encargos pendientes.")}
-                            {section("En revisión", "Entregados: esperan la revisión.", lists.inReview, "Nada en revisión.")}
-                            {section("Terminados", "Lo de los últimos 14 días que pasó a la banca, a Meta o se descartó.", lists.done, "Todavía nada.")}
-                        </Stack>
-                        {lists.todo.length === 0 && lists.inReview.length === 0 && <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
-                            <CheckRounded fontSize="inherit" sx={{ verticalAlign: "middle" }} /> Al día.
-                        </Typography>}
-                    </>
-                )}
-            </Box>
-        </Layout>
+    // ---------- Mis encargos: ¿qué entrego ahora? ----------
+    const mission = lists.todo[0];
+    const rest = lists.todo.slice(1);
+    const lateMine = late(lists.todo);
+    const missionSteps = (b: EditorBatch) => b.returned ? [
+        `Cambia lo que pidió ${b.returned.by ?? "el líder"} (arriba).`,
+        b.uploads ? "Toca «Entregar de nuevo» y sube solo las piezas que cambiaste: las demás quedan como estaban." : "Toca «Entregar de nuevo» y pega el enlace de las piezas que cambiaste.",
+        "Revisa el hook de cada una y entrega.",
+    ] : [
+        `Haz ${b.pieces.length === 1 ? "la pieza" : `las ${b.pieces.length} piezas`}: ${b.pieces.map((p) => p.code).filter(Boolean).join(", ")}. Qué lleva cada una, en «Ver todo el encargo».`,
+        b.uploads ? "Toca «Entregar» y sube el archivo de cada pieza: se nombra solo." : "Sube cada video a Drive con su código y toca «Entregar» para pegar los enlaces.",
+        "Escribe el hook de cada una y entrega.",
+    ];
+    return frame(
+        <>
+            {header("Mis encargos", "Lo más urgente primero")}
+            {leader && (data.pending.to_review > 0 || data.pending.to_assign > 0) && (
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                    En el equipo: {[data.pending.to_review > 0 && `${data.pending.to_review} para revisar`, data.pending.to_assign > 0 && `${data.pending.to_assign} sin asignar`].filter(Boolean).join(" · ")}
+                    {" · "}<Link component={RouterLink} to="/editor/equipo" sx={{ color: t.ink }}>Ir a Encargos del equipo</Link>
+                </Typography>
+            )}
+            <Scoreboard tiles={[
+                { label: "Por entregar", value: lists.todo.length, help: "Tus encargos asignados que todavía no entregaste (también lo que te devolvieron)." },
+                { label: "Atrasados", value: lateMine, color: lateMine ? t.red : undefined, help: "Los que pasaron su fecha de entrega (o de correcciones, si te los devolvieron)." },
+                { label: "En revisión", value: lists.inReview.length, help: "Los que entregaste y esperan la revisión del líder." },
+            ]} />
+            {mission ? missionFrame(
+                `${mission.returned ? "Te lo devolvieron" : `Encargo 1 de ${lists.todo.length}`} · ${when(mission).text}`, signal(t, when(mission).level),
+                `${mission.product}${angleOf(mission) ? ` · ${angleOf(mission)}` : ""}`,
+                mission.returned ? `Corrige ${mission.code} y entrégalo de nuevo` : `Haz y entrega ${mission.code}: ${piecesText(mission)}`, <>
+                    <Returned b={mission} />
+                    <NumberedSteps label="Cómo hacerlo" steps={missionSteps(mission)} />
+                    {mission.goal && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>Lo que buscamos:</b> {mission.goal}</Typography>}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 2 }}>
+                        <Button variant="contained" disableElevation startIcon={<UploadRounded />} onClick={() => setDeliverId(mission.id)} disabled={!mission.can.deliver}
+                            sx={{ ...inkSx(t), ...tapSx }}>{mission.returned ? "Entregar de nuevo" : "Entregar"}</Button>
+                        <TextAction onClick={() => setMissionOpen((o) => !o)} aria-expanded={missionOpen} sx={{ fontSize: 14, alignSelf: { xs: "center", sm: "auto" } }}>
+                            {missionOpen ? "Ocultar el encargo" : "Ver todo el encargo"}
+                        </TextAction>
+                    </Stack>
+                    <Collapse in={missionOpen} unmountOnExit>
+                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${t.line}` }}>
+                            <BriefDetail b={mission} />
+                            <DeliveriesList deliveries={mission.deliveries} />
+                            <Stack direction="row" columnGap={2} flexWrap="wrap" sx={{ mt: 1, fontSize: 14 }}>
+                                <CopyBrief text={mission.brief} asLink />
+                                {mission.can.assign && <AssignButton<EditorBatch> asLink editors={data.editors} current={mission.editor_id} url={`/editor/queue/${mission.id}/editor`} allowNone={mission.status === "approved"} onDone={() => changed()} />}
+                            </Stack>
+                        </Box>
+                    </Collapse>
+                </>)
+                : empty("Estás al día: no tienes encargos por entregar", "Cuando te asignen uno, aparece aquí con su plazo y todo lo que necesitas.")}
+
+            {rest.length > 0 && (
+                <Section dot={t.ink} name="Lo que sigue" hint="por fecha">
+                    {rest.map((b) => (
+                        <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
+                            sub={`${b.returned ? "Te lo devolvieron · " : ""}${piecesText(b)} · ${when(b).text}`}
+                            action={b.can.deliver ? <RowButton icon={<UploadRounded />} onClick={() => setDeliverId(b.id)}>Entregar</RowButton> : undefined}
+                            extra={b.can.assign ? <AssignButton<EditorBatch> asLink editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
+                    ))}
+                </Section>
+            )}
+            {lists.inReview.length > 0 && (
+                <Section dot={t.amber} name="Esperando revisión" hint="ya los entregaste">
+                    {lists.inReview.map((b) => (
+                        <BatchRow key={b.id} b={b} dot={t.amber} open={openId === b.id} onToggle={() => toggle(b.id)}
+                            sub={b.review_by_owner ? "Lo revisa el dueño" : `Lo revisa el líder${b.delivered_at ? ` · entregado el ${dateTime(b.delivered_at)}` : ""}`} />
+                    ))}
+                </Section>
+            )}
+            {lists.done.length > 0 && (
+                <Box sx={{ mt: 3, fontSize: 14 }}>
+                    <TextAction onClick={() => setShowDone((s) => !s)} aria-expanded={showDone} sx={{ color: t.muted }}>
+                        {showDone ? "Ocultar los terminados" : `Ver los terminados de los últimos 14 días (${lists.done.length})`}
+                    </TextAction>
+                    <Collapse in={showDone} unmountOnExit>
+                        <Box sx={{ mt: 1 }}>
+                            {lists.done.map((b) => (
+                                <BatchRow key={b.id} b={b} dot={b.status === "discarded" ? t.gray : t.green} open={openId === b.id} onToggle={() => toggle(b.id)}
+                                    sub={`${b.status_label}${b.status_at ? ` desde el ${dateTime(b.status_at)}` : ""}`} />
+                            ))}
+                        </Box>
+                    </Collapse>
+                </Box>
+            )}
+            {dialogs}
+        </>,
     );
 };

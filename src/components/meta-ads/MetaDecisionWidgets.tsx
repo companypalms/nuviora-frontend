@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Box, Chip, FormControlLabel, InputAdornment, Paper, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import { toast } from "react-toastify";
 import { api, fmt } from "./metaAds";
-import { StoreCheckCard } from "./fileView";
 
 export type Verdict = {
     key: "no_target" | "no_data" | "evaluation" | "promising" | "proven" | "intermediate" | "loser" | "failing";
@@ -304,8 +303,6 @@ export const MetaDecisionSettings: React.FC = () => {
                     </Stack>
                 </Paper>
             ))}
-            {/* .90: dónde se guardan los archivos de los creativos y si funciona */}
-            <StoreCheckCard />
         </Stack>
     );
 };

@@ -17,7 +17,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
-    Stack, TextField, Tooltip, Typography, useTheme,
+    Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import {
     CheckCircleRounded, CheckRounded, EmojiEventsRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, LocalFireDepartmentRounded,
@@ -28,7 +28,9 @@ import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
-import { FONT_FAMILY } from "../../common/theme";
+// .91: los colores y las piezas del diseño nuevo, en un archivo común (las pantallas de los editores también los usan)
+import { appear, cardSx, geist, inkSx, plural, Tokens, useTokens } from "../../components/ui/design";
+import { Dot, Section, TextAction } from "../../components/ui/designParts";
 
 type Tone = "default" | "info" | "success" | "warning" | "error";
 type Group = "frenar" | "arreglar" | "crecer" | "aviso";
@@ -77,23 +79,7 @@ type Sent = { code: string | null; status: string; status_label: string; editor:
 type Turn = { pick: number; open: string[]; full: boolean };
 type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
 
-/** .82: Geist solo en esta pantalla (la prueba del sistema de diseño nuevo); Inter de reserva. */
-const GEIST = `"Geist", ${FONT_FAMILY}`;
-const geist = { fontFamily: GEIST, fontFeatureSettings: '"tnum"', "& *": { fontFamily: "inherit" } } as const;
-
-/** Los colores de la pantalla: tinta y grises para todo; rojo, ámbar y verde solo para las señales. */
-const useTokens = () => {
-    const dark = useTheme().palette.mode === "dark";
-    return dark
-        ? { card: "#1B1F26", line: "#2A303A", soft: "#232832", ink: "#E8EBF0", onInk: "#14171C", muted: "#A3ABB7", faint: "#7C8592",
-            red: "#F2686D", amber: "#F5B544", green: "#3CCB93", gray: "#5B6472", greenSoft: "#16342A", greenInk: "#9FE5C6" }
-        : { card: "#FFFFFF", line: "#E6E8EC", soft: "#F3F4F6", ink: "#1C2230", onInk: "#FFFFFF", muted: "#5E6672", faint: "#8A919C",
-            red: "#C62E34", amber: "#E8A100", green: "#0F7552", gray: "#B8BEC7", greenSoft: "#E6F4EE", greenInk: "#0B5A3F" };
-};
-type Tokens = ReturnType<typeof useTokens>;
-
 /** Los grupos, en el orden en que se hacen, con su porqué. */
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Las etapas del día, en el orden en que se hacen, con su porqué, qué se logró y su celebración. */
 const GROUPS: { key: Exclude<Group, "aviso">; name: string; hint: string; color: (t: Tokens) => string; did: (n: number) => string;
@@ -145,41 +131,9 @@ const todayYmd = () => new Date().toLocaleDateString("en-CA", { timeZone: "Ameri
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const hour = (iso: string) => new Date(iso).toLocaleTimeString("es-VE", { timeZone: "America/Caracas", hour: "2-digit", minute: "2-digit", hour12: false });
 
-const Dot: React.FC<{ color: string; size?: number }> = ({ color, size = 10 }) => (
-    <Box component="span" aria-hidden sx={{ width: size, height: size, borderRadius: "50%", bgcolor: color, display: "inline-block", flex: "none" }} />
-);
-
-/** Un enlace de texto que es un botón ("¿Por qué?", "Volver a analizar"). */
-const TextAction: React.FC<React.ComponentProps<typeof ButtonBase>> = ({ sx, ...props }) => {
-    const t = useTokens();
-    return <ButtonBase {...props} sx={{ font: "inherit", color: t.ink, textDecoration: "underline", textUnderlineOffset: 3, borderRadius: 1, verticalAlign: "baseline",
-        "&.Mui-disabled": { color: t.faint, textDecoration: "none" }, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 }, ...sx }} />;
-};
-
-const Section: React.FC<{ icon?: React.ReactNode; dot?: string; name: string; hint?: string; children: React.ReactNode; mt?: number }> = ({ icon, dot, name, hint, children, mt = 3 }) => {
-    const t = useTokens();
-    return (
-        <Box component="section" sx={{ mt }}>
-            <Stack direction="row" columnGap={1} rowGap={0} alignItems="center" flexWrap="wrap" sx={{ mb: 0.75 }}>
-                {dot ? <Dot color={dot} /> : <Box sx={{ display: "flex", color: t.muted, "& svg": { fontSize: 18 } }}>{icon}</Box>}
-                <Typography component="h2" sx={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap" }}>{name}</Typography>
-                {hint && <Typography sx={{ fontSize: 13, color: t.muted }}>{hint}</Typography>}
-            </Stack>
-            {children}
-        </Box>
-    );
-};
-
-const cardSx = (t: Tokens) => ({ bgcolor: t.card, border: `1px solid ${t.line}`, borderRadius: "10px" });
 
 /** Hecho o "no estoy de acuerdo": las dos resuelven la misión (la segunda, porque decidiste no hacerla). */
 const isResolved = (m?: Mark) => m?.status === "done" || m?.status === "disagree";
-const inkSx = (t: Tokens) => ({ bgcolor: t.ink, color: t.onInk, "&:hover": { bgcolor: t.ink, opacity: 0.9 }, borderRadius: "10px", px: 2 }) as const;
-/** Lo que aparece (la misión siguiente, el día completo) entra suave; nada se mueve si el sistema pide menos movimiento. */
-const appear = {
-    animation: "nx-appear 220ms ease-out", "@keyframes nx-appear": { from: { opacity: 0, transform: "translateY(6px)" }, to: { opacity: 1, transform: "none" } },
-    "@media (prefers-reduced-motion: reduce)": { animation: "none" },
-} as const;
 
 /** "No estoy de acuerdo" con una nota: resuelve la misión y sirve para ajustar tus reglas. Se monta al abrirse. */
 const DisagreeDialog: React.FC<{ item: UrgentItem; mark?: Mark; onClose: () => void; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onClose, onMark }) => {

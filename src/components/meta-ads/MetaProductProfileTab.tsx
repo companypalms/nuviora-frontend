@@ -93,7 +93,7 @@ const ProductFiles: React.FC<{ productId: number; files?: ProductFilesData; onCh
         try { onChange((await api<{ files: ProductFilesData }>(`/meta/files/${f.id}`, "DELETE")).files); } catch (e) { toast.error((e as Error).message); }
     };
     const picker = (kind: "photo" | "strategy", label: string) => (
-        <Button component="label" size="small" startIcon={<UploadFileRounded />} disabled={!!progress} sx={{ mt: 1 }}>
+        <Button component="label" variant="outlined" startIcon={<UploadFileRounded />} disabled={!!progress} sx={{ mt: 1, minHeight: 40, textTransform: "none" }}>
             {label}
             <input hidden type="file" multiple={kind === "photo"} accept={ACCEPT[kind]} onChange={(e) => { upload(kind, e.target.files); e.target.value = ""; }} />
         </Button>
@@ -114,17 +114,15 @@ const ProductFiles: React.FC<{ productId: number; files?: ProductFilesData; onCh
             ) : (
                 <>
                     <Typography variant="body2" color="text.secondary">
-                        Las fotos las ven los editores en cada encargo de este producto. El documento de estrategia solo lo ves tú. Si se los pasas a tu asistente con la ficha, se guardan solos.
+                        Se guardan solos al subirlos (no hace falta "Guardar la ficha"). Las fotos las ven los editores en cada encargo de este producto; el documento de estrategia, solo tú. Si se los pasas a tu asistente con la ficha, también se guardan solos.
                     </Typography>
                     <Typography variant="body2" fontWeight={700} sx={{ mt: 1.5 }}>Fotos ({files.photos.length})</Typography>
                     <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
                         {files.photos.map((f) => (
-                            <Box key={f.id} sx={{ position: "relative" }}>
-                                {f.url && <Box component="img" src={f.url} alt={f.name} loading="lazy" sx={{ width: 104, height: 104, objectFit: "cover", borderRadius: 1.5, display: "block" }} />}
-                                <IconButton size="small" aria-label={`Quitar ${f.name}`} onClick={() => remove(f)}
-                                    sx={{ position: "absolute", top: 2, right: 2, bgcolor: "background.paper", "&:hover": { bgcolor: "background.paper" } }}>
-                                    <DeleteOutlineRounded fontSize="small" />
-                                </IconButton>
+                            <Box key={f.id} sx={{ width: 112 }}>
+                                {f.url && <Box component="img" src={f.url} alt={f.name} loading="lazy" sx={{ width: 112, height: 112, objectFit: "cover", borderRadius: 1.5, display: "block" }} />}
+                                <Button size="small" startIcon={<DeleteOutlineRounded fontSize="small" />} onClick={() => remove(f)} aria-label={`Quitar ${f.name}`}
+                                    sx={{ minHeight: 40, width: "100%", textTransform: "none", color: "text.secondary" }}>Quitar</Button>
                             </Box>
                         ))}
                     </Stack>
@@ -135,7 +133,8 @@ const ProductFiles: React.FC<{ productId: number; files?: ProductFilesData; onCh
                         {files.strategy.map((f) => (
                             <Stack key={f.id} direction="row" spacing={1} alignItems="center">
                                 <FileView file={f} />
-                                <IconButton size="small" aria-label={`Quitar ${f.name}`} onClick={() => remove(f)}><DeleteOutlineRounded fontSize="small" /></IconButton>
+                                <Button size="small" startIcon={<DeleteOutlineRounded fontSize="small" />} onClick={() => remove(f)} aria-label={`Quitar ${f.name}`}
+                                    sx={{ minHeight: 40, textTransform: "none", color: "text.secondary" }}>Quitar</Button>
                             </Stack>
                         ))}
                         {files.strategy.length === 0 && <Typography variant="caption" color="text.secondary">Todavía no hay ninguno.</Typography>}
@@ -262,13 +261,16 @@ export const MetaProductProfileTab: React.FC = () => {
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1.5 }}>El producto</Typography>
                         <Stack spacing={1.5}>
-                            {FIELDS.map((f) => (
+                            {/* .91: con el almacén conectado, las fotos se suben abajo; el link de Drive solo si ya había uno */}
+                            {FIELDS.filter((f) => f.key !== "photos_url" || !data.files?.on || profile.photos_url.trim() !== "").map((f) => (
                                 <TextField key={f.key} size="small" label={f.label} value={profile[f.key]} onChange={(e) => setField(f.key, e.target.value)} fullWidth
                                     multiline={f.rows > 1} minRows={f.rows > 1 ? f.rows : undefined} placeholder={f.placeholder} inputProps={{ maxLength: f.max }}
                                     required={["what_it_is", "benefits", "mechanism"].includes(f.key)} />
                             ))}
                         </Stack>
                     </Paper>
+                    {/* .91: las fotos y la estrategia, junto al producto (se guardan solas, sin "Guardar la ficha") */}
+                    {productId && <ProductFiles productId={productId} files={data.files} onChange={(files) => setData((d) => (d ? { ...d, files } : d))} />}
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">Buyer personas</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
@@ -343,7 +345,6 @@ export const MetaProductProfileTab: React.FC = () => {
                             Agregar ángulo
                         </Button>
                     </Paper>
-                    {productId && <ProductFiles productId={productId} files={data.files} onChange={(files) => setData((d) => (d ? { ...d, files } : d))} />}
                     <Box sx={{ display: "flex", justifyContent: "flex-end", position: "sticky", bottom: 8 }}>
                         <Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveRounded />} disabled={saving || !dirty} onClick={save}>
                             Guardar la ficha
