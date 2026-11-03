@@ -46,6 +46,8 @@ type Data = {
     pending: { todo: number; to_assign: number; to_review: number; total: number };
     /** .88: para el líder: lo que hace falta y no se pudo pedir, si alcanza el equipo y el día de hoy (hora de Venezuela). */
     unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
+    /** .89: entrega + estos días de correcciones = lista en la banca. */
+    corrections_days?: number;
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -250,7 +252,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         </Stack>
                         {/* .88: si alcanza el equipo, y todo lo que hace falta por fecha */}
                         <ForecastCard f={data.forecast} />
-                        <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={data.today ?? new Date().toISOString().slice(0, 10)} />
+                        <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={data.today ?? new Date().toISOString().slice(0, 10)} correctionsDays={data.corrections_days} />
                         <Stack spacing={2}>
                             {section("Para asignar", "Lo que necesitamos, lo más urgente arriba.", lists.toAssign, "Nada para asignar.")}
                             {section("Para revisar", "Entregados: mira cada video y apruébalo o devuélvelo.", lists.toReview, "Nada para revisar.", true)}

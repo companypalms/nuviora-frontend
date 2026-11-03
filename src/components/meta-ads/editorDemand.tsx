@@ -15,7 +15,11 @@ export type Forecast = {
 };
 /** Lo que hace falta y no se pudo pedir (sin la ficha del producto o sin una ciudad donde probarlo). */
 export type Unfilled = { product_id: number; product: string; due: string; why: string; blocked: string };
-export type NeedBatch = { id: number; code: string | null; product: string; status: string; due_date: string | null; editor: string | null; need?: string | null };
+export type NeedBatch = {
+    id: number; code: string | null; product: string; status: string; due_date: string | null; editor: string | null; need?: string | null;
+    /** .89: si ya se entregó, lo que falta son las correcciones (la fecha "lista"). */
+    delivered_at?: string | null;
+};
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
 const SIGNAL = { ok: "success.main", floater: "warning.main", fixed: "error.main" } as const;
@@ -62,13 +66,25 @@ const bucketOf = (due: string | null, today: string, late: boolean): Bucket => {
 const stateOf = (b: NeedBatch) => b.status === "review" ? "Entregado: por revisar"
     : b.status === "production" ? `En producción${b.editor ? `: ${b.editor}` : ""}` : b.editor ? `Asignado a ${b.editor}` : "Sin editor";
 
-/** Lo que necesitamos: todo lo pedido y lo que falta pedir, por fecha (atrasado, hoy, mañana, en 2 días) y con su porqué. */
-export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; today: string }> = ({ batches, unfilled, today }) => {
+/** "jue 05/11". */
+const short = (date: string) => dueLabel(date) ?? date;
+
+/**
+ * Lo que necesitamos: todo lo pedido y lo que falta pedir, por fecha (atrasado, hoy, mañana, en 2 días) y con su porqué.
+ * .89: dos fechas: la entrega del editor y "lista" (con las correcciones del líder); atrasado = no entregó a tiempo, o ya
+ * entregó y las correcciones pasaron de "lista".
+ */
+export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; today: string; correctionsDays?: number }> = ({ batches, unfilled, today, correctionsDays = 1 }) => {
     const rows = [
-        ...batches.filter((b) => ["approved", "production", "review"].includes(b.status)).map((b) => ({
-            key: `b${b.id}`, due: b.due_date, title: `${b.code ?? "Encargo"} · ${b.product}`, why: b.need ?? null, state: stateOf(b), warn: false,
-            bucket: bucketOf(b.due_date, today, b.status !== "review" && !!b.due_date && b.due_date < today),
-        })),
+        ...batches.filter((b) => ["approved", "production", "review"].includes(b.status)).map((b) => {
+            const ready = b.due_date ? plus(b.due_date, correctionsDays) : null;
+            const late = !!b.due_date && (b.delivered_at ? (ready ?? "") < today : b.due_date < today);
+            return {
+                key: `b${b.id}`, due: b.due_date, title: `${b.code ?? "Encargo"} · ${b.product}`, why: b.need ?? null, warn: false,
+                state: stateOf(b) + (b.due_date ? ` · Entrega: ${short(b.due_date)} · Lista: ${short(ready!)}` : ""),
+                bucket: bucketOf(b.due_date, today, late),
+            };
+        }),
         ...unfilled.map((u, i) => ({
             key: `u${u.product_id}-${i}`, due: u.due, title: `Sin encargo todavía · ${u.product}`, why: u.why, state: u.blocked, warn: true,
             bucket: bucketOf(u.due, today, false),
@@ -93,7 +109,7 @@ export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; t
                                     <Stack direction="row" spacing={1} alignItems="baseline" flexWrap="wrap" useFlexGap>
                                         <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: "anywhere" }}>{r.title}</Typography>
                                         <Typography variant="caption" color={r.warn ? "warning.main" : "text.secondary"}>
-                                            {r.state}{r.due && key === "late" ? ` · era para el ${dueLabel(r.due)}` : r.due && key === "later" ? ` · para el ${dueLabel(r.due)}` : ""}
+                                            {r.state}
                                         </Typography>
                                     </Stack>
                                     {r.why && <Typography variant="caption" color="text.secondary" component="div" sx={{ overflowWrap: "anywhere" }}>{r.why}</Typography>}
