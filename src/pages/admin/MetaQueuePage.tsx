@@ -323,6 +323,7 @@ const BatchCard: React.FC<{
                 {b.angle_code && <Chip size="small" variant="outlined" label={b.angle_name ? `${b.angle_code} · ${b.angle_name}` : b.angle_code} />}
                 <Chip size="small" color={STATUS_COLOR[b.status]} label={b.status_label} />
                 {b.source === "rules" && <Chip size="small" variant="outlined" color="secondary" label="Propuesto por tus reglas" />}
+                {b.source === "imported" && <Chip size="small" variant="outlined" label="Cargado por el líder (de antes del sistema)" />}
                 {b.testing_round && <Chip size="small" color="secondary" label={`Testeo · ronda ${b.testing_round}`} />}
                 {b.urgency && <Chip size="small" color={URGENCY_COLOR[b.urgency]} variant="outlined" label={`U${b.urgency}`} />}
                 {numbered && QUEUE.includes(b.status) && (

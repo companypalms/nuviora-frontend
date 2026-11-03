@@ -54,6 +54,8 @@ export type EditorBatch = EditorFields & {
     need?: string | null; uploads?: boolean;
     /** .92: si es la iteración de un ganador, cuál ("Iteración de …" ya viene elegida en cada pieza). */
     iteration_of?: string | null;
+    /** .95: un batch ya hecho que cargó el líder (de antes del sistema, sin hipótesis). */
+    imported?: boolean;
 };
 
 /** .92: la biblioteca de referencias (ReferenceLibrary del servidor). */

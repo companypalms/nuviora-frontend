@@ -14,7 +14,7 @@
 //   abre "Revisar", que compara la referencia con lo entregado y al terminar ofrece el siguiente.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, IconButton, Link, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
-import { CheckCircleRounded, CloseRounded, EmojiEventsRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
+import { AddRounded, CheckCircleRounded, CloseRounded, EmojiEventsRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -23,6 +23,7 @@ import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } 
 import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
+import { ImportBatchDialog } from "../../components/meta-ads/importBatch";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
@@ -164,6 +165,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const [showDone, setShowDone] = useState(false);
     // .94: los ganadores que ya se celebraron
     const [seenWins, setSeenWins] = useState<string[]>(readSeen);
+    // .95: cargar a la banca un batch ya hecho
+    const [importing, setImporting] = useState(false);
 
     const load = useCallback(() => {
         setError(null);
@@ -354,13 +357,18 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         ))}
                     </Section>
                 )}
-                {lists.bank.length > 0 && (
-                    <Section dot={t.green} name="En banca" hint="aprobados: el dueño los lanza en Meta">
-                        {lists.bank.map((b) => (
-                            <BatchRow key={b.id} b={b} dot={t.green} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`Lo hizo ${b.editor ?? "—"}${b.status_at ? ` · en banca desde el ${dateTime(b.status_at)}` : ""}`} />
-                        ))}
-                    </Section>
-                )}
+                {/* .95: la banca se ve siempre, con "Cargar un batch ya hecho" (los de antes del sistema, de Drive) */}
+                <Section dot={t.green} name="En banca" hint="aprobados: el dueño los lanza en Meta">
+                    {lists.bank.length === 0 && <Typography sx={{ fontSize: 14, color: t.muted, mb: 1 }}>Nada en la banca todavía.</Typography>}
+                    {lists.bank.map((b) => (
+                        <BatchRow key={b.id} b={b} dot={t.green} open={openId === b.id} onToggle={() => toggle(b.id)}
+                            sub={`${b.imported ? "Cargado: de antes del sistema · " : ""}Lo hizo ${b.editor ?? "—"}${b.status_at ? ` · en banca desde el ${dateTime(b.status_at)}` : ""}`} />
+                    ))}
+                    <Button variant="outlined" startIcon={<AddRounded />} onClick={() => setImporting(true)} sx={{ ...lineSx(t), ...tapSx, mt: 0.5, width: { xs: "100%", sm: "auto" } }}>
+                        Cargar un batch ya hecho
+                    </Button>
+                </Section>
+                <ImportBatchDialog open={importing} onClose={() => setImporting(false)} onDone={(code) => changed(`${code} está en la banca.`)} />
                 {dialogs}
             </>,
         );
