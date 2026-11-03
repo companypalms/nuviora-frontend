@@ -6,6 +6,8 @@
 // .91 (dueño: "se debe saber en menos de 3 segundos qué se debe hacer, cómo se debe hacer"): "Entregar" y "Revisar" como
 // un juego: cuántas piezas van listas, una zona grande para cada archivo, qué pasa al entregar, y revisar pieza por pieza
 // con el video en grande. Diseño nuevo (guias/DISENO-UX-UI.md).
+// .93: revisar comparando (la referencia a la izquierda, lo entregado a la derecha) con lo que se busca a la vista, motivos
+// rápidos y "Marcar este segundo"; y el editor se compara antes de entregar.
 import React, { useEffect, useRef, useState } from "react";
 import {
     Box, Button, ButtonBase, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, Link, Menu, MenuItem,
@@ -13,14 +15,18 @@ import {
 } from "@mui/material";
 import {
     CheckCircleRounded, CheckRounded, CloseRounded, ContentCopyRounded, EditRounded, ExpandLessRounded, ExpandMoreRounded, OpenInNewRounded,
-    PersonAddAlt1Rounded, UploadFileRounded,
+    PersonAddAlt1Rounded, RateReviewRounded, UploadFileRounded,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
-import { Delivery, EditorOption, ReferenceLibraryData, ReferenceSource, driveFileId } from "./editorShared";
+import {
+    Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceSide,
+} from "./editorShared";
 import { UploadReferenceDialog } from "./references";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
-import { BigMedia, FileView } from "./fileView";
+import { FileView } from "./fileView";
+import { CompareMedia } from "./compare";
+import { ReviewBrief } from "./briefView";
 import { geist, inkSx, lineSx, tapSx, useTokens } from "../ui/design";
 import { Dot, TextAction } from "../ui/designParts";
 
@@ -152,12 +158,20 @@ export const DeliveriesList: React.FC<{ deliveries: Delivery[]; defaultOpen?: bo
 type Verdict = "ok" | "change";
 
 /**
- * Revisar la entrega pendiente pieza por pieza: el video en grande; en cada una "Está bien" o "Cambiar algo" (con lo que
- * hay que cambiar en esa pieza). Al final, aprobar (pasa a la banca) o devolver: el comentario se arma solo con el código
- * de cada pieza ("C0144: …").
+ * Revisar la entrega pendiente pieza por pieza. En cada una "Está bien" o "Cambiar algo" (con lo que hay que cambiar en esa
+ * pieza). Al final, aprobar (pasa a la banca) o devolver: el comentario se arma solo con el código de cada pieza ("C0144: …").
+ * `.93` (dueño: "del lado izquierdo la referencia que se utilizó en el video y del lado derecho el video que acaba de hacer el
+ * editor… y también la hipótesis que se quiere probar y lo que se le pidió al editor"): arriba "Lo que se busca"; por pieza,
+ * lo que se pidió y la referencia al lado de lo entregado, "Ver los dos juntos" y "Marcar este segundo"; motivos rápidos al
+ * pedir un cambio; y al terminar, el siguiente por revisar ("next"; sin "next", se cierra como antes).
  */
-export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }: {
-    open: boolean; title: string; delivery: Delivery | null; url: string; onClose: () => void; onDone: (b: B) => void;
+export const ReviewDialog = <B,>({ open, title, delivery, url, context, detail, next, onClose, onDone }: {
+    open: boolean; title: string; delivery: Delivery | null; url: string;
+    /** .93: lo que se busca y lo que se pidió en cada pieza; "detail": todo el encargo, plegado. */
+    context?: ReviewContext | null; detail?: React.ReactNode;
+    /** .93: lo que queda por revisar después de este (null: nada; sin pasarlo, la ventana se cierra al terminar). */
+    next?: { code: string; left: number; onOpen: () => void } | null;
+    onClose: () => void; onDone: (b: B) => void;
 }) => {
     const t = useTokens();
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
@@ -165,19 +179,27 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
     const [idx, setIdx] = useState(0);
     const [verdicts, setVerdicts] = useState<Record<number, Verdict>>({});
     const [notes, setNotes] = useState<Record<number, string>>({});
+    const [reasons, setReasons] = useState<Record<number, string[]>>({});
     const [general, setGeneral] = useState("");
     const [showGeneral, setShowGeneral] = useState(false);
-    const [showRef, setShowRef] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [finished, setFinished] = useState<string | null>(null);
+    const noteRef = useRef<HTMLTextAreaElement | null>(null);
     const [wasOpen, setWasOpen] = useState(open);
     if (open !== wasOpen) {
         setWasOpen(open);
-        if (open) { setIdx(0); setVerdicts({}); setNotes({}); setGeneral(""); setShowGeneral(false); }
+        if (open) { setIdx(0); setVerdicts({}); setNotes({}); setReasons({}); setGeneral(""); setShowGeneral(false); setFinished(null); }
     }
 
     const p = pieces[Math.min(idx, Math.max(pieces.length - 1, 0))];
-    const changes = pieces.filter((x) => verdicts[x.piece_id] === "change" && (notes[x.piece_id] ?? "").trim() !== "");
-    const comment = [...changes.map((x) => `${x.code ?? "Pieza"}: ${notes[x.piece_id].trim()}`), general.trim()].filter(Boolean).join("\n");
+    const noteOf = (id: number) => (notes[id] ?? "").trim();
+    const reasonsOf = (id: number) => reasons[id] ?? [];
+    const changes = pieces.filter((x) => verdicts[x.piece_id] === "change" && (reasonsOf(x.piece_id).length > 0 || noteOf(x.piece_id) !== ""));
+    // "C0146: Hook flojo, Texto mal puesto. seg. 0:03: el texto tapa la cara"
+    const comment = [
+        ...changes.map((x) => `${x.code ?? "Pieza"}: ${[reasonsOf(x.piece_id).join(", "), noteOf(x.piece_id)].filter(Boolean).join(". ")}`),
+        general.trim(),
+    ].filter(Boolean).join("\n");
     const seen = pieces.filter((x) => verdicts[x.piece_id]).length;
     const canReturn = comment.length >= 10;
 
@@ -186,18 +208,36 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
         setVerdicts((s) => ({ ...s, [p.piece_id]: v }));
         // "Está bien" pasa sola a la siguiente pieza que falta mirar
         if (v === "ok") {
-            const next = pieces.findIndex((x, i) => i > idx && !verdicts[x.piece_id]);
-            if (next >= 0) setIdx(next);
+            const nextPiece = pieces.findIndex((x, i) => i > idx && !verdicts[x.piece_id]);
+            if (nextPiece >= 0) setIdx(nextPiece);
         }
+    };
+    const toggleReason = (r: string) => {
+        if (!p) return;
+        setReasons((s) => {
+            const cur = s[p.piece_id] ?? [];
+            return { ...s, [p.piece_id]: cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r] };
+        });
+    };
+    /** "Marcar este segundo": la pieza pasa a "Cambiar algo" y la nota suma "seg. 0:03: ". */
+    const mark = (seconds: number) => {
+        if (!p) return;
+        const id = p.piece_id;
+        setVerdicts((s) => ({ ...s, [id]: "change" }));
+        setNotes((s) => {
+            const cur = (s[id] ?? "").trimEnd();
+            return { ...s, [id]: `${cur ? `${cur}\n` : ""}seg. ${clock(seconds)}: ` };
+        });
+        window.setTimeout(() => { const el = noteRef.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 50);
     };
     const send = async (approve: boolean) => {
         if (approve && changes.length > 0 && !window.confirm(`Marcaste cambios en ${changes.length === 1 ? "1 pieza" : `${changes.length} piezas`}. ¿Aprobar igual? (Tus notas quedan como comentario.)`)) return;
         setBusy(true);
         try {
             const r = await api<{ batch: B }>(url, "POST", { approve, comment: comment || null });
-            toast.success(approve ? `${title} aprobado: pasa a la banca` : `${title} devuelto al editor con ${changes.length === 1 ? "1 cambio" : `${changes.length || 1} cambios`}`);
+            const done = approve ? `${title} aprobado: pasa a la banca.` : `${title} devuelto${delivery?.editor ? ` a ${delivery.editor}` : ""} con ${changes.length === 1 ? "1 cambio" : `${changes.length || 1} cambios`}.`;
             onDone(r.batch);
-            onClose();
+            if (next === undefined) { toast.success(done); onClose(); } else setFinished(done);
         } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
     };
 
@@ -210,9 +250,33 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
             </Button>
         );
     };
+    const asked = p ? context?.asked[p.piece_id] : undefined;
+
+    // .93: terminado: lo que pasó y el siguiente por revisar (o "Equipo al día")
+    if (finished) {
+        return (
+            <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { ...geist, borderRadius: "12px" } }}>
+                <DialogContent sx={{ textAlign: "center", pt: 3 }}>
+                    <CheckCircleRounded sx={{ fontSize: 40, color: t.green }} />
+                    <Typography role="status" sx={{ fontSize: 16, fontWeight: 600, mt: 1 }}>{finished}</Typography>
+                    <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>
+                        {next ? (next.left === 1 ? "Queda 1 por revisar." : `Quedan ${next.left} por revisar.`) : "Equipo al día: no queda nada por revisar."}
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button onClick={onClose} sx={{ color: t.muted, ...tapSx }}>Cerrar</Button>
+                    {next && (
+                        <Button variant="contained" disableElevation startIcon={<RateReviewRounded />} onClick={next.onOpen} sx={{ ...inkSx(t), ...tapSx, flex: 1 }}>
+                            Revisar {next.code}
+                        </Button>
+                    )}
+                </DialogActions>
+            </Dialog>
+        );
+    }
 
     return (
-        <Dialog open={open} onClose={busy ? undefined : onClose} fullScreen={phone} fullWidth maxWidth="sm" PaperProps={{ sx: { ...geist, borderRadius: phone ? 0 : "12px" } }}>
+        <Dialog open={open} onClose={busy ? undefined : onClose} fullScreen={phone} fullWidth maxWidth="lg" PaperProps={{ sx: { ...geist, borderRadius: phone ? 0 : "12px" } }}>
             <DialogTitle sx={{ pb: 1, pr: 7, position: "relative" }}>
                 <IconButton aria-label="Cerrar sin revisar" onClick={onClose} disabled={busy} sx={{ position: "absolute", right: 8, top: 8, width: 44, height: 44, color: t.muted }}>
                     <CloseRounded />
@@ -226,41 +290,60 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
             </DialogTitle>
             <DialogContent dividers sx={{ borderColor: t.line }}>
                 {!p ? <Typography sx={{ color: t.muted }}>No hay una entrega para revisar.</Typography> : <>
+                    {context && <ReviewBrief c={context} detail={detail} />}
                     {/* Las piezas como un mapa: mirada bien (verde), con cambios (ámbar) o sin mirar */}
                     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.25 }}>
                         <Typography sx={{ fontSize: 13, color: t.muted }}>Pieza {idx + 1} de {pieces.length}</Typography>
                         {pieces.map((x, i) => {
                             const v = verdicts[x.piece_id];
                             return (
-                                <ButtonBase key={x.piece_id} onClick={() => { setIdx(i); setShowRef(false); }} aria-label={`${x.code ?? `Pieza ${i + 1}`}: ${v === "ok" ? "está bien" : v === "change" ? "con cambios" : "sin mirar"}`}
-                                    sx={{ px: 1, minHeight: 32, borderRadius: "8px", fontSize: 13, gap: 0.5, border: `1px solid ${i === idx ? t.ink : t.line}`,
+                                <ButtonBase key={x.piece_id} onClick={() => setIdx(i)} aria-label={`${x.code ?? `Pieza ${i + 1}`}: ${v === "ok" ? "está bien" : v === "change" ? "con cambios" : "sin mirar"}`}
+                                    sx={{ px: 1.25, minHeight: 36, borderRadius: "8px", fontSize: 13, gap: 0.5, border: `1px solid ${i === idx ? t.ink : t.line}`,
                                         "&.Mui-focusVisible": { outline: `2px solid ${t.ink}` } }}>
                                     <Dot color={v === "ok" ? t.green : v === "change" ? t.amber : t.gray} size={8} />{x.code ?? i + 1}
                                 </ButtonBase>
                             );
                         })}
                     </Stack>
-                    {p.file ? <BigMedia file={p.file} /> : p.link ? (
-                        <Button variant="outlined" href={p.link} target="_blank" rel="noopener noreferrer" endIcon={<OpenInNewRounded />} sx={{ ...lineSx(t), ...tapSx }}>
-                            Abrir {p.code} en Drive (entrega de antes)
-                        </Button>
-                    ) : <Typography sx={{ color: t.muted }}>Esta pieza no tiene archivo.</Typography>}
-                    {p.hook && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>Hook:</b> {p.hook}</Typography>}
-                    {(p.reference || p.source_label) && (
-                        <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>
-                            Salió de: {p.reference ? `${p.reference.code} · ${p.reference.type_label}` : p.source_label}
-                            {p.reference?.file && <>{" · "}<TextAction onClick={() => setShowRef((s) => !s)} aria-expanded={showRef} sx={{ color: t.muted }}>{showRef ? "ocultar la referencia" : "ver la referencia"}</TextAction></>}
-                        </Typography>
+                    {/* Lo que se pidió en esta pieza */}
+                    {(asked?.change || asked?.hypothesis) && (
+                        <Box sx={{ mb: 1.25, pl: 1.25, borderLeft: `3px solid ${t.ink}` }}>
+                            <Typography sx={{ fontSize: 12, color: t.muted }}>Lo que se pidió en {p.code ?? "esta pieza"}{asked.test_label ? ` · ${asked.test_label}` : ""}</Typography>
+                            {asked.change && <Typography sx={{ fontSize: 14, lineHeight: 1.45, overflowWrap: "anywhere" }}>{asked.change}</Typography>}
+                            {asked.hypothesis && <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>Qué probamos: {asked.hypothesis}</Typography>}
+                        </Box>
                     )}
-                    {showRef && p.reference?.file && <Box sx={{ mt: 1 }}><FileView file={p.reference.file} height={260} /></Box>}
+                    <CompareMedia key={`comparar-${p.piece_id}`} onMark={mark}
+                        left={referenceSide(p.source, p.reference, context?.iteration)}
+                        right={{
+                            label: `Lo entregado · ${p.code ?? "la pieza"}`, file: p.file,
+                            lines: [p.hook ? `Hook: ${p.hook}` : ""].filter(Boolean),
+                            empty: !p.file && p.link ? "Entrega de antes: está en Drive." : "Esta pieza no tiene archivo.",
+                            link: !p.file && p.link ? { href: p.link, label: "abrir en Drive" } : null,
+                        }} />
                     <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                         {pick("ok", "Está bien", <CheckRounded />)}
                         {pick("change", "Cambiar algo", <EditRounded />)}
                     </Stack>
                     {verdicts[p.piece_id] === "change" && (
-                        <TextField key={p.piece_id} autoFocus label={`Qué cambiar en ${p.code ?? "esta pieza"}`} placeholder="Algo que se vea: el segundo, el texto o la imagen (seg. 0–3: el texto tapa la cara)"
-                            value={notes[p.piece_id] ?? ""} onChange={(e) => setNotes((s) => ({ ...s, [p.piece_id]: e.target.value }))} fullWidth multiline minRows={2}
-                            sx={{ mt: 1.5 }} inputProps={{ maxLength: 600 }} />
+                        <Box key={`cambiar-${p.piece_id}`} sx={{ mt: 1.5 }}>
+                            <Typography sx={{ fontSize: 13, color: t.muted }}>Qué cambiar en {p.code ?? "esta pieza"} (toca uno o varios)</Typography>
+                            <Stack direction="row" flexWrap="wrap" useFlexGap gap={0.75} sx={{ mt: 0.5 }}>
+                                {REVIEW_REASONS.map((r) => {
+                                    const on = reasonsOf(p.piece_id).includes(r);
+                                    return (
+                                        <ButtonBase key={r} onClick={() => toggleReason(r)} aria-pressed={on}
+                                            sx={{ px: 1.5, minHeight: { xs: 40, sm: 34 }, borderRadius: "999px", fontSize: 13, border: `1px solid ${on ? t.ink : t.line}`,
+                                                bgcolor: on ? t.ink : "transparent", color: on ? t.onInk : t.ink, gap: 0.5, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                                            {on && <CheckRounded sx={{ fontSize: 16 }} />}{r}
+                                        </ButtonBase>
+                                    );
+                                })}
+                            </Stack>
+                            <TextField inputRef={noteRef} label="Nota (opcional)" placeholder="Algo que se vea: el segundo, el texto o la imagen (seg. 0:03: el texto tapa la cara)"
+                                value={notes[p.piece_id] ?? ""} onChange={(e) => setNotes((s) => ({ ...s, [p.piece_id]: e.target.value }))} fullWidth multiline minRows={2}
+                                sx={{ mt: 1.25 }} inputProps={{ maxLength: 600 }} />
+                        </Box>
                     )}
                     <Stack direction="row" justifyContent="space-between" sx={{ mt: 1.5, fontSize: 14 }}>
                         <TextAction onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>← Anterior</TextAction>
@@ -276,7 +359,7 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
             <DialogActions sx={{ flexDirection: "column", alignItems: "stretch", gap: 1, p: 2 }}>
                 <Typography role="status" sx={{ fontSize: 13, color: t.muted }}>
                     {seen < pieces.length ? `Miraste ${seen} de ${pieces.length}. ` : "Miraste todas. "}
-                    {changes.length > 0 ? `Para cambiar: ${changes.map((x) => x.code).join(", ")}.` : canReturn ? "" : "Para devolver, toca «Cambiar algo» en la pieza y escribe qué cambiar."}
+                    {changes.length > 0 ? `Para cambiar: ${changes.map((x) => x.code).join(", ")}.` : canReturn ? "" : "Para devolver, toca «Cambiar algo» en la pieza y elige qué cambiar."}
                 </Typography>
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
                     <Button variant="outlined" disabled={busy || !canReturn} onClick={() => send(false)}
@@ -303,10 +386,12 @@ type FormPiece = { id: number; code: string | null; change: string | null; link:
  * cambió. `.91`: "2 de 3 listas", una zona grande para tocar o soltar cada archivo, qué pasa al entregar ("own": lo del
  * líder pasa directo a la banca), te lleva a lo que falta y avisa antes de cerrar mientras sube algo.
  */
-export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, onClose, onDone }: {
+export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, iteration, onClose, onDone }: {
     open: boolean; code: string; product?: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; uploads: boolean; own?: boolean; batchId: number;
     /** .92: para ofrecer primero las referencias de este producto y ángulo; "iterationOf": el ganador de una iteración. */
     productId?: number; angleCode?: string | null; iterationOf?: string | null;
+    /** .93: el ganador que se itera, para compararse antes de entregar. */
+    iteration?: Iteration | null;
     onClose: () => void; onDone: (b: B) => void;
 }) => {
     const t = useTokens();
@@ -325,6 +410,8 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
     // .92: la biblioteca, para decir de dónde salió cada pieza (las de este producto primero)
     const [lib, setLib] = useState<ReferenceLibraryData | null>(null);
     const [uploadFor, setUploadFor] = useState<number | null>(null);
+    // .93: la pieza que se está comparando con su referencia
+    const [comparing, setComparing] = useState<number | null>(null);
     useEffect(() => {
         if (!open) return;
         api<ReferenceLibraryData>(`/editor/references${productId ? `?product_id=${productId}` : ""}`).then(setLib).catch(() => setLib(null));
@@ -476,6 +563,22 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                                 {lib?.uploads && (
                                     <TextAction onClick={() => setUploadFor(i)} sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>¿No está en la biblioteca? Súbela</TextAction>
                                 )}
+                                {/* .93: compararse con la referencia antes de entregar */}
+                                {p.file && p.progress === null && ((p.source === "reference" && p.ref) || (p.source === "iteration" && iteration)) && (() => {
+                                    const ref = p.source === "reference" ? library.find((r) => r.id === p.ref) : null;
+                                    return (
+                                        <Box sx={{ mt: 0.75 }}>
+                                            <TextAction onClick={() => setComparing((c) => (c === i ? null : i))} aria-expanded={comparing === i} sx={{ fontSize: 14 }}>
+                                                {comparing === i ? "Ocultar la comparación" : `Comparar con ${ref ? ref.code : `el ganador ${iteration?.code ?? ""}`.trim()}`}
+                                            </TextAction>
+                                            <Collapse in={comparing === i} unmountOnExit>
+                                                <Box sx={{ mt: 1 }}>
+                                                    <CompareMedia left={referenceSide(p.source || null, ref, iteration)} right={{ label: `Tu pieza · ${p.code ?? `Pieza ${i + 1}`}`, file: p.file, lines: [] }} />
+                                                </Box>
+                                            </Collapse>
+                                        </Box>
+                                    );
+                                })()}
                                 <TextField label="Hook (lo primero que se dice o se lee)" value={p.hook} onChange={(e) => setPiece(i, { hook: e.target.value })} fullWidth sx={{ mt: 1.5 }}
                                     error={tried && p.hook.trim() === ""} helperText={tried && p.hook.trim() === "" ? "Falta el hook." : undefined} inputProps={{ maxLength: 300 }} />
                             </Box>

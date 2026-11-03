@@ -47,8 +47,9 @@ export const SECTIONS: { id: SectionId; title: string; icon: ReactNode }[] = [
 export const MENU_LINKS: NavLink[] = [
     // Principal
     // Etapa 5, paso 5a: los editores de video solo ven sus encargos (y el líder, los del equipo)
+    // .93: para el líder, lo del equipo va primero (es su pantalla principal)
+    { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar por revisar aprobar devolver editores videos banca" },
     { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
-    { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar aprobar devolver editores videos banca" },
     // .92: la biblioteca de referencias (videos probados de otros anunciantes)
     { section: "principal", text: "Referencias", icon: <CollectionsBookmarkRoundedIcon />, link: "/editor/referencias", roles: ["Editor líder", "Editor de video"], keywords: "biblioteca de anuncios referencias inspiracion videos probados ref" },
     { section: "principal", text: "Mis resultados", icon: <EmojiEventsRounded />, link: "/editor/resultados", roles: ["Editor líder", "Editor de video"], keywords: "indicadores kpi ganadores cpa compras a tiempo devueltos equipo" },

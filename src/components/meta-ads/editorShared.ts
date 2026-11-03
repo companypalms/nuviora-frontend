@@ -18,6 +18,8 @@ export type EditorFields = {
     editor_id: number | null; editor: string | null; assigned_at: string | null; started_at: string | null; delivered_at: string | null; overdue: boolean;
     returned: { version: string; comment: string | null; by: string | null } | null; deliveries: Delivery[];
     can: { assign: boolean; start: boolean; deliver: boolean; review: boolean }; review_by_owner: boolean;
+    /** .93: el ganador que se itera (para compararlo al revisar y al entregar). */
+    iteration?: Iteration | null;
 };
 export type EditorOption = { id: number; name: string; leader: boolean };
 
@@ -31,6 +33,8 @@ export type EditorBatch = EditorFields & {
     id: number; code: string | null; product_id?: number; product: string; status: EditorStatus; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
     goal?: string | null; improve?: string | null; test_idea?: string | null;
+    /** .93: de qué trata el ángulo; la hipótesis del encargo (solo le llega al líder). */
+    angle_about?: string | null; hypothesis?: string | null;
     product_info?: ProductInfo | null; persona?: PersonaInfo | null; personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[];
     style_label?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
@@ -45,7 +49,63 @@ export type EditorBatch = EditorFields & {
 
 /** .92: la biblioteca de referencias (ReferenceLibrary del servidor). */
 export type ReferenceSource = "reference" | "own" | "iteration";
-export type ReferenceBrief = { id: number; code: string; type_label: string; link: string; file: StoredFile | null };
+export type ReferenceBrief = { id: number; code: string; type_label: string; link: string; file: StoredFile | null; why?: string | null };
+
+/** .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos. */
+export type Iteration = { code: string | null; file: StoredFile | null; thumbnail: string | null; texts: string[]; script: { hook: string | null; text: string | null } | null };
+
+/** .93: un lado de la comparación (la referencia a la izquierda, lo entregado a la derecha). */
+export type CompareSide = { label: string; file?: StoredFile | null; thumbnail?: string | null; lines: string[]; empty?: string | null; link?: { href: string; label: string } | null };
+
+/** .93: lo que se busca y lo que se pidió en cada pieza, para revisar con todo a la vista (la hipótesis: solo el líder y el dueño). */
+export type ReviewContext = {
+    hypothesis?: string | null; testIdea?: string | null; angle?: string | null; angleAbout?: string | null;
+    goal?: string | null; keep?: string | null; improve?: string | null; iteration?: Iteration | null;
+    asked: Record<number, { change: string | null; hypothesis?: string | null; test_label?: string | null }>;
+};
+
+type ContextSource = {
+    hypothesis?: string | null; test_idea?: string | null; angle_code: string | null; angle_name: string | null; angle_about?: string | null;
+    goal?: string | null; keep: string | null; improve?: string | null; iteration?: Iteration | null;
+    pieces: { id?: number; change: string | null; hypothesis?: string | null; test_label?: string | null }[];
+};
+
+/** .93: el contexto de "Revisar" a partir de un encargo (el del líder o el de Cola y banca del dueño). */
+export const reviewContext = (b: ContextSource): ReviewContext => ({
+    hypothesis: b.hypothesis, testIdea: b.test_idea, angle: [b.angle_code, b.angle_name].filter(Boolean).join(" ") || null, angleAbout: b.angle_about,
+    goal: b.goal, keep: b.keep, improve: b.improve, iteration: b.iteration ?? null,
+    asked: Object.fromEntries(b.pieces.filter((p) => p.id).map((p) => [p.id as number, { change: p.change, hypothesis: p.hypothesis, test_label: p.test_label }])),
+});
+
+/**
+ * .93: lo que va a la izquierda al comparar: la referencia de la biblioteca (su video, su tipo y por qué la eligieron), el
+ * ganador que se itera (su video o, si es de antes del sistema, su miniatura y lo que dice) o por qué no hay referencia.
+ */
+export const referenceSide = (
+    source: ReferenceSource | null | undefined,
+    ref: { code: string; type_label: string; link: string; file: StoredFile | null; why?: string | null } | null | undefined,
+    iteration: Iteration | null | undefined,
+): CompareSide => {
+    if (ref) {
+        return { label: `La referencia · ${ref.code}`, file: ref.file, lines: [ref.type_label, ref.why ? `Por qué la eligieron: ${ref.why}` : ""].filter(Boolean),
+            link: ref.link ? { href: ref.link, label: "ver el original" } : null };
+    }
+    if (iteration && source !== "own" && source !== "reference") {
+        return { label: `El ganador · ${iteration.code ?? ""}`.replace(/ · $/, ""), file: iteration.file, thumbnail: iteration.thumbnail,
+            lines: [iteration.script?.hook ? `Su hook: «${iteration.script.hook}»` : "", ...iteration.texts.map((x) => `“${x}”`)].filter(Boolean) };
+    }
+    return {
+        label: "La referencia", lines: [],
+        empty: source === "own" ? "Idea propia: no partió de una referencia." : source === "iteration" ? "Es la iteración de un ganador que no está en el sistema."
+            : "Esta entrega no dice de qué referencia salió (es de antes de la biblioteca).",
+    };
+};
+
+/** .93: los motivos rápidos para pedir un cambio (los eligió el dueño). */
+export const REVIEW_REASONS = ["No es lo que se pidió", "No cumple con el propósito", "No sigue la referencia", "Hook flojo", "Texto mal puesto", "Audio o música", "Muy largo o lento"];
+
+/** .93: un segundo del video como "0:03". */
+export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 export type ReferenceItem = {
     id: number; code: string; link: string; type: string; type_label: string; why: string; product_id: number | null; product: string | null;
     angle_code: string | null; angle_name: string | null; file: StoredFile | null; uploaded_by: string | null; created_at: string | null; uses: number;

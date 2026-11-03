@@ -18,8 +18,16 @@ import { useNotificationStore } from "../../../store/notifications/NotificationS
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useOrdersStore } from "../../../store/orders/OrdersStore";
+import { useUserStore } from "../../../store/user/UserStore";
+
+/**
+ * .93 (dueño: "ningún rol de editor, ni de landing, ni de videos, debería tener acceso al WhatsApp de ningún tipo"): el
+ * ícono solo para quien atiende WhatsApp, los mismos roles del canal "whatsapp" del servidor (routes/channels.php).
+ */
+const WHATSAPP_ROLES = ["Admin", "Gerente", "Master", "Vendedor"];
 
 export const WhatsAppBell = () => {
+    const role = useUserStore((s) => s.user.role?.description ?? "");
     const theme = useTheme();
     const { whatsappNotifications, dismissWhatsAppNotification, clearAllWhatsApp } = useNotificationStore();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -39,6 +47,8 @@ export const WhatsAppBell = () => {
         dismissWhatsAppNotification(orderId);
         handleCloseMenu();
     };
+
+    if (!WHATSAPP_ROLES.includes(role)) return null;
 
     return (
         <>

@@ -44,8 +44,10 @@ export const EditorBell = () => {
     }, [isEditor, load, pathname]);
 
     if (!isEditor) return null;
-    // El líder va a lo del equipo si ahí hay algo y él no tiene nada propio por hacer
-    const target = pending && pending.todo === 0 && pending.to_assign + pending.to_review > 0 ? "/editor/equipo" : "/editor";
+    // .93: el líder va a lo del equipo (su pantalla principal), salvo que ahí no haya nada y él sí tenga lo suyo
+    const leader = user.role?.description === "Editor líder";
+    const teamWork = (pending?.to_assign ?? 0) + (pending?.to_review ?? 0);
+    const target = leader && !(teamWork === 0 && (pending?.todo ?? 0) > 0) ? "/editor/equipo" : "/editor";
 
     return (
         <Tooltip title={tooltip(pending)}>

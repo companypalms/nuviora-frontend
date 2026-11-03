@@ -180,6 +180,8 @@ export const BroadcastMonitor = () => {
         if (!echo || !user?.id) return;
 
         const role = user.role?.description?.toLowerCase() || '';
+        // .93: los editores (líder, video y landings) no ven órdenes ni WhatsApp: no se conectan (el servidor igual los rechaza)
+        if (role.startsWith('editor')) return;
         let channelName = 'orders';
 
         if (role.includes('agencia')) {

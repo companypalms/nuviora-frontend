@@ -24,7 +24,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import type { StoredFile } from "../../components/meta-ads/fileUpload";
-import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
+import { EditorFields, EditorOption, dueLabel, reviewContext } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
 import { Forecast, ForecastCard, Unfilled } from "../../components/meta-ads/editorDemand";
@@ -40,6 +40,8 @@ type Batch = {
     position: number | null; source: string; kind: string; angle_code: string | null; angle_name: string | null; concept: string | null; hypothesis: string | null;
     /** .63: para el editor: lo que buscamos y lo que hay que mejorar ("keep" es lo que funcionó). */
     goal?: string | null; improve?: string | null; test_idea?: string | null;
+    /** .93: de qué trata el ángulo (para revisar con todo a la vista). */
+    angle_about?: string | null;
     /** .64: el buyer persona de la ficha al que le habla y lo del producto que ve el editor. */
     persona_id?: number | null; persona?: PersonaInfo | null; product_info?: ProductInfo | null;
     /** .65: de qué ronda de testeo es (vacío = un encargo normal). */
@@ -418,7 +420,8 @@ const BatchCard: React.FC<{
                 ))}
             </Menu>
             {upload && <UploadPlanDialog batchId={b.id} code={b.code} open={upload} onClose={() => setUpload(false)} />}
-            <ReviewDialog<Batch> open={review} title={b.code ?? "el encargo"} delivery={pending} url={`/meta/queue/${b.id}/review`} onClose={() => setReview(false)} onDone={onChanged} />
+            <ReviewDialog<Batch> open={review} title={b.code ?? "el encargo"} delivery={pending} context={reviewContext(b)} url={`/meta/queue/${b.id}/review`}
+                onClose={() => setReview(false)} onDone={onChanged} />
             <Dialog open={manualCopy} onClose={() => setManualCopy(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Copia el encargo</DialogTitle>
                 <DialogContent>

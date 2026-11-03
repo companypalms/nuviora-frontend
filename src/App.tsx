@@ -87,6 +87,8 @@ function App() {
   const isOperator = useUserStore((s) => s.user.role?.description === 'Operador logístico');
   // Los editores tampoco: su pantalla son sus encargos (Etapa 5, paso 5a)
   const isEditor = useUserStore((s) => EDITOR_ROLES.includes(s.user.role?.description ?? ''));
+  // .93: el líder entra a "Encargos del equipo"
+  const isLeader = useUserStore((s) => s.user.role?.description === 'Editor líder');
   // Ni el editor de landings: su pantalla son sus encargos de landing (paso 6b)
   const isLandingEditor = useUserStore((s) => s.user.role?.description === LANDING_EDITOR_ROLE);
 
@@ -104,7 +106,7 @@ function App() {
 
           <Route path="/dashboard" element={
             <RequireRole>
-              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : isEditor ? <Navigate to="/editor" replace /> : isLandingEditor ? <Navigate to="/editor-landings" replace /> : <Dashboard />}
+              {isLite ? <SalesLite /> : isOperator ? <Navigate to="/logistica" replace /> : isEditor ? <Navigate to={isLeader ? "/editor/equipo" : "/editor"} replace /> : isLandingEditor ? <Navigate to="/editor-landings" replace /> : <Dashboard />}
             </RequireRole>
           } />
 

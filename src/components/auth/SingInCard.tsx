@@ -45,7 +45,10 @@ export const SignInCard = () => {
                     window.location.href = '/ordenes';
                 } else if (currentUser.role?.description === 'Operador logístico') {
                     window.location.href = '/logistica';
-                } else if (['Editor líder', 'Editor de video'].includes(currentUser.role?.description ?? '')) {
+                } else if (currentUser.role?.description === 'Editor líder') {
+                    // .93: la pantalla principal del líder es la del equipo (decide qué hace él y qué reparte)
+                    window.location.href = '/editor/equipo';
+                } else if (currentUser.role?.description === 'Editor de video') {
                     window.location.href = '/editor';
                 } else if (currentUser.role?.description === 'Editor de landings') {
                     window.location.href = '/editor-landings';
