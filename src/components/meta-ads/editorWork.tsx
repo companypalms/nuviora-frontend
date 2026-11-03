@@ -10,7 +10,7 @@
 // rápidos y "Marcar este segundo"; y el editor se compara antes de entregar.
 import React, { useEffect, useRef, useState } from "react";
 import {
-    Box, Button, ButtonBase, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, Link, Menu, MenuItem,
+    Box, Button, ButtonBase, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, Link, MenuItem,
     Stack, TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
 import {
@@ -59,45 +59,103 @@ export const CopyBrief: React.FC<{ text: string; label?: string; asLink?: boolea
 
 /**
  * Asignar o cambiar el editor. Sin asignar solo se puede dejar lo que todavía no se empezó. `.91`: "primary" = el botón
- * principal de la misión ("Asignar"); "asLink" = un enlace chico ("Cambiar editor").
+ * principal de la misión ("Asignar"); "asLink" = un enlace chico ("Cambiar editor"). `.94` (dueño: "el sistema sugiere,
+ * él confirma"): una ventana con lo que tiene cada editor ("2 encargos, 1 atrasado"), el más libre marcado como
+ * "Sugerido", y la referencia de la que conviene partir (opcional; el editor la ve y ya viene elegida al entregar).
  */
-export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false }: {
+export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false, code, productId, angleCode, suggestedRef, referencesUrl = "/editor/references" }: {
     editors: EditorOption[]; current: number | null; url: string; allowNone: boolean; onDone: (b: B) => void; primary?: boolean; asLink?: boolean;
+    /** .94: el encargo (para el título y para ofrecer primero las referencias de su producto y ángulo). */
+    code?: string | null; productId?: number; angleCode?: string | null; suggestedRef?: number | null; referencesUrl?: string;
 }) => {
     const t = useTokens();
-    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+    const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
+    const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [pick, setPick] = useState<number | null>(null);
+    const [ref, setRef] = useState<number | "">("");
+    const [lib, setLib] = useState<ReferenceLibraryData | null>(null);
+    const suggested = editors.find((e) => e.suggested)?.id ?? null;
+
+    const start = () => {
+        setPick(current ?? suggested ?? editors[0]?.id ?? null);
+        setRef(suggestedRef ?? "");
+        setOpen(true);
+        api<ReferenceLibraryData>(`${referencesUrl}${productId ? `?product_id=${productId}` : ""}`).then(setLib).catch(() => setLib(null));
+    };
+    const rank = (r: ReferenceLibraryData["references"][number]) => (r.product_id && r.product_id === productId ? (r.angle_code && r.angle_code === angleCode ? 0 : 1) : 2);
+    const library = [...(lib?.references ?? [])].sort((a, b) => rank(a) - rank(b));
     const assign = async (editorId: number | null) => {
-        setAnchor(null);
         setBusy(true);
         try {
-            const r = await api<{ batch: B }>(url, "PUT", { editor_id: editorId });
+            const r = await api<{ batch: B }>(url, "PUT", { editor_id: editorId, reference_id: ref === "" ? null : ref });
             onDone(r.batch);
+            setOpen(false);
             toast.success(editorId ? `Asignado a ${editors.find((e) => e.id === editorId)?.name ?? "el editor"}` : "Quedó sin asignar");
         } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
     };
+    const load = (e: EditorOption) => (e.open === undefined ? null
+        : e.open === 0 ? "Libre" : `${e.open === 1 ? "1 encargo" : `${e.open} encargos`}${e.late ? `, ${e.late === 1 ? "1 atrasado" : `${e.late} atrasados`}` : ""}`);
     const label = current ? "Cambiar editor" : "Asignar editor";
+    const chosen = editors.find((e) => e.id === pick);
+
     return (
         <>
             {primary ? (
-                <Button variant="contained" disableElevation disabled={busy} onClick={(e) => setAnchor(e.currentTarget)} aria-haspopup="menu"
+                <Button variant="contained" disableElevation disabled={busy} onClick={start} aria-haspopup="dialog"
                     startIcon={busy ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : <PersonAddAlt1Rounded />} sx={{ ...inkSx(t), ...tapSx }}>
                     {current ? "Cambiar editor" : "Asignar"}
                 </Button>
             ) : asLink ? (
-                <TextAction onClick={(e) => setAnchor(e.currentTarget)} disabled={busy} aria-haspopup="menu">{busy ? "Asignando…" : label}</TextAction>
+                <TextAction onClick={start} disabled={busy} aria-haspopup="dialog">{busy ? "Asignando…" : label}</TextAction>
             ) : (
-                <Button size="small" startIcon={busy ? <CircularProgress size={14} /> : <PersonAddAlt1Rounded />} disabled={busy} onClick={(e) => setAnchor(e.currentTarget)}>
-                    {label}
-                </Button>
+                <Button size="small" startIcon={busy ? <CircularProgress size={14} /> : <PersonAddAlt1Rounded />} disabled={busy} onClick={start}>{label}</Button>
             )}
-            <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
-                {editors.length === 0 && <MenuItem disabled>No hay editores: créalos en Usuarios con el rol "Editor de video" o "Editor líder".</MenuItem>}
-                {editors.map((e) => (
-                    <MenuItem key={e.id} selected={e.id === current} onClick={() => assign(e.id)} sx={{ minHeight: 44 }}>{e.name}{e.leader ? " (líder, tú)" : ""}</MenuItem>
-                ))}
-                {allowNone && current && <MenuItem onClick={() => assign(null)} sx={{ minHeight: 44 }}>Sin asignar</MenuItem>}
-            </Menu>
+            <Dialog open={open} onClose={busy ? undefined : () => setOpen(false)} fullScreen={phone} fullWidth maxWidth="xs" PaperProps={{ sx: { ...geist, borderRadius: phone ? 0 : "12px" } }}>
+                <DialogTitle sx={{ pb: 1 }}>
+                    <Typography component="span" sx={{ display: "block", fontSize: 20, fontWeight: 600 }}>{current ? "Cambiar el editor" : "Asignar"}{code ? ` ${code}` : ""}</Typography>
+                    <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted }}>¿Quién lo hace? El sugerido es el que está más libre.</Typography>
+                </DialogTitle>
+                <DialogContent dividers sx={{ borderColor: t.line }}>
+                    {editors.length === 0 && <Typography sx={{ fontSize: 14, color: t.muted }}>No hay editores: créalos en Usuarios con el rol "Editor de video" o "Editor líder".</Typography>}
+                    <Stack spacing={0.75} role="radiogroup" aria-label="Editor">
+                        {editors.map((e) => {
+                            const on = pick === e.id;
+                            return (
+                                <ButtonBase key={e.id} role="radio" aria-checked={on} onClick={() => setPick(e.id)}
+                                    sx={{ justifyContent: "flex-start", textAlign: "left", p: "10px 12px", minHeight: 52, borderRadius: "10px", border: `${on ? 2 : 1}px solid ${on ? t.ink : t.line}`,
+                                        gap: 1.25, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                                    <Dot color={on ? t.ink : t.gray} size={10} />
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Typography sx={{ fontSize: 15, fontWeight: 500 }}>{e.name}{e.leader ? " (líder)" : ""}{e.id === current ? " · ahora" : ""}</Typography>
+                                        {load(e) && <Typography sx={{ fontSize: 13, color: e.late ? t.red : t.muted }}>{load(e)}</Typography>}
+                                    </Box>
+                                    {e.suggested && <Typography sx={{ fontSize: 12, fontWeight: 600, color: t.greenInk, bgcolor: t.greenSoft, px: 1, py: 0.25, borderRadius: "999px" }}>Sugerido</Typography>}
+                                </ButtonBase>
+                            );
+                        })}
+                    </Stack>
+                    {/* .94: de qué referencia conviene partir (opcional) */}
+                    <TextField select label="Referencia sugerida (opcional)" value={ref === "" ? "" : String(ref)} onChange={(e) => setRef(e.target.value === "" ? "" : Number(e.target.value))}
+                        fullWidth sx={{ mt: 2 }} SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }}
+                        helperText={lib && library.length === 0 ? "Todavía no hay referencias para este producto." : "El editor la ve en su encargo y ya viene elegida al entregar."}>
+                        <MenuItem value="">Ninguna: que el editor elija</MenuItem>
+                        {library.map((r) => (
+                            <MenuItem key={r.id} value={String(r.id)} sx={{ whiteSpace: "normal" }}>
+                                {r.code} · {r.type_label} · {r.product ? `${r.product}${r.angle_code ? ` ${r.angle_code}` : ""}` : "cualquier producto"} — {r.why.length > 60 ? `${r.why.slice(0, 60)}…` : r.why}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1, flexWrap: "wrap" }}>
+                    {allowNone && current && <Button onClick={() => assign(null)} disabled={busy} sx={{ color: t.muted, ...tapSx, mr: "auto" }}>Dejar sin asignar</Button>}
+                    <Button onClick={() => setOpen(false)} disabled={busy} sx={{ color: t.muted, ...tapSx }}>Cancelar</Button>
+                    <Button variant="contained" disableElevation disabled={busy || pick === null} onClick={() => assign(pick)} sx={{ ...inkSx(t), ...tapSx, flex: { xs: 1, sm: "none" } }}
+                        startIcon={busy ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}>
+                        {chosen ? `Asignar a ${chosen.name}` : "Asignar"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };
@@ -386,12 +444,14 @@ type FormPiece = { id: number; code: string | null; change: string | null; link:
  * cambió. `.91`: "2 de 3 listas", una zona grande para tocar o soltar cada archivo, qué pasa al entregar ("own": lo del
  * líder pasa directo a la banca), te lleva a lo que falta y avisa antes de cerrar mientras sube algo.
  */
-export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, iteration, onClose, onDone }: {
+export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, iteration, suggestedRef, onClose, onDone }: {
     open: boolean; code: string; product?: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; uploads: boolean; own?: boolean; batchId: number;
     /** .92: para ofrecer primero las referencias de este producto y ángulo; "iterationOf": el ganador de una iteración. */
     productId?: number; angleCode?: string | null; iterationOf?: string | null;
     /** .93: el ganador que se itera, para compararse antes de entregar. */
     iteration?: Iteration | null;
+    /** .94: la referencia que sugirió el líder (ya viene elegida en las piezas que todavía no dicen de dónde salieron). */
+    suggestedRef?: number | null;
     onClose: () => void; onDone: (b: B) => void;
 }) => {
     const t = useTokens();
@@ -399,7 +459,8 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
     const fresh = () => ({
         concept, angle, notes: "",
         pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null,
-            progress: null, error: null, source: p.source ?? (iterationOf ? "iteration" : ""), ref: p.reference_id ?? null })),
+            progress: null, error: null, source: p.source ?? (iterationOf ? "iteration" : suggestedRef ? "reference" : ""),
+            ref: p.reference_id ?? (!p.source && !iterationOf ? suggestedRef ?? null : null) })),
     });
     const [form, setForm] = useState(fresh);
     const [busy, setBusy] = useState(false);

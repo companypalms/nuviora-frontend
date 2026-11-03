@@ -395,7 +395,8 @@ const BatchCard: React.FC<{
                     <Button size="small" variant="contained" color="secondary" startIcon={<RateReviewRounded />} onClick={() => setReview(true)}>Revisar entrega</Button>
                 )}
                 {b.can.assign && (
-                    <AssignButton<Batch> editors={data.editors} current={b.editor_id} url={`/meta/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={onChanged} />
+                    <AssignButton<Batch> editors={data.editors} current={b.editor_id} url={`/meta/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={onChanged}
+                        code={b.code} productId={b.product_id} angleCode={b.angle_code} suggestedRef={b.suggested_reference?.id ?? null} referencesUrl="/meta/references" />
                 )}
                 {b.status === "bank" && (
                     <Button size="small" variant="outlined" startIcon={<CloudUploadRounded />} onClick={() => setUpload(true)}>Subir a Meta</Button>

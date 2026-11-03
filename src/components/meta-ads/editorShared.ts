@@ -20,8 +20,17 @@ export type EditorFields = {
     can: { assign: boolean; start: boolean; deliver: boolean; review: boolean }; review_by_owner: boolean;
     /** .93: el ganador que se itera (para compararlo al revisar y al entregar). */
     iteration?: Iteration | null;
+    /** .94: la referencia que sugirió el líder al asignar. */
+    suggested_reference?: ReferenceBrief | null;
 };
-export type EditorOption = { id: number; name: string; leader: boolean };
+/** .94: con lo que tiene cada uno (encargos abiertos y atrasados) y el sugerido para el próximo. */
+export type EditorOption = { id: number; name: string; leader: boolean; open?: number; late?: number; suggested?: boolean };
+
+/** .94: los números del juego (EditorGame del servidor): de quien mira y, para el líder, los del equipo. */
+export type EditorGameData = {
+    me: { streak: number; first: { ok: number; total: number }; winners: number; recent_wins: { code: string; at: string }[] };
+    team: { streak: number; on_time: { ok: number; total: number }; winners: number } | null;
+};
 
 /** .91: los encargos como los ve el editor (EditorWork::present), para "Mis encargos" y "El equipo". */
 export type EditorStatus = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";

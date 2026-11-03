@@ -13,16 +13,16 @@
 //   el líder entra aquí; "Por revisar" va justo debajo de lo de ahora y se ve siempre (vacío también); tocar un encargo
 //   abre "Revisar", que compara la referencia con lo entregado y al terminar ofrece el siguiente.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, ButtonBase, Collapse, Link, Skeleton, Stack, Typography } from "@mui/material";
-import { CheckCircleRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
+import { Box, Button, ButtonBase, Collapse, IconButton, Link, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
+import { CheckCircleRounded, CloseRounded, EmojiEventsRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
-import { EditorBatch, EditorOption, dueLabel, notifyEditorChanged, reviewContext, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
+import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
-import { BriefDetail } from "../../components/meta-ads/briefView";
+import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
@@ -33,6 +33,14 @@ type Data = {
     unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
     /** .89: entrega + estos días de correcciones = lista en la banca. .90: se entrega subiendo el archivo. */
     corrections_days?: number; uploads?: boolean;
+    /** .94: los números del juego (racha, a la primera, ganadores; para el líder, también los del equipo). */
+    game?: EditorGameData;
+};
+
+/** .94: los ganadores que ya celebró quien mira (en este navegador). */
+const WINS_KEY = "nuviora.editor.wins";
+const readSeen = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(WINS_KEY) ?? "[]") as string[]; } catch { return []; }
 };
 
 const DONE = ["bank", "testing", "tested", "discarded"];
@@ -109,6 +117,22 @@ const BatchRow: React.FC<{
     );
 };
 
+/** .94: los otros números del juego, en una línea; cada uno explica qué es al pasar el mouse (regla 4). */
+const GameLine: React.FC<{ items: { text: string; help: string }[]; link?: React.ReactNode }> = ({ items, link }) => {
+    const t = useTokens();
+    return (
+        <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+            {items.map((x, i) => (
+                <React.Fragment key={x.text}>
+                    {i > 0 && " · "}
+                    <Tooltip title={x.help}><Box component="span" tabIndex={0} sx={{ borderBottom: `1px dotted ${t.faint}`, "&:focus-visible": { outline: `2px solid ${t.ink}` } }}>{x.text}</Box></Tooltip>
+                </React.Fragment>
+            ))}
+            {link && <>{" · "}{link}</>}
+        </Typography>
+    );
+};
+
 /** Un botón con borde para la lista (lo principal de cada fila). */
 const RowButton: React.FC<{ onClick: () => void; children: React.ReactNode; icon?: React.ReactNode }> = ({ onClick, children, icon }) => {
     const t = useTokens();
@@ -138,6 +162,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const [cheerAt, setCheer] = useState<{ team: boolean; text: string } | null>(null);
     const cheer = cheerAt && cheerAt.team === team ? cheerAt.text : null;
     const [showDone, setShowDone] = useState(false);
+    // .94: los ganadores que ya se celebraron
+    const [seenWins, setSeenWins] = useState<string[]>(readSeen);
 
     const load = useCallback(() => {
         setError(null);
@@ -195,6 +221,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const reviewBatch = byId(reviewId);
     const when = (b: EditorBatch) => whenLabel(dueOf(b, corrections), today);
     const reviewable = lists.toReview.filter((b) => b.can.review);
+    // .94: para asignar: el encargo (título y referencias de su producto) y la referencia ya sugerida
+    const assignOf = (b: EditorBatch) => ({ code: b.code, productId: b.product_id, angleCode: b.angle_code, suggestedRef: b.suggested_reference?.id ?? null });
     // .93: lo que queda por revisar después del que está abierto
     const after = reviewable.filter((b) => b.id !== reviewId);
     const late = (list: EditorBatch[]) => list.filter((b) => when(b).level === "late").length;
@@ -233,6 +261,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 <DeliverDialog<EditorBatch> open={!!deliverBatch} code={deliverBatch.code ?? "el encargo"} product={`${deliverBatch.product}${angleOf(deliverBatch) ? ` · ${angleOf(deliverBatch)}` : ""}`}
                     pieces={deliverBatch.pieces} url={`/editor/queue/${deliverBatch.id}/deliver`} uploads={!!(data.uploads ?? deliverBatch.uploads)} own={leader} batchId={deliverBatch.id}
                     productId={deliverBatch.product_id} angleCode={deliverBatch.angle_code} iterationOf={deliverBatch.iteration_of} iteration={deliverBatch.iteration}
+                    suggestedRef={deliverBatch.suggested_reference?.id ?? null}
                     concept={deliverBatch.deliveries[0]?.concept ?? deliverBatch.concept ?? ""}
                     angle={deliverBatch.deliveries[0]?.angle ?? [deliverBatch.angle_code, deliverBatch.angle_name].filter(Boolean).join(" — ")}
                     onClose={() => setDeliverId(null)}
@@ -267,6 +296,13 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     { label: "Sin asignar", value: lists.toAssign.length, help: "Encargos aprobados que todavía no tienen editor." },
                     { label: "Atrasados", value: lateWorking, color: lateWorking ? t.red : undefined, help: "Encargos en curso que pasaron su fecha de entrega (o de correcciones)." },
                 ]} />
+                {data.game?.team && (
+                    <GameLine items={[
+                        { text: `Racha al día: ${plural(data.game.team.streak, "día", "días")}`, help: `Días seguidos sin entregas esperando tu revisión más de ${plural(corrections, "día", "días")}. Un día sin nada para revisar no la corta.` },
+                        { text: `Equipo a tiempo este mes: ${data.game.team.on_time.ok} de ${data.game.team.on_time.total}`, help: "Encargos del equipo que se entregaron por primera vez dentro del plazo, este mes." },
+                        { text: `Ganadores del equipo: ${data.game.team.winners}`, help: "Creativos del equipo que ganaron en Meta este mes." },
+                    ]} link={<Link component={RouterLink} to="/editor/resultados" sx={{ color: t.ink }}>Ver el equipo</Link>} />
+                )}
                 {nextReview ? missionFrame(`Por revisar · ${when(nextReview).text}`, signal(t, when(nextReview).level), `${nextReview.product}${angleOf(nextReview) ? ` · ${angleOf(nextReview)}` : ""}`,
                     `Revisa ${nextReview.code}: lo entregó ${nextReview.deliveries.find((d) => d.review === "pending")?.editor ?? nextReview.editor ?? "el editor"}`, <>
                         <NumberedSteps label="Cómo revisar" steps={[
@@ -281,7 +317,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         `Asigna ${nextAssign.code}: ${piecesText(nextAssign)}`, <>
                             {nextAssign.need && <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>Por qué: {nextAssign.need}</Typography>}
                             <NumberedSteps label="Cómo asignar" steps={["Toca «Asignar» y elige quién lo hace (puedes ser tú).", "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
-                            <Box sx={{ mt: 2 }}><AssignButton<EditorBatch> primary editors={data.editors} current={null} url={`/editor/queue/${nextAssign.id}/editor`} allowNone onDone={() => changed(`${nextAssign.code} asignado.`)} /></Box>
+                            <Box sx={{ mt: 2 }}><AssignButton<EditorBatch> primary {...assignOf(nextAssign)} editors={data.editors} current={null} url={`/editor/queue/${nextAssign.id}/editor`} allowNone onDone={() => changed(`${nextAssign.code} asignado.`)} /></Box>
                         </>)
                     : empty("Todo en orden: nada por revisar ni asignar", "Cuando alguien entregue o llegue un encargo nuevo, aparece aquí.")}
 
@@ -305,7 +341,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     <Section dot={t.gray} name="Sin asignar" hint="lo más urgente arriba">
                         {lists.toAssign.map((b) => (
                             <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${piecesText(b)} · ${when(b).text}`}
-                                action={<AssignButton<EditorBatch> asLink editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
+                                action={<AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
                         ))}
                     </Section>
                 )}
@@ -314,7 +350,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         {lists.working.map((b) => (
                             <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
                                 sub={`Lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}`}
-                                extra={b.can.assign ? <AssignButton<EditorBatch> asLink editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
+                                extra={b.can.assign ? <AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
                         ))}
                     </Section>
                 )}
@@ -334,6 +370,14 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const mission = lists.todo[0];
     const rest = lists.todo.slice(1);
     const lateMine = late(lists.todo);
+    // .94: los ganadores de la última semana que todavía no se celebraron
+    const winKey = (w: { code: string; at: string }) => `${w.code}@${w.at}`;
+    const newWins = (data.game?.me.recent_wins ?? []).filter((w) => !seenWins.includes(winKey(w)));
+    const dismissWins = () => {
+        const all = [...seenWins, ...newWins.map(winKey)].slice(-50);
+        setSeenWins(all);
+        try { localStorage.setItem(WINS_KEY, JSON.stringify(all)); } catch { /* sin almacenamiento: vuelve a salir la próxima vez */ }
+    };
     const missionSteps = (b: EditorBatch) => b.returned ? [
         `Cambia lo que pidió ${b.returned.by ?? "el líder"} (arriba).`,
         b.uploads ? "Toca «Entregar de nuevo» y sube solo las piezas que cambiaste: las demás quedan como estaban." : "Toca «Entregar de nuevo» y pega el enlace de las piezas que cambiaste.",
@@ -355,13 +399,36 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
             <Scoreboard tiles={[
                 { label: "Por entregar", value: lists.todo.length, help: "Tus encargos asignados que todavía no entregaste (también lo que te devolvieron)." },
                 { label: "Atrasados", value: lateMine, color: lateMine ? t.red : undefined, help: "Los que pasaron su fecha de entrega (o de correcciones, si te los devolvieron)." },
-                { label: "En revisión", value: lists.inReview.length, help: "Los que entregaste y esperan la revisión del líder." },
+                { label: "Racha a tiempo", value: plural(data.game?.me.streak ?? 0, "día", "días"), color: (data.game?.me.streak ?? 0) > 0 ? t.green : undefined,
+                    help: "Días seguidos entregando a tiempo todo lo que vencía ese día. Un día sin entregas no la corta; uno tarde, sí." },
             ]} />
+            {data.game && (
+                <GameLine items={[
+                    { text: data.game.me.first.total ? `Este mes: ${data.game.me.first.ok} de ${data.game.me.first.total} aprobados a la primera` : "Este mes: todavía sin revisiones",
+                        help: "De tus encargos revisados este mes, cuántos se aprobaron sin devolverte nada." },
+                    { text: `${plural(data.game.me.winners, "ganador", "ganadores")} en Meta`, help: "Tus creativos que ganaron en Meta este mes." },
+                ]} link={<Link component={RouterLink} to="/editor/resultados" sx={{ color: t.ink }}>Mis resultados</Link>} />
+            )}
+            {newWins.length > 0 && (
+                <Box role="status" sx={{ mt: 2, p: "12px 14px", borderRadius: "10px", display: "flex", gap: 1.25, alignItems: "center", bgcolor: t.greenSoft, color: t.greenInk, ...appear }}>
+                    <EmojiEventsRounded />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 15, fontWeight: 600, color: "inherit" }}>
+                            {newWins.length === 1 ? `¡Tu ${newWins[0].code} ganó en Meta!` : `¡Ganaron en Meta: ${newWins.map((w) => w.code).join(", ")}!`}
+                        </Typography>
+                        <Typography sx={{ fontSize: 13, color: "inherit" }}>
+                            {newWins.length === 1 ? "Es un ganador." : "Son ganadores."} <Link component={RouterLink} to="/editor/resultados" sx={{ color: "inherit" }}>Ver mis resultados</Link>
+                        </Typography>
+                    </Box>
+                    <IconButton aria-label="Listo, ya lo vi" onClick={dismissWins} sx={{ color: "inherit", width: 44, height: 44 }}><CloseRounded /></IconButton>
+                </Box>
+            )}
             {mission ? missionFrame(
                 `${mission.returned ? "Te lo devolvieron" : `Encargo 1 de ${lists.todo.length}`} · ${when(mission).text}`, signal(t, when(mission).level),
                 `${mission.product}${angleOf(mission) ? ` · ${angleOf(mission)}` : ""}`,
                 mission.returned ? `Corrige ${mission.code} y entrégalo de nuevo` : `Haz y entrega ${mission.code}: ${piecesText(mission)}`, <>
                     <Returned b={mission} />
+                    {mission.suggested_reference && <SuggestedRef r={mission.suggested_reference} />}
                     <NumberedSteps label="Cómo hacerlo" steps={missionSteps(mission)} />
                     {mission.goal && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>Lo que buscamos:</b> {mission.goal}</Typography>}
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 2 }}>
@@ -373,11 +440,11 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     </Stack>
                     <Collapse in={missionOpen} unmountOnExit>
                         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${t.line}` }}>
-                            <BriefDetail b={mission} />
+                            <BriefDetail b={mission} hideSuggested />
                             <DeliveriesList deliveries={mission.deliveries} />
                             <Stack direction="row" columnGap={2} flexWrap="wrap" sx={{ mt: 1, fontSize: 14 }}>
                                 <CopyBrief text={mission.brief} asLink />
-                                {mission.can.assign && <AssignButton<EditorBatch> asLink editors={data.editors} current={mission.editor_id} url={`/editor/queue/${mission.id}/editor`} allowNone={mission.status === "approved"} onDone={() => changed()} />}
+                                {mission.can.assign && <AssignButton<EditorBatch> asLink {...assignOf(mission)} editors={data.editors} current={mission.editor_id} url={`/editor/queue/${mission.id}/editor`} allowNone={mission.status === "approved"} onDone={() => changed()} />}
                             </Stack>
                         </Box>
                     </Collapse>
@@ -390,7 +457,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
                             sub={`${b.returned ? "Te lo devolvieron · " : ""}${piecesText(b)} · ${when(b).text}`}
                             action={b.can.deliver ? <RowButton icon={<UploadRounded />} onClick={() => setDeliverId(b.id)}>Entregar</RowButton> : undefined}
-                            extra={b.can.assign ? <AssignButton<EditorBatch> asLink editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
+                            extra={b.can.assign ? <AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
                     ))}
                 </Section>
             )}

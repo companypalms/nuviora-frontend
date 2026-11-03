@@ -4,9 +4,11 @@
 // pidió al editor, para que tenga todos los datos claros"): la hipótesis (solo el líder y el dueño), qué probamos, el
 // ángulo y de qué trata, lo que buscamos, lo que funcionó y lo que hay que mejorar; el resto, plegado.
 import React, { useState } from "react";
-import { Box, Collapse, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { EditorBatch, ReviewContext } from "./editorShared";
+import { Box, Collapse, Link, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { OpenInNewRounded } from "@mui/icons-material";
+import { EditorBatch, ReferenceBrief, ReviewContext } from "./editorShared";
 import { PersonaBox, ProductBox } from "./productProfile";
+import { FileView } from "./fileView";
 import { useTokens } from "../ui/design";
 import { Dot, TextAction } from "../ui/designParts";
 
@@ -26,12 +28,31 @@ const Block: React.FC<{ title: string; text?: string | null; dot?: string }> = (
     ) : null;
 };
 
+/** `.94`: la referencia que sugirió el líder al asignar, con su video: de ahí conviene partir. */
+export const SuggestedRef: React.FC<{ r: ReferenceBrief }> = ({ r }) => {
+    const t = useTokens();
+    return (
+        <Box sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
+            <Typography sx={{ fontSize: 13, color: t.muted }}>Parte de esta referencia (te la sugirió el líder)</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{r.code} · {r.type_label}</Typography>
+            {r.why && <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>Por qué: {r.why}</Typography>}
+            {r.file && <Box sx={{ mt: 1 }}><FileView file={r.file} height={240} /></Box>}
+            {r.link && (
+                <Link href={r.link} target="_blank" rel="noopener noreferrer" underline="hover" sx={{ fontSize: 13, color: t.muted }}>
+                    ver el original <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} />
+                </Link>
+            )}
+        </Box>
+    );
+};
+
 /** Todo el encargo: qué probamos, lo que buscamos, a quién le hablas, el producto, la referencia y qué lleva cada pieza. */
-export const BriefDetail: React.FC<{ b: EditorBatch }> = ({ b }) => {
+export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean }> = ({ b, hideSuggested = false }) => {
     const t = useTokens();
     const planned = b.pieces.some((p) => p.hypothesis);
     return (
         <Box sx={{ mt: 0.5 }}>
+            {b.suggested_reference && !hideSuggested && <SuggestedRef r={b.suggested_reference} />}
             <Block title="Qué estamos probando" text={b.test_idea} />
             <Block title="Lo que buscamos" text={b.goal} />
             <PersonaBox persona={b.persona} />
