@@ -3,6 +3,7 @@
 // opciones en una sola lista no encontraba nada).
 import { ReactNode } from "react";
 import AttachMoneyRoundedIcon from "@mui/icons-material/AttachMoneyRounded";
+import CollectionsBookmarkRoundedIcon from "@mui/icons-material/CollectionsBookmarkRounded";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import LocalShippingRoundedIcon from "@mui/icons-material/LocalShippingRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
@@ -48,6 +49,8 @@ export const MENU_LINKS: NavLink[] = [
     // Etapa 5, paso 5a: los editores de video solo ven sus encargos (y el líder, los del equipo)
     { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
     { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar aprobar devolver editores videos banca" },
+    // .92: la biblioteca de referencias (videos probados de otros anunciantes)
+    { section: "principal", text: "Referencias", icon: <CollectionsBookmarkRoundedIcon />, link: "/editor/referencias", roles: ["Editor líder", "Editor de video"], keywords: "biblioteca de anuncios referencias inspiracion videos probados ref" },
     { section: "principal", text: "Mis resultados", icon: <EmojiEventsRounded />, link: "/editor/resultados", roles: ["Editor líder", "Editor de video"], keywords: "indicadores kpi ganadores cpa compras a tiempo devueltos equipo" },
     // Paso 6b: el editor de landings solo ve sus encargos de landing
     { section: "principal", text: "Mis encargos de landing", icon: <WebRounded />, link: "/editor-landings", roles: ["Editor de landings"], keywords: "landings shopify pagina vista previa publicar test" },
@@ -94,6 +97,7 @@ export const MENU_LINKS: NavLink[] = [
     { section: "reportes", text: "Meta Ads", icon: <InsightsRounded />, link: "/meta-ads", roles: ["Admin"], keywords: "facebook anuncios campañas publicidad cpa ctr cpm creativos" },
     { section: "reportes", text: "Análisis de campañas", icon: <InsightsRounded />, link: "/meta-ads/analisis", roles: ["Admin"], keywords: "meta ads analisis del dia urgente escalar bajar pausar editores ia" },
     { section: "reportes", text: "Cola y banca de creativos", icon: <InsightsRounded />, link: "/meta-ads/cola", roles: ["Admin"], keywords: "meta ads cola produccion banca batches encargos editores creativos numeros" },
+    { section: "reportes", text: "Referencias de creativos", icon: <CollectionsBookmarkRoundedIcon />, link: "/meta-ads/referencias", roles: ["Admin"], keywords: "biblioteca de anuncios referencias ganadoras editores videos probados ref" },
     { section: "reportes", text: "Lo que sabemos", icon: <InsightsRounded />, link: "/meta-ads/lo-que-sabemos", roles: ["Admin"], keywords: "meta ads aprendizajes memoria que funciona que no funciona angulos buyer personas estilos formatos notas hipotesis" },
     { section: "reportes", text: "Landings", icon: <InsightsRounded />, link: "/meta-ads/landings", roles: ["Admin"], keywords: "meta ads landing paginas de destino shopify visita compra conversion velocidad angulo" },
     { section: "reportes", text: "Tracking de Órdenes", icon: <HistoryRounded />, link: "/tracking-report", roles: ["Admin", "Gerente"], keywords: "historial seguimiento" },

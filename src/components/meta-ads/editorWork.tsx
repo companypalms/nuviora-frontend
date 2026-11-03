@@ -6,7 +6,7 @@
 // .91 (dueño: "se debe saber en menos de 3 segundos qué se debe hacer, cómo se debe hacer"): "Entregar" y "Revisar" como
 // un juego: cuántas piezas van listas, una zona grande para cada archivo, qué pasa al entregar, y revisar pieza por pieza
 // con el video en grande. Diseño nuevo (guias/DISENO-UX-UI.md).
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Box, Button, ButtonBase, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, Link, Menu, MenuItem,
     Stack, TextField, Typography, useMediaQuery, useTheme,
@@ -17,13 +17,15 @@ import {
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
-import { Delivery, EditorOption, driveFileId } from "./editorShared";
+import { Delivery, EditorOption, ReferenceLibraryData, ReferenceSource, driveFileId } from "./editorShared";
+import { UploadReferenceDialog } from "./references";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
 import { BigMedia, FileView } from "./fileView";
 import { geist, inkSx, lineSx, tapSx, useTokens } from "../ui/design";
 import { Dot, TextAction } from "../ui/designParts";
 
-type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null };
+type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null;
+    source?: ReferenceSource | null; reference_id?: number | null };
 
 const linkProblem = (url: string) => (url.includes("/folders/")
     ? "Es una carpeta: pega el enlace de este video."
@@ -132,6 +134,7 @@ export const DeliveriesList: React.FC<{ deliveries: Delivery[]; defaultOpen?: bo
                                             <>{" "}<Link href={p.link} target="_blank" rel="noopener noreferrer" underline="hover">abrir en Drive <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></Link></>
                                         )}
                                         {p.hook && <> · hook: {p.hook}</>}
+                                        {(p.reference || p.source_label) && <> · salió de {p.reference ? p.reference.code : p.source_label?.toLowerCase()}</>}
                                     </Typography>
                                     {p.file && <FileView file={p.file} />}
                                 </Box>
@@ -164,6 +167,7 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
     const [notes, setNotes] = useState<Record<number, string>>({});
     const [general, setGeneral] = useState("");
     const [showGeneral, setShowGeneral] = useState(false);
+    const [showRef, setShowRef] = useState(false);
     const [busy, setBusy] = useState(false);
     const [wasOpen, setWasOpen] = useState(open);
     if (open !== wasOpen) {
@@ -228,7 +232,7 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
                         {pieces.map((x, i) => {
                             const v = verdicts[x.piece_id];
                             return (
-                                <ButtonBase key={x.piece_id} onClick={() => setIdx(i)} aria-label={`${x.code ?? `Pieza ${i + 1}`}: ${v === "ok" ? "está bien" : v === "change" ? "con cambios" : "sin mirar"}`}
+                                <ButtonBase key={x.piece_id} onClick={() => { setIdx(i); setShowRef(false); }} aria-label={`${x.code ?? `Pieza ${i + 1}`}: ${v === "ok" ? "está bien" : v === "change" ? "con cambios" : "sin mirar"}`}
                                     sx={{ px: 1, minHeight: 32, borderRadius: "8px", fontSize: 13, gap: 0.5, border: `1px solid ${i === idx ? t.ink : t.line}`,
                                         "&.Mui-focusVisible": { outline: `2px solid ${t.ink}` } }}>
                                     <Dot color={v === "ok" ? t.green : v === "change" ? t.amber : t.gray} size={8} />{x.code ?? i + 1}
@@ -242,6 +246,13 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
                         </Button>
                     ) : <Typography sx={{ color: t.muted }}>Esta pieza no tiene archivo.</Typography>}
                     {p.hook && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>Hook:</b> {p.hook}</Typography>}
+                    {(p.reference || p.source_label) && (
+                        <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>
+                            Salió de: {p.reference ? `${p.reference.code} · ${p.reference.type_label}` : p.source_label}
+                            {p.reference?.file && <>{" · "}<TextAction onClick={() => setShowRef((s) => !s)} aria-expanded={showRef} sx={{ color: t.muted }}>{showRef ? "ocultar la referencia" : "ver la referencia"}</TextAction></>}
+                        </Typography>
+                    )}
+                    {showRef && p.reference?.file && <Box sx={{ mt: 1 }}><FileView file={p.reference.file} height={260} /></Box>}
                     <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                         {pick("ok", "Está bien", <CheckRounded />)}
                         {pick("change", "Cambiar algo", <EditRounded />)}
@@ -282,7 +293,9 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, onClose, onDone }
     );
 };
 
-type FormPiece = { id: number; code: string | null; change: string | null; link: string; hook: string; file: StoredFile | null; progress: number | null; error: string | null };
+type FormPiece = { id: number; code: string | null; change: string | null; link: string; hook: string; file: StoredFile | null; progress: number | null; error: string | null;
+    /** .92: de dónde salió ("" = falta elegir) y la referencia. */
+    source: ReferenceSource | ""; ref: number | null };
 
 /**
  * Entregar: el archivo (`.90`, subido al sistema; sin almacén, el enlace de Drive) y el hook de cada pieza, y la ficha
@@ -290,15 +303,18 @@ type FormPiece = { id: number; code: string | null; change: string | null; link:
  * cambió. `.91`: "2 de 3 listas", una zona grande para tocar o soltar cada archivo, qué pasa al entregar ("own": lo del
  * líder pasa directo a la banca), te lleva a lo que falta y avisa antes de cerrar mientras sube algo.
  */
-export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, onClose, onDone }: {
+export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, onClose, onDone }: {
     open: boolean; code: string; product?: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; uploads: boolean; own?: boolean; batchId: number;
+    /** .92: para ofrecer primero las referencias de este producto y ángulo; "iterationOf": el ganador de una iteración. */
+    productId?: number; angleCode?: string | null; iterationOf?: string | null;
     onClose: () => void; onDone: (b: B) => void;
 }) => {
     const t = useTokens();
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
     const fresh = () => ({
         concept, angle, notes: "",
-        pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null, progress: null, error: null })),
+        pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null,
+            progress: null, error: null, source: p.source ?? (iterationOf ? "iteration" : ""), ref: p.reference_id ?? null })),
     });
     const [form, setForm] = useState(fresh);
     const [busy, setBusy] = useState(false);
@@ -306,6 +322,15 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
     const [ficha, setFicha] = useState(false);
     const [dragging, setDragging] = useState<number | null>(null);
     const refs = useRef<Record<number, HTMLDivElement | null>>({});
+    // .92: la biblioteca, para decir de dónde salió cada pieza (las de este producto primero)
+    const [lib, setLib] = useState<ReferenceLibraryData | null>(null);
+    const [uploadFor, setUploadFor] = useState<number | null>(null);
+    useEffect(() => {
+        if (!open) return;
+        api<ReferenceLibraryData>(`/editor/references${productId ? `?product_id=${productId}` : ""}`).then(setLib).catch(() => setLib(null));
+    }, [open, productId]);
+    const rank = (r: ReferenceLibraryData["references"][number]) => (r.product_id && r.product_id === productId ? (r.angle_code && r.angle_code === angleCode ? 0 : 1) : 2);
+    const library = [...(lib?.references ?? [])].sort((a, b) => rank(a) - rank(b));
     // Al abrir de nuevo se parte de lo último entregado (si se lo devolvieron, cambia solo lo que hace falta)
     const [wasOpen, setWasOpen] = useState(open);
     if (open !== wasOpen) {
@@ -315,11 +340,13 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
 
     const linkError = (link: string) => (link.trim() === "" ? "Falta el enlace." : driveFileId(link) ? null : linkProblem(link));
     const hasFile = (p: FormPiece) => (uploads ? !!p.file && p.progress === null : !linkError(p.link));
-    const ready = (p: FormPiece) => hasFile(p) && p.hook.trim() !== "";
+    const sourced = (p: FormPiece) => !!p.source && (p.source !== "reference" || !!p.ref);
+    const ready = (p: FormPiece) => hasFile(p) && p.hook.trim() !== "" && sourced(p);
     const uploading = form.pieces.some((p) => p.progress !== null);
     const done = form.pieces.filter(ready).length;
     const missing = [
-        ...form.pieces.flatMap((p) => [!hasFile(p) && `${uploads ? "el archivo" : "el enlace"} de ${p.code ?? "una pieza"}`, p.hook.trim() === "" && `el hook de ${p.code ?? "una pieza"}`]),
+        ...form.pieces.flatMap((p) => [!hasFile(p) && `${uploads ? "el archivo" : "el enlace"} de ${p.code ?? "una pieza"}`, p.hook.trim() === "" && `el hook de ${p.code ?? "una pieza"}`,
+            !sourced(p) && `de dónde salió ${p.code ?? "una pieza"}`]),
         !form.concept.trim() && "el concepto", !form.angle.trim() && "el ángulo",
     ].filter(Boolean) as string[];
     const setPiece = (i: number, patch: Partial<FormPiece>) => setForm((f) => ({ ...f, pieces: f.pieces.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
@@ -355,7 +382,8 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
         try {
             const r = await api<{ batch: B }>(url, "POST", {
                 concept: form.concept, angle: form.angle, notes: form.notes,
-                pieces: form.pieces.map((p) => (uploads ? { id: p.id, file_id: p.file?.id ?? null, hook: p.hook } : { id: p.id, link: p.link, hook: p.hook })),
+                pieces: form.pieces.map((p) => ({ ...(uploads ? { id: p.id, file_id: p.file?.id ?? null, hook: p.hook } : { id: p.id, link: p.link, hook: p.hook }),
+                    source: p.source || null, reference_id: p.source === "reference" ? p.ref : null })),
             });
             // .89: lo que entrega el editor líder pasa directo a la banca
             toast.success((r.batch as { status?: string } | null)?.status === "bank" ? `${code} entregado: pasa directo a la banca` : `${code} entregado: va a revisión del líder`);
@@ -432,6 +460,22 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                                     <TextField label="Enlace de Drive del video" value={p.link} onChange={(e) => setPiece(i, { link: e.target.value })} fullWidth sx={{ mt: 1 }}
                                         error={!!err} helperText={err ?? " "} inputProps={{ maxLength: 1000, inputMode: "url" }} />
                                 )}
+                                {/* .92: de dónde salió (para medir qué referencias dan ganadores) */}
+                                <TextField select label="¿De dónde salió?" fullWidth sx={{ mt: 1.5 }}
+                                    value={p.source === "reference" && p.ref ? `ref:${p.ref}` : p.source}
+                                    onChange={(e) => { const v = e.target.value; setPiece(i, v.startsWith("ref:") ? { source: "reference", ref: Number(v.slice(4)) } : { source: v as ReferenceSource, ref: null }); }}
+                                    error={tried && !sourced(p)} helperText={tried && !sourced(p) ? "Elige la referencia de la que salió, o «Idea propia»." : undefined}>
+                                    <MenuItem value="own">Idea propia</MenuItem>
+                                    {iterationOf && <MenuItem value="iteration">Iteración de {iterationOf}</MenuItem>}
+                                    {library.map((r) => (
+                                        <MenuItem key={r.id} value={`ref:${r.id}`} sx={{ whiteSpace: "normal" }}>
+                                            {r.code} · {r.type_label} · {r.product ? `${r.product}${r.angle_code ? ` ${r.angle_code}` : ""}` : "cualquier producto"} — {r.why.length > 60 ? `${r.why.slice(0, 60)}…` : r.why}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                                {lib?.uploads && (
+                                    <TextAction onClick={() => setUploadFor(i)} sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>¿No está en la biblioteca? Súbela</TextAction>
+                                )}
                                 <TextField label="Hook (lo primero que se dice o se lee)" value={p.hook} onChange={(e) => setPiece(i, { hook: e.target.value })} fullWidth sx={{ mt: 1.5 }}
                                     error={tried && p.hook.trim() === ""} helperText={tried && p.hook.trim() === "" ? "Falta el hook." : undefined} inputProps={{ maxLength: 300 }} />
                             </Box>
@@ -471,6 +515,14 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                     </Button>
                 </Stack>
             </DialogActions>
+            {lib && (
+                <UploadReferenceDialog open={uploadFor !== null} products={lib.products} types={lib.types} productId={productId} angleCode={angleCode}
+                    onClose={() => setUploadFor(null)}
+                    onCreated={(r) => {
+                        setLib((l) => (l ? { ...l, references: [r, ...l.references] } : l));
+                        if (uploadFor !== null) setPiece(uploadFor, { source: "reference", ref: r.id });
+                    }} />
+            )}
         </Dialog>
     );
 };

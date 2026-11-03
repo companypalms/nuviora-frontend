@@ -292,6 +292,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
             {deliverBatch && (
                 <DeliverDialog<EditorBatch> open={!!deliverBatch} code={deliverBatch.code ?? "el encargo"} product={`${deliverBatch.product}${angleOf(deliverBatch) ? ` · ${angleOf(deliverBatch)}` : ""}`}
                     pieces={deliverBatch.pieces} url={`/editor/queue/${deliverBatch.id}/deliver`} uploads={!!(data.uploads ?? deliverBatch.uploads)} own={leader} batchId={deliverBatch.id}
+                    productId={deliverBatch.product_id} angleCode={deliverBatch.angle_code} iterationOf={deliverBatch.iteration_of}
                     concept={deliverBatch.deliveries[0]?.concept ?? deliverBatch.concept ?? ""}
                     angle={deliverBatch.deliveries[0]?.angle ?? [deliverBatch.angle_code, deliverBatch.angle_name].filter(Boolean).join(" — ")}
                     onClose={() => setDeliverId(null)}

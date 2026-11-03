@@ -41,6 +41,7 @@ import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
 import { MetaMemoryPage } from './pages/admin/MetaMemoryPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
+import { ReferencesPage } from './pages/editor/ReferencesPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
 import { LandingEditorPage } from './pages/editor/LandingEditorPage';
 import { LandingResultsPage } from './pages/editor/LandingResultsPage';
@@ -164,11 +165,14 @@ function App() {
           <Route path="/meta-ads/creativos/:id" element={<RequireRole allowedRoles={['Admin']}><MetaCreativePage /></RequireRole>} />
           <Route path="/meta-ads/analisis" element={<RequireRole allowedRoles={['Admin']}><MetaAnalysisPage /></RequireRole>} />
           <Route path="/meta-ads/cola" element={<RequireRole allowedRoles={['Admin']}><MetaQueuePage /></RequireRole>} />
+          {/* .92: la biblioteca de referencias (el dueño la ve con los resultados) */}
+          <Route path="/meta-ads/referencias" element={<RequireRole allowedRoles={['Admin']}><ReferencesPage owner /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
           <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
           <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
+          <Route path="/editor/referencias" element={<RequireRole allowedRoles={EDITOR_ROLES}><ReferencesPage /></RequireRole>} />
           <Route path="/editor-landings" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingEditorPage /></RequireRole>} />
           <Route path="/editor-landings/resultados" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingResultsPage /></RequireRole>} />
           <Route path="/admin/meta-ads" element={<RedirectToSection to="/admin/integraciones" section="meta" />} />

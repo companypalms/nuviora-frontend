@@ -7,7 +7,11 @@ import type { AngleInfo, PersonaInfo, ProductInfo } from "./productProfile";
 export type Delivery = {
     id: number; version: string; editor: string | null; delivered_at: string | null; concept: string | null; angle: string | null; notes: string | null;
     // .90: el archivo en el sistema (las entregas viejas, el enlace de Drive)
-    pieces: { piece_id: number; code: string | null; link: string | null; file_id?: number | null; file?: StoredFile | null; hook: string }[];
+    pieces: {
+        piece_id: number; code: string | null; link: string | null; file_id?: number | null; file?: StoredFile | null; hook: string;
+        /** .92: de dónde salió (una referencia, idea propia o la iteración de un ganador). */
+        source?: ReferenceSource | null; reference?: ReferenceBrief | null; source_label?: string | null;
+    }[];
     review: "pending" | "approved" | "returned"; review_label: string; reviewed_by: string | null; reviewed_at: string | null; comment: string | null;
 };
 export type EditorFields = {
@@ -21,9 +25,10 @@ export type EditorOption = { id: number; name: string; leader: boolean };
 export type EditorStatus = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis. .90: file = su archivo en el sistema. */
 export type EditorPiece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null;
-    test_label?: string | null; style_label?: string | null; hypothesis?: string | null; file?: StoredFile | null };
+    test_label?: string | null; style_label?: string | null; hypothesis?: string | null; file?: StoredFile | null;
+    source?: ReferenceSource | null; reference_id?: number | null };
 export type EditorBatch = EditorFields & {
-    id: number; code: string | null; product: string; status: EditorStatus; status_label: string; status_at: string | null; position: number | null;
+    id: number; code: string | null; product_id?: number; product: string; status: EditorStatus; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
     goal?: string | null; improve?: string | null; test_idea?: string | null;
     product_info?: ProductInfo | null; persona?: PersonaInfo | null; personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[];
@@ -34,6 +39,27 @@ export type EditorBatch = EditorFields & {
     meta_names: { adset: string | null; ads: string[] }; brief: string;
     /** .88: por qué hace falta y para cuándo. .90: se entrega subiendo el archivo. */
     need?: string | null; uploads?: boolean;
+    /** .92: si es la iteración de un ganador, cuál ("Iteración de …" ya viene elegida en cada pieza). */
+    iteration_of?: string | null;
+};
+
+/** .92: la biblioteca de referencias (ReferenceLibrary del servidor). */
+export type ReferenceSource = "reference" | "own" | "iteration";
+export type ReferenceBrief = { id: number; code: string; type_label: string; link: string; file: StoredFile | null };
+export type ReferenceItem = {
+    id: number; code: string; link: string; type: string; type_label: string; why: string; product_id: number | null; product: string | null;
+    angle_code: string | null; angle_name: string | null; file: StoredFile | null; uploaded_by: string | null; created_at: string | null; uses: number;
+    can_archive: boolean;
+    /** Solo el líder y el dueño. */
+    results?: { won: number; lost: number; tie: number };
+};
+export type ReferenceProduct = { id: number; name: string; angles: { code: string; name: string | null }[] };
+export type ReferenceLibraryData = {
+    references: ReferenceItem[]; top: ReferenceItem[]; results: boolean; products: ReferenceProduct[]; types: Record<string, string>; uploads: boolean;
+};
+export type ReferenceUse = {
+    piece_id: number; code: string | null; ad_name: string | null; batch: string | null; product: string | null; editor: string | null;
+    status: string | null; status_label: string | null; file: StoredFile | null; result?: string | null;
 };
 
 export const EDITOR_ROLES = ["Editor líder", "Editor de video"];
