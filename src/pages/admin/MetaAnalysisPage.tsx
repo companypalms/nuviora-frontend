@@ -125,6 +125,7 @@ const daySummary = (tasks: UrgentItem[], marks: Record<string, Mark>) => {
 const KIND_GROUP: Record<string, Group> = {
     drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
     intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar", few_batches: "arreglar",
+    late_urgent: "arreglar", late_batch: "arreglar", launch_ready: "arreglar",
     scale: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
 };
 const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";

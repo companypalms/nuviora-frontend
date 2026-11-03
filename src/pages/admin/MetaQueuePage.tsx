@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import {
     AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, CheckRounded, ContentCopyRounded, DeleteOutlineRounded, EditRounded, ExpandLessRounded,
-    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, AutoAwesomeRounded, OpenInNewRounded, RateReviewRounded, CloudUploadRounded,
+    ExpandMoreRounded, InsightsRounded, SwapHorizRounded, OpenInNewRounded, RateReviewRounded, CloudUploadRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -443,7 +443,6 @@ export const MetaQueuePage: React.FC = () => {
     const [data, setData] = useState<Data | null>(null);
     const [editing, setEditing] = useState<{ batch: Batch | null } | null>(null);
     const [history, setHistory] = useState(false);
-    const [proposing, setProposing] = useState(false);
 
     const load = useCallback(() => { api<Data>("/meta/queue").then(setData).catch((e) => toast.error(e.message)); }, []);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
@@ -462,17 +461,9 @@ export const MetaQueuePage: React.FC = () => {
     const nextRound = async (productId: number) => {
         try {
             await api(`/meta/product-profiles/${productId}/next-round`, "POST");
-            toast.success("Empieza otra ronda de testeo: toca \"Proponer ahora\" para pedir sus batches");
+            toast.success("Empieza otra ronda de testeo: sus batches le llegan solos al editor líder");
             load();
         } catch (e) { toast.error((e as Error).message); }
-    };
-    const propose = async () => {
-        setProposing(true);
-        try {
-            const r = await api<{ run: { created: number; sent?: string[] } }>("/meta/queue/propose", "POST");
-            toast.success(r.run.created || r.run.sent?.length ? `${r.run.created + (r.run.sent?.length ?? 0)} encargos nuevos, ya en manos del editor líder` : "No falta ningún encargo hoy");
-            load();
-        } catch (e) { toast.error((e as Error).message); } finally { setProposing(false); }
     };
     // Después de guardar o mover uno, se vuelve a leer todo (la banca de cada producto cambia)
     const changed = () => load();
@@ -526,9 +517,6 @@ export const MetaQueuePage: React.FC = () => {
                     <Stack direction="row" spacing={1}>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/lo-que-sabemos">Lo que sabemos</Button>
-                        <Button size="small" variant="outlined" startIcon={proposing ? <CircularProgress size={14} /> : <AutoAwesomeRounded />} disabled={proposing} onClick={propose}>
-                            {proposing ? "Proponiendo…" : "Proponer ahora"}
-                        </Button>
                         <Button size="small" variant="contained" startIcon={<AddRounded />} onClick={() => setEditing({ batch: null })}>Nuevo encargo</Button>
                     </Stack>
                 </Stack>
@@ -568,7 +556,7 @@ export const MetaQueuePage: React.FC = () => {
                             ))}
                     </Paper>
                     {byStatus.proposed.length > 0 || byStatus.queue.length + byStatus.bank.length + byStatus.testing.length + byStatus.closed.length > 0 ? null
-                        : <Alert severity="info">Todavía no hay encargos. Tus reglas los proponen cada día a las 12:30 a. m. ("Proponer ahora" para no esperar), o crea uno con "Nuevo encargo".</Alert>}
+                        : <Alert severity="info">Todavía no hay encargos. Tus reglas los piden solas cada día a las 12:30 a. m. (hora de Venezuela) y cada vez que lanzas un batch, o crea uno con "Nuevo encargo".</Alert>}
                     {section("Para aprobar", "Al aprobar, el sistema le da su número y entra al final de la cola.", byStatus.proposed, "Nada para aprobar.")}
                     {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen. Las entregas del editor líder las revisas tú.", byStatus.queue, "La cola está vacía.", true)}
                     {section("En banca", "Listos para lanzar: \"Copiar encargo\" trae el enlace de cada video. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}

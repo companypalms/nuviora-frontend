@@ -78,6 +78,16 @@ export const BroadcastMonitor = () => {
                     Icon = <WarningAmberRounded />;
                     bgColor = '#e65100';
                     break;
+                case 'meta_ready':
+                    // .89: un batch llegó a la banca y una ciudad lo necesita ya (al dueño)
+                    Icon = <CheckCircleRounded />;
+                    bgColor = '#2e7d32';
+                    break;
+                case 'editor_late':
+                    // .89: un batch atrasado que se necesita (al editor líder)
+                    Icon = <WarningAmberRounded />;
+                    bgColor = '#d32f2f';
+                    break;
             }
 
             // 3. Add to store (for the bell)
