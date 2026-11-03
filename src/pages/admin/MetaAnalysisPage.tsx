@@ -1,5 +1,5 @@
 // src/pages/admin/MetaAnalysisPage.tsx
-// Etapa 5, paso 3a (2026-10-30): el análisis de campañas de cada mañana. Lo arma el sistema a las 7:00 con las reglas del
+// Etapa 5, paso 3a (2026-10-30): el análisis de campañas de cada día. Lo arma el sistema a las 12:30 a. m. (`.85`) con las reglas del
 // dueño (Paso 2) y lo redacta la IA. Nada de esto toca Meta.
 // .82 (dueño, 2026-11-02: "mucho más intuitivo, minimalista y fácil de entender, que cada cosa tenga una lógica y un
 // porqué"): la pantalla responde una sola pregunta, "¿qué hago hoy en Ads Manager?". Arriba, cuánto falta; después las
@@ -13,6 +13,7 @@
 // qué (una frase corta con el verbo primero) y cómo (los pasos en Ads Manager con los nombres exactos entre « »).
 // .84: si "Volver a analizar" se queda sin respuesta (el servidor cortó la espera, pero el análisis sigue), la pantalla no
 // muestra un error: dice "Sigue analizando…" y revisa sola hasta que aparece el análisis nuevo.
+// .85: si el de hoy todavía no está, lo dice y ofrece "Analizar hoy" (antes "Ver el de hoy" volvía al de ayer).
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
@@ -588,6 +589,9 @@ export const MetaAnalysisPage: React.FC = () => {
     const tasks = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) !== "aviso"), [a]);
     const notices = useMemo(() => (a?.urgent ?? []).filter((i) => groupOf(i) === "aviso"), [a]);
     const today = a?.date === todayYmd();
+    // ¿Ya hay un análisis de hoy? Si no, se ofrece hacerlo (y no "Ver el de hoy", que volvería al de ayer)
+    const hasToday = (data?.dates ?? []).some((d) => d.date === todayYmd());
+    const missingToday = !!a && !today && !hasToday;
     // El juego: cuántas resueltas, la misión de ahora (la primera sin resolver, en el orden de las etapas), la racha y el presupuesto movido
     const marks = a?.marks ?? {};
     const ordered = GROUPS.flatMap((g) => tasks.filter((i) => groupOf(i) === g.key));
@@ -645,13 +649,16 @@ export const MetaAnalysisPage: React.FC = () => {
                             <Typography component="div" sx={{ fontSize: 13, color: t.muted }}>
                                 {a ? (today ? `Análisis de las ${hour(a.created_at)}` : `Análisis del ${dateTime(a.created_at)}`) : "Sin análisis"}
                                 {" · "}
-                                {!today && a ? (
+                                {!today && a && hasToday ? (
                                     <TextAction onClick={() => { setDate(""); setVersion(""); }}>Ver el de hoy</TextAction>
                                 ) : (
-                                    <Tooltip title={data.runs_left > 0 ? `Lo vuelve a hacer con los datos de ahora. Te quedan ${data.runs_left} hoy.` : "Ya usaste las 10 de hoy."}>
+                                    <Tooltip title={data.runs_left <= 0 ? "Ya usaste las 10 de hoy."
+                                        : missingToday ? `Hace el análisis de hoy con los datos de ahora. Te quedan ${data.runs_left} hoy.`
+                                        : `Lo vuelve a hacer con los datos de ahora. Te quedan ${data.runs_left} hoy.`}>
                                         <span>
                                             <TextAction onClick={run} disabled={running || data.runs_left <= 0}>
-                                                {running ? <><CircularProgress size={11} sx={{ color: t.muted, mr: 0.75 }} />{waiting ? "Sigue analizando…" : "Analizando…"}</> : "Volver a analizar"}
+                                                {running ? <><CircularProgress size={11} sx={{ color: t.muted, mr: 0.75 }} />{waiting ? "Sigue analizando…" : "Analizando…"}</>
+                                                    : missingToday ? "Analizar hoy" : "Volver a analizar"}
                                             </TextAction>
                                         </span>
                                     </Tooltip>
@@ -659,6 +666,11 @@ export const MetaAnalysisPage: React.FC = () => {
                             </Typography>
                         </Stack>
 
+                        {missingToday && !running && (
+                            <Typography role="status" sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                                Todavía no está el análisis de hoy: sale solo a las 12:30 a. m. (hora de Venezuela). Si no quieres esperar, toca "Analizar hoy". Abajo ves el de ayer.
+                            </Typography>
+                        )}
                         {waiting && (
                             <Typography role="status" sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
                                 Está tardando más de lo normal, pero sigue analizando. La pantalla se actualiza sola cuando termine.
@@ -669,7 +681,7 @@ export const MetaAnalysisPage: React.FC = () => {
                             <Box sx={{ ...cardSx(t), p: 3, mt: 3, textAlign: "center" }}>
                                 <ListAltRounded sx={{ fontSize: 36, color: t.faint }} />
                                 <Typography sx={{ fontSize: 16, fontWeight: 600, mt: 1 }}>Todavía no hay análisis</Typography>
-                                <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>Sale solo cada mañana a las 7:00 con los 3 días cerrados.</Typography>
+                                <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>Sale solo cada día a las 12:30 a. m. (hora de Venezuela), con los 3 días cerrados.</Typography>
                                 <Button variant="contained" disableElevation sx={{ ...ink, mt: 2 }} onClick={run} disabled={running || data.runs_left <= 0}
                                     startIcon={running ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}>
                                     {running ? "Analizando…" : "Analizar ahora"}
@@ -705,7 +717,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                             </Typography>
                                         )}
                                         <Typography sx={{ fontSize: 14, color: t.muted }}>
-                                            Racha: {plural(streak, "día seguido", "días seguidos")}.{today ? " Tu próxima misión sale mañana a las 7:00." : ""}
+                                            Racha: {plural(streak, "día seguido", "días seguidos")}.{today ? " Tu próxima misión sale a las 12:30 a. m." : ""}
                                         </Typography>
                                     </Box>
                                 ) : current && (

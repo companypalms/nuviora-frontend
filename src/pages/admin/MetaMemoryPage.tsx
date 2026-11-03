@@ -173,7 +173,7 @@ export const MetaMemoryPage: React.FC = () => {
                 </Stack>
                 {productId && (
                     <Stack spacing={2}>
-                        {data.stale && <Alert severity="info">Hay batches testeados o notas nuevas desde el último resumen. Se actualiza solo mañana a las 7:00, o tócalo ahora en "Actualizar el resumen".</Alert>}
+                        {data.stale && <Alert severity="info">Hay batches testeados o notas nuevas desde el último resumen. Se actualiza solo a las 12:30 a. m., o tócalo ahora en "Actualizar el resumen".</Alert>}
                         {data.error && <Alert severity="warning">{data.error}</Alert>}
                         {(data.unknown_numbers ?? []).length > 0 && (
                             <Alert severity="warning">La IA escribió números que no están en los datos: <b>{data.unknown_numbers!.join(", ")}</b>. Revísalo antes de confiar en ese punto.</Alert>
@@ -192,7 +192,7 @@ export const MetaMemoryPage: React.FC = () => {
                                         <SummaryList title="Lo que falta probar" items={s.untested} color="info" empty="Nada pendiente." />
                                     </Stack>
                                 ) : (
-                                    <Alert severity="info">Todavía no hay resumen escrito: se escribe solo mañana a las 7:00, o tócalo ahora en "Actualizar el resumen". Abajo ya están los números al día.</Alert>
+                                    <Alert severity="info">Todavía no hay resumen escrito: se escribe solo a las 12:30 a. m., o tócalo ahora en "Actualizar el resumen". Abajo ya están los números al día.</Alert>
                                 )}
                                 <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.75 }}>
                                     {data.totals && `${data.tested} batches testeados: ganaron ${data.totals.won}, perdieron ${data.totals.lost}, empate ${data.totals.tie}. `}

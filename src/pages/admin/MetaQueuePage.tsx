@@ -511,7 +511,7 @@ export const MetaQueuePage: React.FC = () => {
                         Última propuesta de tus reglas: {dateTime(data.last_run.at)} · {data.last_run.status === "nothing" ? "no faltaba ningún encargo"
                             : `${data.last_run.created} ${data.last_run.created === 1 ? "encargo" : "encargos"} ${RUN_STATUS[data.last_run.status] ?? ""}`}
                         {data.last_run.replaced > 0 ? ` · ${data.last_run.replaced} de días anteriores reemplazados` : ""}
-                        {data.last_run.learnings > 0 ? ` · ${data.last_run.learnings} aprendizajes escritos` : ""}. Se propone sola cada mañana a las 7:00.
+                        {data.last_run.learnings > 0 ? ` · ${data.last_run.learnings} aprendizajes escritos` : ""}. Se propone sola cada día a las 12:30 a. m.
                     </Typography>
                 )}
                 {data.last_run?.status === "error" && data.last_run.error && <Alert severity="warning" sx={{ mb: 1.5 }}>{data.last_run.error}</Alert>}
@@ -542,7 +542,7 @@ export const MetaQueuePage: React.FC = () => {
                             ))}
                     </Paper>
                     {byStatus.proposed.length > 0 || byStatus.queue.length + byStatus.bank.length + byStatus.testing.length + byStatus.closed.length > 0 ? null
-                        : <Alert severity="info">Todavía no hay encargos. Tus reglas los proponen cada mañana a las 7:00 ("Proponer ahora" para no esperar), o crea uno con "Nuevo encargo".</Alert>}
+                        : <Alert severity="info">Todavía no hay encargos. Tus reglas los proponen cada día a las 12:30 a. m. ("Proponer ahora" para no esperar), o crea uno con "Nuevo encargo".</Alert>}
                     {section("Para aprobar", "Al aprobar, el sistema le da su número y entra al final de la cola.", byStatus.proposed, "Nada para aprobar.")}
                     {section("En la cola", "Aprobados, en producción o en revisión, en el orden en que se hacen. Las entregas del editor líder las revisas tú.", byStatus.queue, "La cola está vacía.", true)}
                     {section("En banca", "Listos para lanzar: \"Copiar encargo\" trae el enlace de cada video. Cuando aparece en Meta un ad set con su número, pasa solo a En test.", byStatus.bank, "Nada en banca.")}

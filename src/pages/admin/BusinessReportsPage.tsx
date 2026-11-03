@@ -47,9 +47,9 @@ type Data = {
 };
 
 const TYPES: { key: ReportType; label: string; when: string }[] = [
-    { key: "daily", label: "Diario", when: "Sale solo de lunes a sábado a las 7:15, con los últimos 3 días (hoy no cuenta)." },
-    { key: "weekly", label: "Semanal", when: "Sale solo el día de tu revisión semanal (jueves) a las 7:15, con la semana pasada de lunes a domingo." },
-    { key: "monthly", label: "Mensual", when: "Sale solo el día 8 a las 7:15, con el mes pasado completo." },
+    { key: "daily", label: "Diario", when: "Sale solo de lunes a sábado a las 12:45 a. m. (hora de Venezuela), con los últimos 3 días (hoy no cuenta)." },
+    { key: "weekly", label: "Semanal", when: "Sale solo el día de tu revisión semanal (jueves) a las 12:45 a. m., con la semana pasada de lunes a domingo." },
+    { key: "monthly", label: "Mensual", when: "Sale solo el día 8 a las 12:45 a. m., con el mes pasado completo." },
 ];
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
 const grid = { display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" }, gap: { xs: 1, sm: 1.5 } } as const;
