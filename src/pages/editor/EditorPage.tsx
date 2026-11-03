@@ -15,6 +15,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import { EditorFields, EditorOption, dueLabel, notifyEditorChanged } from "../../components/meta-ads/editorShared";
+import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { PersonaBox, PersonaInfo, ProductBox, ProductInfo } from "../../components/meta-ads/productProfile";
 
 type Status = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
@@ -37,10 +38,14 @@ type EBatch = EditorFields & {
     reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
     offer: string | null; deliverables: string | null; due_date: string | null; pieces: Piece[];
     meta_names: { adset: string | null; ads: string[] }; brief: string;
+    /** .88: por qué hace falta y para cuándo (en palabras, sin montos). */
+    need?: string | null;
 };
 type Data = {
     me: { id: number; name: string; leader: boolean }; batches: EBatch[]; editors: EditorOption[];
     pending: { todo: number; to_assign: number; to_review: number; total: number };
+    /** .88: para el líder: lo que hace falta y no se pudo pedir, si alcanza el equipo y el día de hoy (hora de Venezuela). */
+    unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -238,13 +243,16 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1000, mx: "auto" }}>
                 {team ? (
                     <>
-                        <DescripcionDeVista title="Encargos del equipo" description="Los encargos que aprobó el dueño: asígnalos (a ti o al otro editor) y revisa lo entregado. Si lo apruebas pasa a la banca; si lo devuelves, escribe qué cambiar con algo que se vea. Tus propias entregas las revisa el dueño." />
+                        <DescripcionDeVista title="Encargos del equipo" description="Todo lo que necesitamos para mantener cada producto y seguir escalando, con su fecha y su porqué: asígnalo (a ti o a otro editor) y revisa lo entregado. Si lo apruebas pasa a la banca; si lo devuelves, escribe qué cambiar con algo que se vea. Tus propias entregas las revisa el dueño." />
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
                             <Chip color={data.pending.to_assign ? "warning" : "default"} label={`Para asignar: ${data.pending.to_assign}`} />
                             <Chip color={data.pending.to_review ? "secondary" : "default"} label={`Para revisar: ${data.pending.to_review}`} />
                         </Stack>
+                        {/* .88: si alcanza el equipo, y todo lo que hace falta por fecha */}
+                        <ForecastCard f={data.forecast} />
+                        <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={data.today ?? new Date().toISOString().slice(0, 10)} />
                         <Stack spacing={2}>
-                            {section("Para asignar", "Aprobados por el dueño, en el orden de la cola.", lists.toAssign, "Nada para asignar.")}
+                            {section("Para asignar", "Lo que necesitamos, lo más urgente arriba.", lists.toAssign, "Nada para asignar.")}
                             {section("Para revisar", "Entregados: mira cada video y apruébalo o devuélvelo.", lists.toReview, "Nada para revisar.", true)}
                             {section("En curso", "Asignados o en producción.", lists.working, "Nadie está con un encargo.", true)}
                             {section("En banca", "Aprobados: el dueño los sube a Meta.", lists.bank, "Nada en banca.", true)}

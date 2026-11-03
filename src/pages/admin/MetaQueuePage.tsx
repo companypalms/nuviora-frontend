@@ -26,6 +26,7 @@ import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/met
 import { EditorFields, EditorOption, dueLabel } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
+import { Forecast, ForecastCard, Unfilled } from "../../components/meta-ads/editorDemand";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: qué prueba la pieza, su formato, su hipótesis, por qué ese formato y, al terminar el test, si ganó. */
@@ -51,6 +52,8 @@ type Batch = {
     meta_names: { adset: string | null; ads: string[] }; brief: string;
     /** .87: en qué ciudades salió en Meta y para cuáles sigue en banca (solo los que ya salieron). */
     cities?: { launched: string[]; bank_for: string[] } | null;
+    /** .88: por qué hace falta y para cuándo (lo que ve el líder). */
+    need?: string | null;
 } & EditorFields;
 type ProductRow = {
     id: number; name: string; active_campaigns: number; bank: number; ready: number;
@@ -60,6 +63,8 @@ type ProductRow = {
 };
 type Data = {
     batches: Batch[]; products: ProductRow[];
+    /** .88: si alcanza el equipo y lo que hace falta pero no se pudo pedir (sin ficha o sin ciudad). */
+    forecast?: Forecast | null; unfilled?: Unfilled[];
     settings: { batch_pieces: number; due_days: number; bank_min: number; bank_max: number; video_editors: number; capacity: number };
     statuses: Record<Status, string>; kinds: Record<string, string>; formats: Record<string, string>; styles?: Record<string, string>;
     last_run: { at: string; created: number; replaced: number; learnings: number; status: "ok" | "example" | "no_ai" | "error" | "nothing"; model: string | null; error: string | null;
@@ -335,6 +340,9 @@ const BatchCard: React.FC<{
                     b.status_at && `${b.status_label} ${dateTime(b.status_at)}${b.status_by ? ` por ${b.status_by}` : b.status === "testing" || b.status === "tested" ? " (solo)" : ""}`]
                     .filter(Boolean).join(" · ")}
             </Typography>
+            {b.need && ["approved", "production", "review"].includes(b.status) && (
+                <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Por qué:</b> {b.need}</Typography>
+            )}
             {b.cities && (
                 <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}>
                     <b>Lanzado en</b> {andList(b.cities.launched)}
@@ -461,8 +469,8 @@ export const MetaQueuePage: React.FC = () => {
     const propose = async () => {
         setProposing(true);
         try {
-            const r = await api<{ run: { created: number } }>("/meta/queue/propose", "POST");
-            toast.success(r.run.created ? `${r.run.created} encargos nuevos para aprobar` : "No falta ningún encargo hoy");
+            const r = await api<{ run: { created: number; sent?: string[] } }>("/meta/queue/propose", "POST");
+            toast.success(r.run.created || r.run.sent?.length ? `${r.run.created + (r.run.sent?.length ?? 0)} encargos nuevos, ya en manos del editor líder` : "No falta ningún encargo hoy");
             load();
         } catch (e) { toast.error((e as Error).message); } finally { setProposing(false); }
     };
@@ -490,12 +498,20 @@ export const MetaQueuePage: React.FC = () => {
         </Paper>
     );
     const s = data.settings;
+    const noCity = (data.unfilled ?? []).filter((u) => !u.blocked.startsWith("Falta la ficha"));
 
     return (
         <Layout>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
                 <DescripcionDeVista title="Cola y banca" backPath="/meta-ads"
-                    description="Los encargos de creativos de cada producto: tus reglas los proponen cada mañana y la IA los redacta; los apruebas, el sistema les da su número único (B#### y C####), el editor líder los reparte y revisa, y pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
+                    description="Los encargos de creativos de cada producto: cada mañana tus reglas piden todo lo que hace falta, con su fecha (para hoy o en 2 días), sin tope de editores; la IA los redacta, el sistema les da su número único (B#### y C####) y le llegan directo al editor líder, que los reparte y revisa. Si no estás de acuerdo con uno, descártalo. Pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
+                {/* .88: si alcanza el equipo y lo que hace falta pero no se pudo pedir (lo de la ficha ya lo dice el aviso de abajo) */}
+                <ForecastCard f={data.forecast} />
+                {noCity.length > 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        <b>Hace falta y no se pudo pedir</b> (no hay una ciudad activa con stock donde probarlo): {[...new Set(noCity.map((u) => u.product))].join(", ")}.
+                    </Alert>
+                )}
                 {(data.landing_tests ?? []).length > 0 && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                         <b>Tests de landing en curso</b> (nunca creativo y landing a la vez):{" "}

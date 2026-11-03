@@ -228,6 +228,9 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["bank_min", "Banca por producto: desde", "batches"], ["bank_max", "…hasta", "batches"], ["batch_pieces", "Piezas por batch", "piezas"],
             ["video_editors", "Editores de video", "personas"], ["batches_per_editor", "Batches por editor por día", "batches"],
             ["corrections_pct", "Tiempo de correcciones", "%"], ["due_days", "Plazo de un encargo al aprobarlo", "días"],
+            ["reserve_due_days", "La reserva y los productos nuevos, para dentro de", "días"],
+            ["new_products_month", "Productos nuevos al mes (pronóstico)", "productos"], ["start_batches", "Batches de inicio de un producto nuevo", "batches"],
+            ["batch_life_days", "Un batch bueno dura (si Meta no tiene historia)", "días"],
         ],
     },
     {
