@@ -32,6 +32,9 @@ export type EditorGameData = {
     team: { streak: number; on_time: { ok: number; total: number }; winners: number } | null;
 };
 
+/** .99: qué hay que hacer en el encargo, en una frase (BatchTask del servidor): "3 iteraciones del hook de C0146". */
+export type BatchTask = { title: string; detail: string | null };
+
 /** .91: los encargos como los ve el editor (EditorWork::present), para "Mis encargos" y "El equipo". */
 export type EditorStatus = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis. .90: file = su archivo en el sistema. */
@@ -56,6 +59,8 @@ export type EditorBatch = EditorFields & {
     iteration_of?: string | null;
     /** .95: un batch ya hecho que cargó el líder (de antes del sistema, sin hipótesis). */
     imported?: boolean;
+    /** .99: qué hay que hacer (null: un batch ya hecho que se cargó). */
+    task?: BatchTask | null;
 };
 
 /** .92: la biblioteca de referencias (ReferenceLibrary del servidor). */
@@ -70,12 +75,15 @@ export type CompareSide = { label: string; file?: StoredFile | null; thumbnail?:
 
 /** .93: lo que se busca y lo que se pidió en cada pieza, para revisar con todo a la vista (la hipótesis: solo el líder y el dueño). */
 export type ReviewContext = {
+    /** .99: qué había que hacer, en una frase. */
+    task?: string | null;
     hypothesis?: string | null; testIdea?: string | null; angle?: string | null; angleAbout?: string | null;
     goal?: string | null; keep?: string | null; improve?: string | null; iteration?: Iteration | null;
     asked: Record<number, { change: string | null; hypothesis?: string | null; test_label?: string | null }>;
 };
 
 type ContextSource = {
+    task?: BatchTask | null;
     hypothesis?: string | null; test_idea?: string | null; angle_code: string | null; angle_name: string | null; angle_about?: string | null;
     goal?: string | null; keep: string | null; improve?: string | null; iteration?: Iteration | null;
     pieces: { id?: number; change: string | null; hypothesis?: string | null; test_label?: string | null }[];
@@ -83,6 +91,7 @@ type ContextSource = {
 
 /** .93: el contexto de "Revisar" a partir de un encargo (el del líder o el de Cola y banca del dueño). */
 export const reviewContext = (b: ContextSource): ReviewContext => ({
+    task: b.task ? [b.task.title, b.task.detail].filter(Boolean).join(". ") : null,
     hypothesis: b.hypothesis, testIdea: b.test_idea, angle: [b.angle_code, b.angle_name].filter(Boolean).join(" ") || null, angleAbout: b.angle_about,
     goal: b.goal, keep: b.keep, improve: b.improve, iteration: b.iteration ?? null,
     asked: Object.fromEntries(b.pieces.filter((p) => p.id).map((p) => [p.id as number, { change: p.change, hypothesis: p.hypothesis, test_label: p.test_label }])),

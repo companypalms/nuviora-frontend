@@ -124,6 +124,7 @@ export const ReviewBrief: React.FC<{ c: ReviewContext; detail?: React.ReactNode 
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
     const [open, setOpen] = useState(false);
     const rows = ([
+        ["Qué había que hacer", c.task],
         ["La hipótesis", c.hypothesis],
         ["Qué estamos probando", c.testIdea],
         ["El ángulo", c.angle ? `${c.angle}${c.angleAbout ? `: ${c.angleAbout}` : ""}` : c.angleAbout],

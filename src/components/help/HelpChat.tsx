@@ -165,11 +165,14 @@ const HelpPanel: React.FC<{ state: HelpState; setState: (s: HelpState) => void; 
                         <ArrowUpwardRounded />
                     </IconButton>
                 </Box>
-                <Typography sx={{ fontSize: 12, color: t.faint, mt: 0.75 }}>
-                    {state.left === 0
-                        ? `Ya usaste tus ${state.limit} preguntas de hoy. Mañana tienes ${state.limit} más.`
-                        : `Te quedan ${state.left} de ${state.limit} preguntas hoy.`}
-                </Typography>
+                {/* .99: el líder no tiene tope (limit null) */}
+                {state.limit !== null && (
+                    <Typography sx={{ fontSize: 12, color: t.faint, mt: 0.75 }}>
+                        {state.left === 0
+                            ? `Ya usaste tus ${state.limit} preguntas de hoy. Mañana tienes ${state.limit} más.`
+                            : `Te quedan ${state.left} de ${state.limit} preguntas hoy.`}
+                    </Typography>
+                )}
             </Box>
         </Box>
     );

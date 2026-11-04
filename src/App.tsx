@@ -40,6 +40,8 @@ import { MetaQueuePage } from './pages/admin/MetaQueuePage';
 import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
 import { MetaMemoryPage } from './pages/admin/MetaMemoryPage';
 import { EditorPage } from './pages/editor/EditorPage';
+import { BankPage } from './pages/editor/BankPage';
+import { ProductStatesPage } from './pages/admin/ProductStatesPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { ReferencesPage } from './pages/editor/ReferencesPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
@@ -169,10 +171,14 @@ function App() {
           <Route path="/meta-ads/cola" element={<RequireRole allowedRoles={['Admin']}><MetaQueuePage /></RequireRole>} />
           {/* .92: la biblioteca de referencias (el dueño la ve con los resultados) */}
           <Route path="/meta-ads/referencias" element={<RequireRole allowedRoles={['Admin']}><ReferencesPage owner /></RequireRole>} />
+          {/* .99: pausar, poner en liquidación, abandonar o reactivar un producto */}
+          <Route path="/meta-ads/productos" element={<RequireRole allowedRoles={['Admin']}><ProductStatesPage /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
           <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
           <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
+          {/* .99: la banca del líder (en su menú) */}
+          <Route path="/editor/banca" element={<RequireRole allowedRoles={['Editor líder']}><BankPage /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
           <Route path="/editor/referencias" element={<RequireRole allowedRoles={EDITOR_ROLES}><ReferencesPage /></RequireRole>} />
           <Route path="/editor-landings" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingEditorPage /></RequireRole>} />

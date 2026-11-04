@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import {
-    Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceOption, referenceSide,
+    BatchTask, Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceOption, referenceSide,
 } from "./editorShared";
 import { UploadReferenceDialog } from "./references";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
@@ -63,10 +63,12 @@ export const CopyBrief: React.FC<{ text: string; label?: string; asLink?: boolea
  * él confirma"): una ventana con lo que tiene cada editor ("2 encargos, 1 atrasado"), el más libre marcado como
  * "Sugerido", y la referencia de la que conviene partir (opcional; el editor la ve y ya viene elegida al entregar).
  */
-export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false, code, productId, angleCode, suggestedRef, referencesUrl = "/editor/references" }: {
+export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false, code, productId, angleCode, suggestedRef, task, referencesUrl = "/editor/references" }: {
     editors: EditorOption[]; current: number | null; url: string; allowNone: boolean; onDone: (b: B) => void; primary?: boolean; asLink?: boolean;
     /** .94: el encargo (para el título y para ofrecer primero las referencias de su producto y ángulo). */
     code?: string | null; productId?: number; angleCode?: string | null; suggestedRef?: number | null; referencesUrl?: string;
+    /** .99: qué hay que hacer (para saber a quién dárselo). */
+    task?: BatchTask | null;
 }) => {
     const t = useTokens();
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
@@ -114,7 +116,14 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, pri
             <Dialog open={open} onClose={busy ? undefined : () => setOpen(false)} fullScreen={phone} fullWidth maxWidth="xs" PaperProps={{ sx: { ...geist, borderRadius: phone ? 0 : "12px" } }}>
                 <DialogTitle sx={{ pb: 1 }}>
                     <Typography component="span" sx={{ display: "block", fontSize: 20, fontWeight: 600 }}>{current ? "Cambiar el editor" : "Asignar"}{code ? ` ${code}` : ""}</Typography>
-                    <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted }}>¿Quién lo hace? El sugerido es el que está más libre.</Typography>
+                    {/* .99: qué hay que hacer, para elegir a quién dárselo */}
+                    {task && (
+                        <Typography component="span" sx={{ display: "block", fontSize: 15, fontWeight: 500, mt: 0.5, overflowWrap: "anywhere" }}>
+                            {task.title}
+                            {task.detail && <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, fontWeight: 400 }}>{task.detail}</Typography>}
+                        </Typography>
+                    )}
+                    <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, mt: task ? 1 : 0 }}>¿Quién lo hace? El sugerido es el que está más libre.</Typography>
                 </DialogTitle>
                 <DialogContent dividers sx={{ borderColor: t.line }}>
                     {editors.length === 0 && <Typography sx={{ fontSize: 14, color: t.muted }}>No hay editores: créalos en Usuarios con el rol "Editor de video" o "Editor líder".</Typography>}

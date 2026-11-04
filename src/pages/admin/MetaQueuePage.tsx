@@ -24,7 +24,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 import { AssignButton, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
 import type { StoredFile } from "../../components/meta-ads/fileUpload";
-import { EditorFields, EditorOption, dueLabel, reviewContext } from "../../components/meta-ads/editorShared";
+import { BatchTask, EditorFields, EditorOption, dueLabel, reviewContext } from "../../components/meta-ads/editorShared";
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
 import { Forecast, ForecastCard, Unfilled } from "../../components/meta-ads/editorDemand";
@@ -57,6 +57,8 @@ type Batch = {
     cities?: { launched: string[]; bank_for: string[] } | null;
     /** .88: por qué hace falta y para cuándo (lo que ve el líder). */
     need?: string | null;
+    /** .99: qué hay que hacer, en una frase, y si está en espera (su producto está en pausa, en liquidación o abandonado). */
+    task?: BatchTask | null; on_hold?: boolean;
 } & EditorFields;
 type ProductRow = {
     id: number; name: string; active_campaigns: number; bank: number; ready: number;
@@ -329,11 +331,13 @@ const BatchCard: React.FC<{
                 {numbered && QUEUE.includes(b.status) && (
                     <Chip size="small" variant="outlined" color={b.editor ? "default" : "warning"} label={b.editor ? `Editor: ${b.editor}` : "Sin editor"} />
                 )}
-                {b.overdue && <Chip size="small" color="error" label={`Atrasado (era para el ${dueLabel(b.due_date)})`} />}
+                {b.on_hold && <Chip size="small" variant="outlined" label="En espera: producto en pausa" />}
+                {b.overdue && !b.on_hold && <Chip size="small" color="error" label={`Atrasado (era para el ${dueLabel(b.due_date)})`} />}
                 {b.returned && <Chip size="small" color="warning" variant="outlined" label={`Devuelto (${b.returned.version})`} />}
                 {pending && <Chip size="small" color="secondary" label={`${pending.version} por revisar`} />}
             </Stack>
-            {b.test_idea && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
+            {b.task && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué hay que hacer:</b> {b.task.title}{b.task.detail ? `. ${b.task.detail}` : ""}</Typography>}
+            {b.test_idea && <Typography variant="body2" sx={{ mt: b.task ? 0.25 : 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
             {b.persona?.name && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Le habla a:</b> {b.persona.name}</Typography>}
             {b.goal && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
             {b.keep && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que funcionó:</b> {b.keep}</Typography>}

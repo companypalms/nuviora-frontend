@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { AutoAwesomeRounded, CheckRounded, EditRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
+import { Link as RouterLink } from "react-router-dom";
 import { api, dateTime, fmt } from "./metaAds";
 
 type AngleProduct = { id: number; name: string; campaigns: number; active_campaigns: number };
@@ -168,10 +169,11 @@ export const MetaAnglesTab: React.FC = () => {
 
 type ModeProduct = AngleProduct & { mode: string; note: string | null; proof: string | null; updated_by: string | null; updated_at: string | null };
 
+// .99: los mismos nombres que "Pausar o activar productos" (ProductModes del servidor)
 const MODE_LABEL: Record<string, { label: string; help: string }> = {
-    normal: { label: "Normal", help: "Se analiza, se escala y se le piden creativos." },
+    normal: { label: "Activo", help: "Se analiza, se escala y se le piden creativos." },
     liquidation: { label: "Liquidación", help: "Sin creativos nuevos ni escalar: solo los anuncios cerca o debajo del break-even, y apagar al agotarse." },
-    paused: { label: "Pausado", help: "No se le piden creativos ni se escala." },
+    paused: { label: "En pausa", help: "No se le piden creativos ni se escala." },
     abandoned: { label: "Abandonado", help: "Se dejó: no recibe trabajo." },
 };
 
@@ -180,8 +182,9 @@ const ModeRow: React.FC<{ p: ModeProduct; modes: string[]; onSaved: () => void }
     const [proof, setProof] = useState(p.proof ?? "");
     const save = async (mode: string, n: string, pr: string = proof, message?: string) => {
         try {
-            await api(`/meta/product-modes/${p.id}`, "PUT", { mode, note: n.trim() || null, proof: pr.trim() || null });
-            toast.success(message ?? `${p.name}: ${MODE_LABEL[mode]?.label ?? mode}`);
+            const r = await api<{ message?: string }>(`/meta/product-modes/${p.id}`, "PUT", { mode, note: n.trim() || null, proof: pr.trim() || null });
+            // .99: al cambiar el modo, el servidor dice qué encargos quedan en espera o vuelven
+            toast.success(message ?? r.message ?? `${p.name}: ${MODE_LABEL[mode]?.label ?? mode}`);
             onSaved();
         } catch (e) { toast.error((e as Error).message); }
     };
@@ -220,6 +223,7 @@ export const MetaProductModes: React.FC = () => {
                 <Typography variant="subtitle1" fontWeight="bold">Modo de cada producto</Typography>
                 <Typography variant="body2" color="text.secondary">
                     Lo usa el análisis de campañas. {Object.values(MODE_LABEL).map((m) => `${m.label}: ${m.help.charAt(0).toLowerCase()}${m.help.slice(1)}`).join(" ")}
+                    {" "}Más fácil: <RouterLink to="/meta-ads/productos">Pausar o activar productos</RouterLink> (o pídeselo a tu asistente).
                 </Typography>
             </Box>
             {data.products.length === 0 ? <Typography sx={{ p: 2 }}>Todavía no hay campañas clasificadas por producto.</Typography> : (

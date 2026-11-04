@@ -12,9 +12,11 @@
 // .93 (dueño: "la pantalla principal debería ser la de encargos del equipo"; "no veo ningún lado que diga por revisar"):
 //   el líder entra aquí; "Por revisar" va justo debajo de lo de ahora y se ve siempre (vacío también); tocar un encargo
 //   abre "Revisar", que compara la referencia con lo entregado y al terminar ofrece el siguiente.
+// .99: cada encargo dice qué hay que hacer ("Asigna B0101: 3 iteraciones del hook de C0146"); la banca pasa a su pantalla
+//   (BankPage, en el menú del líder) y aquí queda una línea; lo de un producto parado por el dueño queda en espera.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, IconButton, Link, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
-import { AddRounded, CheckCircleRounded, CloseRounded, EmojiEventsRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
+import { CheckCircleRounded, CloseRounded, EmojiEventsRounded, PauseCircleOutlineRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -23,7 +25,6 @@ import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } 
 import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
-import { ImportBatchDialog } from "../../components/meta-ads/importBatch";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
@@ -36,6 +37,8 @@ type Data = {
     corrections_days?: number; uploads?: boolean;
     /** .94: los números del juego (racha, a la primera, ganadores; para el líder, también los del equipo). */
     game?: EditorGameData;
+    /** .99: para el líder, los encargos en espera porque el dueño paró su producto (en pausa, en liquidación o abandonado). */
+    on_hold?: { product_id: number; product: string | null; mode_label: string; codes: string[] }[];
 };
 
 /** .94: los ganadores que ya celebró quien mira (en este navegador). */
@@ -61,6 +64,14 @@ const byUrgency = (corrections: number) => (a: EditorBatch, b: EditorBatch) =>
 const signal = (t: Tokens, level: string) => (level === "late" ? t.red : level === "today" ? t.amber : t.gray);
 const angleOf = (b: EditorBatch) => b.angle_name ?? b.angle_code;
 const piecesText = (b: EditorBatch) => plural(b.pieces.length, "pieza", "piezas");
+/** .99 (dueño: "no dice si es iteración… si es tres piezas totalmente nuevas de un ángulo en particular"): qué hay que hacer. */
+const whatOf = (b: EditorBatch) => b.task?.title ?? piecesText(b);
+
+/** .99: el detalle de qué hay que hacer, debajo del título de la misión. */
+const TaskDetail: React.FC<{ b: EditorBatch }> = ({ b }) => {
+    const t = useTokens();
+    return b.task?.detail ? <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>{b.task.detail}</Typography> : null;
+};
 
 /** Lo que te devolvieron: lo que pidió el líder, a la vista. */
 const Returned: React.FC<{ b: EditorBatch }> = ({ b }) => {
@@ -165,8 +176,6 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const [showDone, setShowDone] = useState(false);
     // .94: los ganadores que ya se celebraron
     const [seenWins, setSeenWins] = useState<string[]>(readSeen);
-    // .95: cargar a la banca un batch ya hecho
-    const [importing, setImporting] = useState(false);
 
     const load = useCallback(() => {
         setError(null);
@@ -225,7 +234,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const when = (b: EditorBatch) => whenLabel(dueOf(b, corrections), today);
     const reviewable = lists.toReview.filter((b) => b.can.review);
     // .94: para asignar: el encargo (título y referencias de su producto) y la referencia ya sugerida
-    const assignOf = (b: EditorBatch) => ({ code: b.code, productId: b.product_id, angleCode: b.angle_code, suggestedRef: b.suggested_reference?.id ?? null });
+    const assignOf = (b: EditorBatch) => ({ code: b.code, productId: b.product_id, angleCode: b.angle_code, suggestedRef: b.suggested_reference?.id ?? null, task: b.task });
     // .93: lo que queda por revisar después del que está abierto
     const after = reviewable.filter((b) => b.id !== reviewId);
     const late = (list: EditorBatch[]) => list.filter((b) => when(b).level === "late").length;
@@ -306,8 +315,19 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         { text: `Ganadores del equipo: ${data.game.team.winners}`, help: "Creativos del equipo que ganaron en Meta este mes." },
                     ]} link={<Link component={RouterLink} to="/editor/resultados" sx={{ color: t.ink }}>Ver el equipo</Link>} />
                 )}
+                {/* .99: lo que está en espera porque el dueño paró su producto (no sale en ninguna lista) */}
+                {(data.on_hold ?? []).map((h) => (
+                    <Stack key={h.product_id} direction="row" spacing={0.75} alignItems="flex-start" sx={{ mt: 1 }}>
+                        <PauseCircleOutlineRounded sx={{ fontSize: 18, color: t.muted, mt: "1px" }} />
+                        <Typography sx={{ fontSize: 13, color: t.muted }}>
+                            En espera: el dueño paró {h.product ?? "un producto"} ({h.mode_label.toLowerCase()}), así que {h.codes.join(", ")} no {h.codes.length === 1 ? "sale" : "salen"} en
+                            ninguna lista. {h.codes.length === 1 ? "Vuelve" : "Vuelven"} solo{h.codes.length === 1 ? "" : "s"} cuando lo reactive.
+                        </Typography>
+                    </Stack>
+                ))}
                 {nextReview ? missionFrame(`Por revisar · ${when(nextReview).text}`, signal(t, when(nextReview).level), `${nextReview.product}${angleOf(nextReview) ? ` · ${angleOf(nextReview)}` : ""}`,
                     `Revisa ${nextReview.code}: lo entregó ${nextReview.deliveries.find((d) => d.review === "pending")?.editor ?? nextReview.editor ?? "el editor"}`, <>
+                        {nextReview.task && <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>Lo que había que hacer: {nextReview.task.title}</Typography>}
                         <NumberedSteps label="Cómo revisar" steps={[
                             `Mira ${nextReview.pieces.length === 1 ? "la pieza" : `las ${nextReview.pieces.length} piezas`} en grande, una por una.`,
                             "En cada una toca «Está bien» o «Cambiar algo» y escribe qué cambiar.",
@@ -317,8 +337,9 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                             sx={{ ...inkSx(t), ...tapSx, mt: 2, width: { xs: "100%", sm: "auto" } }}>Revisar {nextReview.code}</Button>
                     </>)
                     : nextAssign ? missionFrame(`Sin asignar · ${when(nextAssign).text}`, signal(t, when(nextAssign).level), `${nextAssign.product}${angleOf(nextAssign) ? ` · ${angleOf(nextAssign)}` : ""}`,
-                        `Asigna ${nextAssign.code}: ${piecesText(nextAssign)}`, <>
-                            {nextAssign.need && <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>Por qué: {nextAssign.need}</Typography>}
+                        `Asigna ${nextAssign.code}: ${whatOf(nextAssign)}`, <>
+                            <TaskDetail b={nextAssign} />
+                            {nextAssign.need && <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>Por qué hace falta: {nextAssign.need}</Typography>}
                             <NumberedSteps label="Cómo asignar" steps={["Toca «Asignar» y elige quién lo hace (puedes ser tú).", "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
                             <Box sx={{ mt: 2 }}><AssignButton<EditorBatch> primary {...assignOf(nextAssign)} editors={data.editors} current={null} url={`/editor/queue/${nextAssign.id}/editor`} allowNone onDone={() => changed(`${nextAssign.code} asignado.`)} /></Box>
                         </>)
@@ -343,7 +364,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 {lists.toAssign.length > 0 && (
                     <Section dot={t.gray} name="Sin asignar" hint="lo más urgente arriba">
                         {lists.toAssign.map((b) => (
-                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${piecesText(b)} · ${when(b).text}`}
+                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${whatOf(b)} · ${when(b).text}`}
                                 action={<AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
                         ))}
                     </Section>
@@ -352,23 +373,19 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     <Section dot={t.ink} name="En curso" hint="asignados o en producción">
                         {lists.working.map((b) => (
                             <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
-                                sub={`Lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}`}
+                                sub={`${whatOf(b)} · lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}`}
                                 extra={b.can.assign ? <AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
                         ))}
                     </Section>
                 )}
-                {/* .95: la banca se ve siempre, con "Cargar un batch ya hecho" (los de antes del sistema, de Drive) */}
-                <Section dot={t.green} name="En banca" hint="aprobados: el dueño los lanza en Meta">
-                    {lists.bank.length === 0 && <Typography sx={{ fontSize: 14, color: t.muted, mb: 1 }}>Nada en la banca todavía.</Typography>}
-                    {lists.bank.map((b) => (
-                        <BatchRow key={b.id} b={b} dot={t.green} open={openId === b.id} onToggle={() => toggle(b.id)}
-                            sub={`${b.imported ? "Cargado: de antes del sistema · " : ""}Lo hizo ${b.editor ?? "—"}${b.status_at ? ` · en banca desde el ${dateTime(b.status_at)}` : ""}`} />
-                    ))}
-                    <Button variant="outlined" startIcon={<AddRounded />} onClick={() => setImporting(true)} sx={{ ...lineSx(t), ...tapSx, mt: 0.5, width: { xs: "100%", sm: "auto" } }}>
-                        Cargar un batch ya hecho
-                    </Button>
-                </Section>
-                <ImportBatchDialog open={importing} onClose={() => setImporting(false)} onDone={(code) => changed(`${code} está en la banca.`)} />
+                {/* .99 (dueño: "la banca… que le aparezca en el menú del lado izquierdo"): la banca tiene su pantalla; aquí, una línea */}
+                <Box sx={{ ...cardSx(t), p: "12px 14px", mt: 3, display: "flex", gap: 1.25, alignItems: "center", flexWrap: "wrap" }}>
+                    <Dot color={t.green} size={9} />
+                    <Typography sx={{ fontSize: 15, flex: 1, minWidth: 180 }}>
+                        En banca: <b style={{ fontWeight: 600 }}>{plural(lists.bank.length, "batch listo", "batches listos")}</b> para lanzar
+                    </Typography>
+                    <Link component={RouterLink} to="/editor/banca" sx={{ color: t.ink, fontSize: 14 }}>Ver la banca y cargar batches</Link>
+                </Box>
                 {dialogs}
             </>,
         );
@@ -434,7 +451,9 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
             {mission ? missionFrame(
                 `${mission.returned ? "Te lo devolvieron" : `Encargo 1 de ${lists.todo.length}`} · ${when(mission).text}`, signal(t, when(mission).level),
                 `${mission.product}${angleOf(mission) ? ` · ${angleOf(mission)}` : ""}`,
-                mission.returned ? `Corrige ${mission.code} y entrégalo de nuevo` : `Haz y entrega ${mission.code}: ${piecesText(mission)}`, <>
+                mission.returned ? `Corrige ${mission.code} y entrégalo de nuevo` : `Haz y entrega ${mission.code}: ${whatOf(mission)}`, <>
+                    {mission.returned ? mission.task && <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>Era: {mission.task.title}</Typography>
+                        : <TaskDetail b={mission} />}
                     <Returned b={mission} />
                     {mission.suggested_reference && <SuggestedRef r={mission.suggested_reference} />}
                     <NumberedSteps label="Cómo hacerlo" steps={missionSteps(mission)} />
@@ -463,7 +482,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 <Section dot={t.ink} name="Lo que sigue" hint="por fecha">
                     {rest.map((b) => (
                         <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
-                            sub={`${b.returned ? "Te lo devolvieron · " : ""}${piecesText(b)} · ${when(b).text}`}
+                            sub={`${b.returned ? "Te lo devolvieron · " : ""}${whatOf(b)} · ${when(b).text}`}
                             action={b.can.deliver ? <RowButton icon={<UploadRounded />} onClick={() => setDeliverId(b.id)}>Entregar</RowButton> : undefined}
                             extra={b.can.assign ? <AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
                     ))}

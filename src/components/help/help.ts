@@ -4,7 +4,8 @@
 import { api } from "../meta-ads/metaAds";
 
 export type HelpMessage = { id: number; question: string; answer: string | null; failed: boolean; at: string | null };
-export type HelpState = { mode: "openai" | "example" | "off" | "unavailable"; book: "lider" | "editor" | null; messages: HelpMessage[]; left: number; limit: number };
+/** .99: left y limit en null = sin tope (el líder). */
+export type HelpState = { mode: "openai" | "example" | "off" | "unavailable"; book: "lider" | "editor" | null; messages: HelpMessage[]; left: number | null; limit: number | null };
 
 /** Para empezar sin escribir: lo que más se pregunta en cada rol. */
 export const HELP_SUGGESTIONS: Record<"lider" | "editor", string[]> = {
@@ -15,7 +16,7 @@ export const HELP_SUGGESTIONS: Record<"lider" | "editor", string[]> = {
 export const HELP_MAX = 500;
 
 export const fetchHelp = () => api<HelpState>("/editor/help");
-export const askHelp = (question: string) => api<{ message: HelpMessage; left: number }>("/editor/help", "POST", { question });
+export const askHelp = (question: string) => api<{ message: HelpMessage; left: number | null }>("/editor/help", "POST", { question });
 
 /** Si la ventana quedó abierta al cambiar de pantalla (solo en la computadora). */
 const OPEN_KEY = "nuviora.help.open";

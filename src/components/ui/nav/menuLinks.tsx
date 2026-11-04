@@ -19,7 +19,7 @@ import {
     SettingsEthernetRounded, SettingsRounded, ShoppingBagRounded, StorefrontRounded, SyncAltRounded, WarehouseRounded,
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
-    VideoLibraryRounded, EmojiEventsRounded, WebRounded, SummarizeRounded,
+    VideoLibraryRounded, EmojiEventsRounded, WebRounded, SummarizeRounded, ArchiveRounded, PauseCircleRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -48,7 +48,9 @@ export const MENU_LINKS: NavLink[] = [
     // Principal
     // Etapa 5, paso 5a: los editores de video solo ven sus encargos (y el líder, los del equipo)
     // .93: para el líder, lo del equipo va primero (es su pantalla principal)
-    { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar por revisar aprobar devolver editores videos banca" },
+    { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar por revisar aprobar devolver editores videos" },
+    // .99: la banca del líder (cargar batches ya hechos y ver lo que está listo, en Meta o sin banca)
+    { section: "principal", text: "Banca", icon: <ArchiveRounded />, link: "/editor/banca", roles: ["Editor líder"], keywords: "banca batches listos lanzar cargar ya hechos drive en meta sin banca" },
     { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
     // .92: la biblioteca de referencias (videos probados de otros anunciantes)
     { section: "principal", text: "Referencias", icon: <CollectionsBookmarkRoundedIcon />, link: "/editor/referencias", roles: ["Editor líder", "Editor de video"], keywords: "biblioteca de anuncios referencias inspiracion videos probados ref" },
@@ -98,6 +100,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "reportes", text: "Meta Ads", icon: <InsightsRounded />, link: "/meta-ads", roles: ["Admin"], keywords: "facebook anuncios campañas publicidad cpa ctr cpm creativos" },
     { section: "reportes", text: "Análisis de campañas", icon: <InsightsRounded />, link: "/meta-ads/analisis", roles: ["Admin"], keywords: "meta ads analisis del dia urgente escalar bajar pausar editores ia" },
     { section: "reportes", text: "Cola y banca de creativos", icon: <InsightsRounded />, link: "/meta-ads/cola", roles: ["Admin"], keywords: "meta ads cola produccion banca batches encargos editores creativos numeros" },
+    // .99: pausar, liquidar, abandonar o reactivar un producto (también se le pide al asistente)
+    { section: "reportes", text: "Pausar o activar productos", icon: <PauseCircleRounded />, link: "/meta-ads/productos", roles: ["Admin"], keywords: "pausa pausar sin stock agotado proveedor liquidacion abandonar reactivar activar modo producto encargos editores" },
     { section: "reportes", text: "Referencias de creativos", icon: <CollectionsBookmarkRoundedIcon />, link: "/meta-ads/referencias", roles: ["Admin"], keywords: "biblioteca de anuncios referencias ganadoras editores videos probados ref" },
     { section: "reportes", text: "Lo que sabemos", icon: <InsightsRounded />, link: "/meta-ads/lo-que-sabemos", roles: ["Admin"], keywords: "meta ads aprendizajes memoria que funciona que no funciona angulos buyer personas estilos formatos notas hipotesis" },
     { section: "reportes", text: "Landings", icon: <InsightsRounded />, link: "/meta-ads/landings", roles: ["Admin"], keywords: "meta ads landing paginas de destino shopify visita compra conversion velocidad angulo" },
