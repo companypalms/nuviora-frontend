@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { toast } from "react-toastify";
 import { Panel, PanelHeader } from "../ui/surface/Panel";
-import { CpaRow, CpaVersion, CpaWindow, FixedShare, api, day, errorMessage, money, pct } from "./finance";
+import { CpaRow, CpaVersion, CpaWindow, FixedShare, api, count, day, errorMessage, money, pct } from "./finance";
 
 type Response = {
     window: { from: string; to: string; long_from: string; days: number; long_days: number };
@@ -16,19 +16,34 @@ type Response = {
 };
 
 const windowLine = (label: string, w: CpaWindow | null) => !w ? `${label}: sin datos`
-    : `${label} (${day(w.from)} – ${day(w.to)}): objetivo ${money(w.target)} · break-even ${money(w.break_even)} · ${w.purchases} compras de Meta${w.missing_trips > 0 ? ` · ${w.missing_trips} carreras sin costo completadas con ${money(w.shipping_filled)}` : ""}`;
+    : `${label} (${day(w.from)} – ${day(w.to)}): objetivo ${money(w.target)} · break-even ${money(w.break_even)} · ${count(w.purchases)} compras de Meta`
+        + (w.closed !== undefined ? ` · ${w.closed} pedidos terminados` : "")
+        + (w.sin_stock ? ` · ${w.sin_stock} pedidos sin stock no cuentan (ni su parte de las compras)` : "")
+        + (w.missing_trips > 0 ? ` · ${w.missing_trips} carreras sin costo completadas con ${money(w.shipping_filled)}` : "");
 
-/** Qué fechas se usaron: las de 7 días, las de 28 o el número del producto (ciudad con pocas compras). */
+/** Qué fechas se usaron: las de 7 días, las de 28 o el número del producto (ciudad con pocos pedidos terminados). */
 const Basis: React.FC<{ v: CpaVersion }> = ({ v }) => {
     const d = v.detail;
     if (!d) return <Typography variant="caption" color="text.secondary">—</Typography>;
     const label = d.chosen === "product" ? "del producto" : `${v.window_days ?? (d.chosen === "short" ? d.short?.days : d.long?.days)} días`;
-    const why = d.chosen === "product" ? `Menos de ${d.city_min_purchases} compras de Meta: usa el objetivo de su producto.`
-        : d.chosen === "long" && (d.short?.purchases ?? 0) < d.city_min_purchases ? `Menos de ${d.city_min_purchases} compras de Meta en ${d.short?.days ?? 7} días: usa los ${d.long?.days ?? 28}.`
+    // .101: la muestra son los pedidos terminados (un cálculo de antes no los guardó: sus compras)
+    const why = d.chosen === "product" ? `Menos de ${d.city_min_purchases} pedidos terminados: usa el objetivo de su producto.`
+        : d.chosen === "long" && (d.short?.closed ?? d.short?.purchases ?? 0) < d.city_min_purchases ? `Menos de ${d.city_min_purchases} pedidos terminados en ${d.short?.days ?? 7} días: usa los ${d.long?.days ?? 28}.`
         : "La más prudente de las dos (la de objetivo más bajo).";
     return (
         <Tooltip title={<>{why}<br />{windowLine(`${d.short?.days ?? 7} días`, d.short)}<br />{windowLine(`${d.long?.days ?? 28} días`, d.long)}</>}>
             <Chip size="small" variant="outlined" label={label} />
+        </Tooltip>
+    );
+};
+
+/** .101: un producto con pocos pedidos terminados todavía no manda en Meta Ads: vale la referencia del dueño. */
+const Young: React.FC<{ v: CpaVersion }> = ({ v }) => {
+    const d = v.detail;
+    if (v.city_id || d?.closed === undefined || d.closed >= d.city_min_purchases) return null;
+    return (
+        <Tooltip title="Meta Ads usa tu referencia (Productos y objetivos o el CPA y BE del nombre de la campaña) hasta que este número tenga suficientes pedidos terminados.">
+            <Chip size="small" variant="outlined" label={`${d.closed} de ${d.city_min_purchases} pedidos terminados: vale tu referencia`} sx={{ mt: 0.5 }} />
         </Tooltip>
     );
 };
@@ -122,12 +137,12 @@ export const CpaTab: React.FC = () => {
                                         <TableRow key={r.id} hover onClick={() => setHistory(r)} sx={{ cursor: "pointer", bgcolor: r.city_id ? undefined : "action.hover" }}>
                                             <TableCell sx={{ pl: r.city_id ? 4 : 2, fontWeight: r.city_id ? 400 : 700, minWidth: 180 }}>{r.city ?? r.product}</TableCell>
                                             <TableCell align="right">{pct(r.effectiveness)}</TableCell><TableCell align="right">{money(r.revenue)}</TableCell>
-                                            <TableCell align="right">{money(r.variable_costs)}</TableCell><TableCell align="right">{r.purchases}</TableCell>
+                                            <TableCell align="right">{money(r.variable_costs)}</TableCell><TableCell align="right">{count(r.purchases)}</TableCell>
                                             <TableCell align="right" sx={{ color: over ? "error.main" : undefined }}>{money(r.meta_cpa)}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.break_even)}{r.fixed_pct !== null && <Typography variant="caption" color="text.secondary" display="block">con {r.fixed_pct} % fijos</Typography>}</TableCell>
                                             <TableCell align="right" sx={{ fontWeight: 700 }}>{money(r.target)}<Typography variant="caption" color="text.secondary" display="block">{r.target_pct} % {r.target_type === "cost" ? "s/costo" : "s/ventas"}</Typography></TableCell>
                                             <TableCell><Basis v={r} /></TableCell>
-                                            <TableCell><Viable v={r} /></TableCell>
+                                            <TableCell><Viable v={r} /><Young v={r} /></TableCell>
                                         </TableRow>
                                     );
                                 })}
@@ -138,7 +153,7 @@ export const CpaTab: React.FC = () => {
             </Panel>
             <Alert severity="info" variant="outlined">
                 <Typography variant="body2">· <b>Break-even</b> = (R − V − gastos fijos) / P: el CPA máximo que puede mostrar Ads Manager para quedar en $0, ya con los gastos fijos cubiertos. <b>Objetivo</b> = lo mismo, dejando además la utilidad del producto. P son las compras de Meta (lo que cuenta Ads Manager), no los pedidos entregados: la efectividad real de cada ciudad ya va adentro. El CPA Meta en rojo pasa el break-even.</Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>· <b>Prudente</b>: R es solo lo cobrado de lo entregado; V incluye producto, envíos (también los fallidos; una carrera sin costo cuenta lo que cuesta en promedio una carrera en esa ciudad) y las comisiones de todos los roles. Se calcula con 7 y con 28 días y vale el objetivo más bajo: si empeora se nota enseguida, si mejora no se confía hasta que se sostenga. Una ciudad con menos de {data?.city_min_purchases ?? 30} compras de Meta usa sus 28 días o el número de su producto.</Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>· <b>Prudente</b>: R es solo lo cobrado de lo entregado; V incluye producto, envíos (también los fallidos; una carrera sin costo cuenta lo que cuesta en promedio una carrera en esa ciudad) y las comisiones de todos los roles. Se calcula con 7 y con 28 días y vale el objetivo más bajo: si empeora se nota enseguida, si mejora no se confía hasta que se sostenga. Un número necesita {data?.city_min_purchases ?? 30} pedidos terminados (entregados o cancelados): con menos, una ciudad usa sus 28 días o el número de su producto, y un producto nuevo usa tu referencia en Meta Ads. Los pedidos que hoy están en "Sin Stock" no cuentan, ni su parte de las compras de Meta: no son culpa de la publicidad.</Typography>
             </Alert>
             <History row={history} onClose={() => setHistory(null)} />
         </Stack>

@@ -87,7 +87,7 @@ export const SettingsTab: React.FC = () => {
                     </Stack>
                     <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                         {field("fixedMin", "Gastos fijos, como mínimo", "%", "De cada venta; si lo real es más, vale lo real")}
-                        {field("cityMin", "Compras mínimas por ciudad", "compras", "Con menos, la ciudad usa sus días largos o su producto")}
+                        {field("cityMin", "Pedidos terminados para confiar", "pedidos", "Entregados o cancelados. Con menos, la ciudad usa sus días largos o su producto; un producto nuevo, tu referencia")}
                     </Stack>
                     <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                         {field("order", "Comisión por pedido entregado", "$")}

@@ -175,9 +175,10 @@ type SettingsData = { values: Settings; defaults: Settings };
 
 const GROUPS: { title: string; help?: string; fields: [string, string, string?][] }[] = [
     {
-        title: "Estados de anuncios y batches", help: "Con el gasto y las compras de toda su vida. ×C = veces el CPA objetivo de esa ciudad.", fields: [
+        title: "Estados de anuncios y batches", help: "Con el gasto y las compras de toda su vida. ×C = veces el CPA objetivo de esa ciudad. Con pocas compras, uno apenas encima del break-even no se apaga: puede ser mala suerte.", fields: [
             ["no_data_cpa", "Sin datos: gastó menos de", "×C"], ["loser_spend_cpa", "Perdedor: gastó, con 0 o 1 compra", "×C"],
             ["evaluation_cap_cpa", "Con 2+ compras en el break-even: tope de evaluación", "×C"],
+            ["loser_be_margin_pct", "Perdedor por el break-even: CPA encima por lo menos", "%"], ["loser_be_margin_purchases", "…y sin margen desde", "compras"],
             ["promising_purchases", "Prometedor: compras con CPA ≤ C", "compras"], ["proven_purchases", "PROVEN: compras con CPA ≤ C", "compras"],
         ],
     },
@@ -204,7 +205,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El stock no frena la subida: solo avisa.", fields: [
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí.", fields: [
             ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"],
             ["scale_small_pct", "Subir si el CPA está apenas debajo de C", "%"],
             ["scale_mid_below_pct", "Subida media si está debajo de C desde", "%"], ["scale_mid_pct", "Subida media", "%"],
@@ -213,6 +214,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
             ["last_test_budget_cpa", "Último test: por día", "×C"], ["last_test_days", "Último test: durante", "días"],
             ["stock_warn_days", "Avisar poco stock con menos de", "días de ventas"],
+            ["stock_waiting_min", "Pedidos esperando stock (últimos 14 días) para avisar y no subir", "pedidos"],
         ],
     },
     {

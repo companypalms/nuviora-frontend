@@ -147,6 +147,8 @@ export type OrderRow = {
     delivery: number; commissions: number; result: number; cogs_missing_lines: number; delivery_missing_trips: number; delivery_estimated: boolean;
 };
 
+/** .101: las compras de Meta sin la parte de los pedidos sin stock pueden tener decimales ("24,7"). */
+export const count = (v: number | string) => new Intl.NumberFormat("es-VE", { maximumFractionDigits: 1 }).format(Number(v));
 export const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${new Intl.NumberFormat("es-VE", { maximumFractionDigits: 1 }).format(v)} %`);
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -189,6 +191,8 @@ export type FixedShare = {
 export type CpaWindow = {
     from: string; to: string; days: number; purchases: number; effectiveness: number | null; meta_cpa: number | null;
     target: number | null; break_even: number | null; missing_trips: number; shipping_filled: number;
+    /** .101: los pedidos terminados (entregados o cancelados) y los que no cuentan por estar sin stock */
+    closed?: number; sin_stock?: number;
 };
 
 export type CpaDetail = {
@@ -196,6 +200,8 @@ export type CpaDetail = {
     short: CpaWindow | null; long: CpaWindow | null; fixed: FixedShare;
     /** 2026-10-31: el producto nunca tuvo una compra registrada: sin costo, no se calcula */
     no_cost?: boolean;
+    /** .101: los pedidos terminados de la cohorte elegida (city_min_purchases ahora cuenta pedidos terminados) y los sin stock */
+    closed?: number; sin_stock?: number;
 };
 
 export type CpaRow = CpaVersion & { product: string; city: string | null };

@@ -721,6 +721,8 @@ export const MetaAnalysisPage: React.FC = () => {
                                         {notices.map((i) => (
                                             <Typography key={i.key} sx={{ fontSize: 14, py: 0.25, overflowWrap: "anywhere" }}>
                                                 <b style={{ fontWeight: 600 }}>{i.where ?? i.product}</b> · {i.title ?? i.text}
+                                                {/* .101: los pedidos esperando stock dicen también lo gastado desde entonces */}
+                                                {i.kind === "stock_waiting" && i.why && <Box component="span" sx={{ color: t.muted }}> · {i.why}</Box>}
                                             </Typography>
                                         ))}
                                     </Box>
