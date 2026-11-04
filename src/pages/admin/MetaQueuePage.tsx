@@ -524,7 +524,7 @@ export const MetaQueuePage: React.FC = () => {
                 )}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
-                        {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Banca por producto: {s.bank_min}–{s.bank_max}.
+                        {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Un batch a la vez por producto.
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>

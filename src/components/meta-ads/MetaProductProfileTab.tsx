@@ -29,6 +29,8 @@ type Data = {
     /** .65 */
     phase?: Phase; phases?: Record<Phase, string>; angles?: { code: string; name: string | null; hypothesis: string | null; persona: string | null }[];
     testing?: TestingSummary | null; tested_angles?: string[];
+    /** .100: el aviso si ya vende (el testeo pide hasta 3 batches juntos) */
+    selling_warning?: string | null;
     /** .90 */
     files?: ProductFilesData;
 };
@@ -215,6 +217,8 @@ export const MetaProductProfileTab: React.FC = () => {
 
     if (!data) return <Typography sx={{ p: 2 }}>Cargando…</Typography>;
     const product = data.products.find((p) => p.id === productId);
+    // los ángulos de la ficha que el testeo todavía puede probar
+    const untested = angles.map((a) => a.code.trim().toUpperCase()).filter((c) => c && !(data.tested_angles ?? []).includes(c));
 
     return (
         <Stack spacing={2}>
@@ -247,15 +251,18 @@ export const MetaProductProfileTab: React.FC = () => {
                     )}
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">Fase</Typography>
-                        <TextField select size="small" value={phase} onChange={(e) => { setPhaseState(e.target.value as Phase); setDirty(true); }} sx={{ mt: 1, minWidth: 260 }}
+                        <TextField select size="small" value={phase} onChange={(e) => { setPhaseState(e.target.value as Phase); setDirty(true); }} sx={{ mt: 1, minWidth: { sm: 260 }, width: { xs: "100%", sm: "auto" } }}
                             helperText={phase !== "testing"
                                 ? "Las reglas piden iteraciones de lo que gana y no piden más de los ángulos que perdieron en un testeo."
                                 : data.phase === "testing" ? "Abajo, en qué va el testeo."
-                                    : "Al guardar empieza el testeo: " + testingText(angles.map((a) => a.code.trim().toUpperCase()).filter((c) => !(data.tested_angles ?? []).includes(c)))
-                                        + ((data.tested_angles ?? []).length ? " (los ángulos que ya se probaron no se repiten)." : ".")}>
+                                    : "Al guardar empieza el testeo: " + testingText(untested)
+                                        + ((data.tested_angles ?? []).length ? " (los ángulos que ya se probaron no se repiten)" : "")
+                                        + (untested.length ? ". Los que ya están en la banca cuentan." : ".")}>
                             <MenuItem value="testing">En testeo (producto nuevo)</MenuItem>
                             <MenuItem value="iterate">Iterar lo que funciona</MenuItem>
                         </TextField>
+                        {/* .100: un producto que ya vende normalmente va en "Iterar lo que funciona" */}
+                        {phase === "testing" && data.phase !== "testing" && data.selling_warning && <Alert severity="warning" sx={{ mt: 1.5 }}>{data.selling_warning}</Alert>}
                         <TestingBox testing={data.testing} onNext={nextRound} busy={nexting} />
                     </Paper>
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>

@@ -224,8 +224,8 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
     },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
     {
-        title: "Cola y banca", help: "La banca son los batches aprobados sin testear de cada producto; se restan de los que hay que pedir.", fields: [
-            ["bank_min", "Banca por producto: desde", "batches"], ["bank_max", "…hasta", "batches"], ["batch_pieces", "Piezas por batch", "piezas"],
+        title: "Cola y banca", help: "Un batch a la vez por producto: con uno en la banca o haciéndose no se pide otro; cuando se lanza, se pide el siguiente.", fields: [
+            ["bank_min", "Reserva por producto (0 o 1)", "batch"], ["batch_pieces", "Piezas por batch", "piezas"],
             ["video_editors", "Editores de video", "personas"], ["batches_per_editor", "Batches por editor por día", "batches"],
             ["corrections_pct", "Tiempo de correcciones", "%"], ["due_days", "Plazo de un encargo al aprobarlo", "días"],
             ["reserve_due_days", "La reserva y los productos nuevos, para dentro de", "días"],
