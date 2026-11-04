@@ -3,10 +3,13 @@
 // cada batch… no nos acordamos de ninguna de las hipótesis"): el editor líder carga cada batch ya hecho en 4 pasos
 // (producto, ángulo o "no sé", los videos de la carpeta y quién lo hizo). Al cargar, el sistema le da sus números, sube cada
 // video con su nombre en Meta y lo deja en la banca, sin hipótesis ("de antes del sistema"). Si se cierra a mitad, se descarta.
+// .99 (el líder: "son variaciones… yo tendría que poner 3 variantes realizadas del creativo 2 del batch 1, o se monta
+// normal"): no hace falta ningún nombre (el sistema los pone), y si son variaciones de un creativo que ya estuvo en Meta,
+// se elige cuál (por su nombre allí) y qué cambia: queda como su iteración ("3 iteraciones del hook de …").
 import React, { useState } from "react";
 import {
-    Box, Button, ButtonBase, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, MenuItem, Stack, TextField,
-    Typography, useMediaQuery, useTheme,
+    Autocomplete, Box, Button, ButtonBase, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, LinearProgress, MenuItem, Stack,
+    TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
 import { CheckCircleRounded, CloseRounded, DeleteOutlineRounded, UploadFileRounded } from "@mui/icons-material";
 import { api } from "./metaAds";
@@ -15,7 +18,10 @@ import { EditorOption, ReferenceProduct } from "./editorShared";
 import { fmtSize } from "../internal-chat/chat/chatFiles";
 import { geist, inkSx, tapSx, useTokens } from "../ui/design";
 
-type Options = { products: ReferenceProduct[]; editors: EditorOption[]; me: number; uploads: boolean };
+type Creative = { id: number; product_id: number; name: string; angle_code: string | null };
+type Options = { products: ReferenceProduct[]; editors: EditorOption[]; me: number; uploads: boolean; creatives?: Creative[] };
+type Changes = "" | "hook" | "format" | "mixed";
+const CHANGES: { key: Exclude<Changes, "">; label: string }[] = [{ key: "hook", label: "El hook" }, { key: "format", label: "El formato" }, { key: "mixed", label: "Varias cosas" }];
 type Loaded = { id: number; code: string; status: string; meta_names: { adset: string | null; ads: string[] }; pieces: { id: number; code: string }[] };
 type Item = { key: string; file: File; hook: string; progress: number | null; stored: StoredFile | null; error: string | null };
 
@@ -31,6 +37,10 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
     const [angle, setAngle] = useState("");
     const [editor, setEditor] = useState("");
     const [concept, setConcept] = useState("");
+    // .99: variaciones de un creativo que ya estuvo en Meta
+    const [variant, setVariant] = useState(false);
+    const [iterates, setIterates] = useState<Creative | null>(null);
+    const [changes, setChanges] = useState<Changes>("");
     const [items, setItems] = useState<Item[]>([]);
     const [batch, setBatch] = useState<Loaded | null>(null);
     const [done, setDone] = useState<Loaded | null>(null);
@@ -38,7 +48,9 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
     const [error, setError] = useState<string | null>(null);
     const [dragging, setDragging] = useState(false);
 
-    const reset = () => { setProduct(""); setAngle(""); setConcept(""); setItems([]); setBatch(null); setDone(null); setError(null); setBusy(false); };
+    const reset = () => {
+        setProduct(""); setAngle(""); setConcept(""); setVariant(false); setIterates(null); setChanges(""); setItems([]); setBatch(null); setDone(null); setError(null); setBusy(false);
+    };
     const [wasOpen, setWasOpen] = useState(open);
     if (open !== wasOpen) {
         setWasOpen(open);
@@ -48,6 +60,12 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
         }
     }
     const angles = opts?.products.find((p) => String(p.id) === product)?.angles ?? [];
+    const creatives = (opts?.creatives ?? []).filter((c) => String(c.product_id) === product);
+    /** Al elegir el creativo, el ángulo es el suyo (si está en la ficha y todavía no se eligió otro). */
+    const pickCreative = (c: Creative | null) => {
+        setIterates(c);
+        if (c?.angle_code && !angle && angles.some((a) => a.code === c.angle_code)) setAngle(c.angle_code);
+    };
     const setItem = (key: string, patch: Partial<Item>) => setItems((list) => list.map((x) => (x.key === key ? { ...x, ...patch } : x)));
 
     const add = (files: FileList | null) => {
@@ -88,7 +106,9 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
 
     const send = async () => {
         if (!product) { setError("Elige el producto (paso 1)."); return; }
-        if (items.length === 0) { setError("Agrega los videos del batch (paso 3)."); return; }
+        if (variant && !iterates) { setError("Elige de qué creativo son las variaciones (paso 2), o marca «No»."); return; }
+        if (variant && !changes) { setError("Elige qué cambia en estas variaciones (paso 2)."); return; }
+        if (items.length === 0) { setError("Agrega los videos del batch (paso 4)."); return; }
         setBusy(true);
         setError(null);
         try {
@@ -96,6 +116,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
             if (!b) {
                 const r = await api<{ batch: Loaded }>("/editor/imports", "POST", {
                     product_id: Number(product), angle_code: angle || null, editor_id: Number(editor), concept: concept.trim() || null, pieces: items.length,
+                    iterates_id: variant ? iterates?.id ?? null : null, changes: variant ? changes || null : null,
                 });
                 b = r.batch;
                 setBatch(b);
@@ -161,14 +182,50 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
                     <Stack spacing={2}>
                         <Box>
                             {step(1, "El producto")}
-                            <TextField select value={product} onChange={(e) => { setProduct(e.target.value); setAngle(""); }} fullWidth disabled={locked}
+                            <TextField select value={product} onChange={(e) => { setProduct(e.target.value); setAngle(""); setIterates(null); }} fullWidth disabled={locked}
                                 SelectProps={{ displayEmpty: true }} inputProps={{ "aria-label": "Producto" }}>
                                 <MenuItem value="" disabled>Elige el producto</MenuItem>
                                 {(opts?.products ?? []).map((p) => <MenuItem key={p.id} value={String(p.id)}>{p.name}</MenuItem>)}
                             </TextField>
                         </Box>
+                        {/* .99: no hace falta ningún nombre; si son variaciones de un creativo, cuál y qué cambia */}
                         <Box>
-                            {step(2, "El ángulo (de la ficha del producto)")}
+                            {step(2, "¿Son variaciones de un creativo que ya estuvo en Meta?")}
+                            <Stack direction="row" spacing={0.75} role="radiogroup" aria-label="¿Son variaciones de un creativo?">
+                                {[{ on: false, label: "No" }, { on: true, label: "Sí, de un creativo" }].map((o) => (
+                                    <ButtonBase key={o.label} role="radio" aria-checked={variant === o.on} disabled={locked} onClick={() => setVariant(o.on)}
+                                        sx={{ minHeight: 44, px: 2, borderRadius: "10px", fontSize: 14, fontWeight: variant === o.on ? 600 : 500,
+                                            border: `${variant === o.on ? 2 : 1}px solid ${variant === o.on ? t.ink : t.line}`, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                                        {o.label}
+                                    </ButtonBase>
+                                ))}
+                            </Stack>
+                            {variant && (
+                                <Stack spacing={1.25} sx={{ mt: 1.25 }}>
+                                    <Autocomplete options={creatives} value={iterates} onChange={(_, c) => pickCreative(c)} disabled={locked || !product}
+                                        getOptionLabel={(c) => c.name} isOptionEqualToValue={(a, b) => a.id === b.id}
+                                        noOptionsText={product ? "No está: si nunca estuvo en Meta, déjalo en «No» y anótalo en «¿De qué trata?»." : "Primero elige el producto."}
+                                        renderInput={(params) => <TextField {...params} label="El creativo original (su nombre en Meta)" placeholder="Escribe parte del nombre" />} />
+                                    <Box>
+                                        <Typography sx={{ fontSize: 13, color: t.muted, mb: 0.5 }}>¿Qué cambia en estas variaciones?</Typography>
+                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap role="radiogroup" aria-label="Qué cambia">
+                                            {CHANGES.map((c) => (
+                                                <ButtonBase key={c.key} role="radio" aria-checked={changes === c.key} disabled={locked} onClick={() => setChanges(c.key)}
+                                                    sx={{ minHeight: 44, px: 2, borderRadius: "10px", fontSize: 14, fontWeight: changes === c.key ? 600 : 500,
+                                                        border: `${changes === c.key ? 2 : 1}px solid ${changes === c.key ? t.ink : t.line}`, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                                                    {c.label}
+                                                </ButtonBase>
+                                            ))}
+                                        </Stack>
+                                    </Box>
+                                </Stack>
+                            )}
+                            <Typography sx={{ fontSize: 12, color: t.muted, mt: 0.75 }}>
+                                No hace falta ponerle nombre: el sistema le da su número y nombra cada video como se va a llamar en Meta.
+                            </Typography>
+                        </Box>
+                        <Box>
+                            {step(3, "El ángulo (de la ficha del producto)")}
                             <TextField select value={angle} onChange={(e) => setAngle(e.target.value)} fullWidth disabled={locked || !product}
                                 SelectProps={{ displayEmpty: true }} inputProps={{ "aria-label": "Ángulo" }}
                                 helperText={product && angles.length === 0 ? "Este producto no tiene ángulos en su ficha: queda sin ángulo." : "Si no te acuerdas, deja «No sé»."}>
@@ -177,7 +234,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
                             </TextField>
                         </Box>
                         <Box>
-                            {step(3, `Los videos de la carpeta (cada video es un creativo; hasta ${MAX})`)}
+                            {step(4, `Los videos de la carpeta (cada video es un creativo; hasta ${MAX})`)}
                             {items.length > 0 && (
                                 <Stack spacing={0.75} sx={{ mb: 1 }}>
                                     {items.map((it, i) => (
@@ -218,7 +275,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
                             )}
                         </Box>
                         <Box>
-                            {step(4, "Quién lo hizo")}
+                            {step(5, "Quién lo hizo")}
                             <TextField select value={editor} onChange={(e) => setEditor(e.target.value)} fullWidth disabled={locked} inputProps={{ "aria-label": "Quién lo hizo" }}>
                                 {(opts?.editors ?? []).map((e) => <MenuItem key={e.id} value={String(e.id)}>{e.name}{e.id === opts?.me ? " (tú)" : ""}</MenuItem>)}
                             </TextField>

@@ -127,7 +127,11 @@ export const BankPage: React.FC = () => {
     const withoutBank = active.filter((p) => p.bank === 0).length;
     const chosen = data.products.find((p) => p.id === product) ?? null;
     const toggle = (id: number) => setOpenId((o) => (o === id ? null : id));
-    const since = (b: EditorBatch) => (b.status_at ? dateTime(b.status_at) : null);
+    // "desde el 3 nov. 12:17"; si fue hoy, solo la hora: "desde las 10:38"
+    const since = (b: EditorBatch) => {
+        const at = b.status_at ? dateTime(b.status_at) : null;
+        return at ? `desde ${at.includes(" ") ? "el" : "las"} ${at}` : null;
+    };
 
     return frame(
         <>
@@ -163,7 +167,8 @@ export const BankPage: React.FC = () => {
                     </Typography>
                 ) : lists.bank.map((b) => (
                     <BankRow key={b.id} b={b} dot={t.green} open={openId === b.id} onToggle={() => toggle(b.id)}
-                        sub={[b.imported ? "Cargado de antes del sistema" : b.task?.title, b.editor ? `lo hizo ${b.editor}` : null, since(b) ? `en banca desde el ${since(b)}` : null]
+                        sub={[b.task?.title, b.imported ? (b.task ? "cargado de antes del sistema" : "Cargado de antes del sistema") : null,
+                            b.editor ? `lo hizo ${b.editor}` : null, since(b) ? `en banca ${since(b)}` : null]
                             .filter(Boolean).join(" · ")} />
                 ))}
             </Section>
@@ -172,7 +177,7 @@ export const BankPage: React.FC = () => {
                 {lists.meta.length === 0 ? <Typography sx={{ fontSize: 14, color: t.muted }}>Nada en Meta{chosen ? ` de ${chosen.name}` : ""} ahora.</Typography>
                     : lists.meta.map((b) => (
                         <BankRow key={b.id} b={b} dot={t.ink} open={openId === b.id} onToggle={() => toggle(b.id)}
-                            sub={[b.editor ? `Lo hizo ${b.editor}` : null, since(b) ? `en Meta desde el ${since(b)}` : null].filter(Boolean).join(" · ") || "En Meta"} />
+                            sub={[b.editor ? `Lo hizo ${b.editor}` : null, since(b) ? `en Meta ${since(b)}` : null].filter(Boolean).join(" · ") || "En Meta"} />
                     ))}
             </Section>
 
@@ -185,7 +190,7 @@ export const BankPage: React.FC = () => {
                         <Box sx={{ mt: 1 }}>
                             {lists.done.map((b) => (
                                 <BankRow key={b.id} b={b} dot={t.gray} open={openId === b.id} onToggle={() => toggle(b.id)}
-                                    sub={`${b.status_label}${since(b) ? ` desde el ${since(b)}` : ""}`} />
+                                    sub={`${b.status_label}${since(b) ? ` ${since(b)}` : ""}`} />
                             ))}
                         </Box>
                     </Collapse>
