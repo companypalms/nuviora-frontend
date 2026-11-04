@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import {
-    Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceSide,
+    Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceOption, referenceSide,
 } from "./editorShared";
 import { UploadReferenceDialog } from "./references";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
@@ -142,7 +142,7 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, pri
                         <MenuItem value="">Ninguna: que el editor elija</MenuItem>
                         {library.map((r) => (
                             <MenuItem key={r.id} value={String(r.id)} sx={{ whiteSpace: "normal" }}>
-                                {r.code} · {r.type_label} · {r.product ? `${r.product}${r.angle_code ? ` ${r.angle_code}` : ""}` : "cualquier producto"} — {r.why.length > 60 ? `${r.why.slice(0, 60)}…` : r.why}
+                                {referenceOption(r)}
                             </MenuItem>
                         ))}
                     </TextField>
@@ -617,7 +617,7 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                                     {iterationOf && <MenuItem value="iteration">Iteración de {iterationOf}</MenuItem>}
                                     {library.map((r) => (
                                         <MenuItem key={r.id} value={`ref:${r.id}`} sx={{ whiteSpace: "normal" }}>
-                                            {r.code} · {r.type_label} · {r.product ? `${r.product}${r.angle_code ? ` ${r.angle_code}` : ""}` : "cualquier producto"} — {r.why.length > 60 ? `${r.why.slice(0, 60)}…` : r.why}
+                                            {referenceOption(r)}
                                         </MenuItem>
                                     ))}
                                 </TextField>

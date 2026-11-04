@@ -34,7 +34,7 @@ export const SuggestedRef: React.FC<{ r: ReferenceBrief }> = ({ r }) => {
     return (
         <Box sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
             <Typography sx={{ fontSize: 13, color: t.muted }}>Parte de esta referencia (te la sugirió el líder)</Typography>
-            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{r.code} · {r.type_label}</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{[r.code, r.type_label].filter(Boolean).join(" · ")}</Typography>
             {r.why && <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>Por qué: {r.why}</Typography>}
             {r.file && <Box sx={{ mt: 1 }}><FileView file={r.file} height={240} /></Box>}
             {r.link && (

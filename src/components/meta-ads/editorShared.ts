@@ -60,7 +60,7 @@ export type EditorBatch = EditorFields & {
 
 /** .92: la biblioteca de referencias (ReferenceLibrary del servidor). */
 export type ReferenceSource = "reference" | "own" | "iteration";
-export type ReferenceBrief = { id: number; code: string; type_label: string; link: string; file: StoredFile | null; why?: string | null };
+export type ReferenceBrief = { id: number; code: string; type_label: string | null; link: string | null; file: StoredFile | null; why?: string | null };
 
 /** .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos. */
 export type Iteration = { code: string | null; file: StoredFile | null; thumbnail: string | null; texts: string[]; script: { hook: string | null; text: string | null } | null };
@@ -94,11 +94,11 @@ export const reviewContext = (b: ContextSource): ReviewContext => ({
  */
 export const referenceSide = (
     source: ReferenceSource | null | undefined,
-    ref: { code: string; type_label: string; link: string; file: StoredFile | null; why?: string | null } | null | undefined,
+    ref: { code: string; type_label: string | null; link: string | null; file: StoredFile | null; why?: string | null } | null | undefined,
     iteration: Iteration | null | undefined,
 ): CompareSide => {
     if (ref) {
-        return { label: `La referencia · ${ref.code}`, file: ref.file, lines: [ref.type_label, ref.why ? `Por qué la eligieron: ${ref.why}` : ""].filter(Boolean),
+        return { label: `La referencia · ${ref.code}`, file: ref.file, lines: [ref.type_label ?? "", ref.why ? `Por qué la eligieron: ${ref.why}` : ""].filter(Boolean),
             link: ref.link ? { href: ref.link, label: "ver el original" } : null };
     }
     if (iteration && source !== "own" && source !== "reference") {
@@ -118,12 +118,31 @@ export const REVIEW_REASONS = ["No es lo que se pidió", "No cumple con el prop�
 /** .93: un segundo del video como "0:03". */
 export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 export type ReferenceItem = {
-    id: number; code: string; link: string; type: string; type_label: string; why: string; product_id: number | null; product: string | null;
+    // .97: con "Subir varias", el link, el tipo y el "por qué" pueden venir vacíos
+    id: number; code: string; link: string | null; type: string | null; type_label: string | null; why: string | null; product_id: number | null; product: string | null;
     angle_code: string | null; angle_name: string | null; file: StoredFile | null; uploaded_by: string | null; created_at: string | null; uses: number;
     can_archive: boolean;
+    /** .97: "Otro ángulo" (no va con ninguno de la ficha) y lo que es: video o imagen. */
+    angle_other: string | null; format: "video" | "image" | null;
     /** Solo el líder y el dueño. */
     results?: { won: number; lost: number; tie: number };
 };
+/** .97: lo que es una referencia. */
+export const FORMAT_LABEL: Record<string, string> = { video: "Video", image: "Imagen" };
+/** .97: el valor de "Otro ángulo" (no va con ninguno de la ficha). */
+export const OTHER_ANGLE = "other";
+
+/** El ángulo de una referencia en palabras: "POSP · Posparto" u "Otro: dolor de espalda". */
+export const referenceAngle = (r: Pick<ReferenceItem, "angle_code" | "angle_name" | "angle_other">) =>
+    r.angle_other ? `Otro: ${r.angle_other}` : r.angle_code ? `${r.angle_code}${r.angle_name ? ` · ${r.angle_name}` : ""}` : null;
+
+/** Una referencia en una línea, para elegirla: "REF0012 · Video · UGC · Termafit POSP — el hook…". */
+export const referenceOption = (r: ReferenceItem) => {
+    const where = r.product ? [r.product, r.angle_other ? "otro ángulo" : r.angle_code].filter(Boolean).join(" ") : "cualquier producto";
+    const why = r.why ? ` — ${r.why.length > 60 ? `${r.why.slice(0, 60)}…` : r.why}` : "";
+    return [r.code, r.format ? FORMAT_LABEL[r.format] : null, r.type_label, where].filter(Boolean).join(" · ") + why;
+};
+
 export type ReferenceProduct = { id: number; name: string; angles: { code: string; name: string | null }[] };
 export type ReferenceLibraryData = {
     references: ReferenceItem[]; top: ReferenceItem[]; results: boolean; products: ReferenceProduct[]; types: Record<string, string>; uploads: boolean;
@@ -182,4 +201,10 @@ export const whenLabel = (date: string | null, today: string): { text: string; l
     if (d < 0) return { text: `Atrasado: era para el ${dueLabel(date)}`, level: "late" };
     if (d === 0) return { text: "Para hoy", level: "today" };
     return { text: d === 1 ? `Para mañana, ${dueLabel(date)}` : `Para el ${dueLabel(date)}`, level: "soon" };
+};
+
+/** Lo que el servidor dijo que falta, por casilla (la primera razón de cada una), o null si no fue eso. */
+export const fieldErrors = (e: unknown): Record<string, string> | null => {
+    const errs = (e as { errors?: Record<string, string[]> }).errors;
+    return errs ? Object.fromEntries(Object.entries(errs).map(([k, v]) => [k, v[0]])) : null;
 };
