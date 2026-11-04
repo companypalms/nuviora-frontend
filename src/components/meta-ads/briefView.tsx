@@ -85,19 +85,24 @@ export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean }> 
             )}
             <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos} persona={b.persona?.name} angle={b.angle_code} />
             {b.reference && (
-                <Stack direction="row" spacing={1.25} sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
-                    {b.reference_thumbnail && (
-                        <Box component="img" src={b.reference_thumbnail} alt={`Miniatura de ${b.reference}`} loading="lazy"
-                            sx={{ width: 72, height: 72, objectFit: "cover", borderRadius: "8px", flexShrink: 0 }} />
-                    )}
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontSize: 13, color: t.muted }}>La referencia</Typography>
-                        <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{b.reference}</Typography>
-                        {b.reference_texts.map((x, i) => <Typography key={i} sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>“{x}”</Typography>)}
-                        {b.reference_script?.hook && <Typography sx={{ fontSize: 13, mt: 0.5, overflowWrap: "anywhere" }}><b>Hook de su video:</b> «{b.reference_script.hook}»</Typography>}
-                        {b.reference_script?.text && <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>}
-                    </Box>
-                </Stack>
+                <Box sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
+                    <Stack direction="row" spacing={1.25}>
+                        {b.reference_thumbnail && !b.iteration?.file && (
+                            <Box component="img" src={b.reference_thumbnail} alt={`Miniatura de ${b.reference}`} loading="lazy"
+                                sx={{ width: 72, height: 72, objectFit: "cover", borderRadius: "8px", flexShrink: 0 }} />
+                        )}
+                        <Box sx={{ minWidth: 0 }}>
+                            {/* .98: en el encargo de iterar un ganador, se dice que es eso (no "una referencia") */}
+                            <Typography sx={{ fontSize: 13, color: t.muted }}>{b.iteration_of ? "Iteración (variación) de este ganador" : "La referencia"}</Typography>
+                            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{b.reference}</Typography>
+                            {b.reference_texts.map((x, i) => <Typography key={i} sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>“{x}”</Typography>)}
+                            {b.reference_script?.hook && <Typography sx={{ fontSize: 13, mt: 0.5, overflowWrap: "anywhere" }}><b>Hook de su video:</b> «{b.reference_script.hook}»</Typography>}
+                            {b.reference_script?.text && <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>}
+                        </Box>
+                    </Stack>
+                    {/* .98: el video del ganador, si se entregó por el sistema */}
+                    {b.iteration?.file && <Box sx={{ mt: 1 }}><FileView file={b.iteration.file} height={240} /></Box>}
+                </Box>
             )}
             <Block title="Entregables" text={b.deliverables} />
             {b.meta_names.ads.length > 0 && (

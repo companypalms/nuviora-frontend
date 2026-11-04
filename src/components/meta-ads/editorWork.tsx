@@ -459,8 +459,9 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
     const fresh = () => ({
         concept, angle, notes: "",
         pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null,
-            progress: null, error: null, source: p.source ?? (iterationOf ? "iteration" : suggestedRef ? "reference" : ""),
-            ref: p.reference_id ?? (!p.source && !iterationOf ? suggestedRef ?? null : null) })),
+            // .98: en el encargo de iterar un ganador, todas las piezas salen de ese ganador (fijo, lo marca el sistema)
+            progress: null, error: null, source: iterationOf ? "iteration" : p.source ?? (suggestedRef ? "reference" : ""),
+            ref: iterationOf ? null : p.reference_id ?? (!p.source ? suggestedRef ?? null : null) })),
     });
     const [form, setForm] = useState(fresh);
     const [busy, setBusy] = useState(false);
@@ -608,20 +609,27 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                                     <TextField label="Enlace de Drive del video" value={p.link} onChange={(e) => setPiece(i, { link: e.target.value })} fullWidth sx={{ mt: 1 }}
                                         error={!!err} helperText={err ?? " "} inputProps={{ maxLength: 1000, inputMode: "url" }} />
                                 )}
-                                {/* .92: de dónde salió (para medir qué referencias dan ganadores) */}
-                                <TextField select label="¿De dónde salió?" fullWidth sx={{ mt: 1.5 }}
-                                    value={p.source === "reference" && p.ref ? `ref:${p.ref}` : p.source}
-                                    onChange={(e) => { const v = e.target.value; setPiece(i, v.startsWith("ref:") ? { source: "reference", ref: Number(v.slice(4)) } : { source: v as ReferenceSource, ref: null }); }}
-                                    error={tried && !sourced(p)} helperText={tried && !sourced(p) ? "Elige la referencia de la que salió, o «Idea propia»." : undefined}>
-                                    <MenuItem value="own">Idea propia</MenuItem>
-                                    {iterationOf && <MenuItem value="iteration">Iteración de {iterationOf}</MenuItem>}
-                                    {library.map((r) => (
-                                        <MenuItem key={r.id} value={`ref:${r.id}`} sx={{ whiteSpace: "normal" }}>
-                                            {referenceOption(r)}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                                {lib?.uploads && (
+                                {/* .92: de dónde salió (para medir qué referencias dan ganadores); .98: en una iteración, fijo */}
+                                {iterationOf ? (
+                                    <Box sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
+                                        <Typography sx={{ fontSize: 13, color: t.muted }}>¿De dónde salió?</Typography>
+                                        <Typography sx={{ fontSize: 15, fontWeight: 600, overflowWrap: "anywhere" }}>Iteración (variación) de {iterationOf}</Typography>
+                                        <Typography sx={{ fontSize: 13, color: t.muted }}>El ganador que estamos iterando. Lo marcó el sistema: no tienes que elegir nada.</Typography>
+                                    </Box>
+                                ) : (
+                                    <TextField select label="¿De dónde salió?" fullWidth sx={{ mt: 1.5 }}
+                                        value={p.source === "reference" && p.ref ? `ref:${p.ref}` : p.source}
+                                        onChange={(e) => { const v = e.target.value; setPiece(i, v.startsWith("ref:") ? { source: "reference", ref: Number(v.slice(4)) } : { source: v as ReferenceSource, ref: null }); }}
+                                        error={tried && !sourced(p)} helperText={tried && !sourced(p) ? "Elige la referencia de la que salió, o «Idea propia»." : undefined}>
+                                        <MenuItem value="own">Idea propia</MenuItem>
+                                        {library.map((r) => (
+                                            <MenuItem key={r.id} value={`ref:${r.id}`} sx={{ whiteSpace: "normal" }}>
+                                                {referenceOption(r)}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )}
+                                {lib?.uploads && !iterationOf && (
                                     <TextAction onClick={() => setUploadFor(i)} sx={{ fontSize: 13, color: t.muted, mt: 0.5 }}>¿No está en la biblioteca? Súbela</TextAction>
                                 )}
                                 {/* .93: compararse con la referencia antes de entregar */}

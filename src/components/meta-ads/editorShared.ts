@@ -52,7 +52,7 @@ export type EditorBatch = EditorFields & {
     meta_names: { adset: string | null; ads: string[] }; brief: string;
     /** .88: por qué hace falta y para cuándo. .90: se entrega subiendo el archivo. */
     need?: string | null; uploads?: boolean;
-    /** .92: si es la iteración de un ganador, cuál ("Iteración de …" ya viene elegida en cada pieza). */
+    /** .92: si es la iteración de un ganador, cuál. .98: al entregar, "Iteración (variación) de …" queda fija en cada pieza. */
     iteration_of?: string | null;
     /** .95: un batch ya hecho que cargó el líder (de antes del sistema, sin hipótesis). */
     imported?: boolean;
