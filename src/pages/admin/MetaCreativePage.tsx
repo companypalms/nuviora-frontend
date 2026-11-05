@@ -23,9 +23,9 @@ type AdDetails = {
     landing_urls: string[]; url_tags: string[]; synced: boolean;
 };
 
-/** .55: lo que dicen sus videos (se transcriben solo los de los creativos ganadores). */
+/** .55: lo que dicen sus videos (se transcriben solo los de los creativos ganadores). .105: paused, la vuelta diaria está apagada. */
 type Transcripts = {
-    has_video: boolean; transcribes: boolean;
+    has_video: boolean; transcribes: boolean; paused?: boolean;
     items: { video_id: string; status: string; status_label: string; hook: string | null; text: string | null; error: string | null; transcribed_at: string | null }[];
 };
 
@@ -193,7 +193,9 @@ export const MetaCreativePage: React.FC = () => {
                         <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Lo que dice el video</Typography>
                         {data.transcripts.items.length === 0 ? (
                             <Typography variant="body2" color="text.secondary">
-                                {data.transcripts.transcribes
+                                {data.transcripts.paused
+                                    ? "La transcripción de videos está apagada por ahora: Meta no da permiso para bajar los videos."
+                                    : data.transcripts.transcribes
                                     ? "Es un ganador: su video se transcribe solo la próxima mañana (7:30)."
                                     : "Se transcriben solo los videos de los creativos ganadores. Si este gana, aparece aquí."}
                             </Typography>
