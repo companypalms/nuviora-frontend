@@ -348,6 +348,15 @@ const BatchCard: React.FC<{
                     b.status_at && `${b.status_label} ${dateTime(b.status_at)}${b.status_by ? ` por ${b.status_by}` : b.status === "testing" || b.status === "tested" ? " (solo)" : ""}`]
                     .filter(Boolean).join(" · ")}
             </Typography>
+            {/* .103: el video del ganador que se itera (el mismo que ve el editor), o por qué todavía no está */}
+            {b.iteration?.file?.url ? (
+                <Typography variant="caption" component="div" sx={{ mt: 0.25, overflowWrap: "anywhere" }}>
+                    Video del ganador: <a href={b.iteration.file.url} target="_blank" rel="noopener noreferrer">ver</a>
+                    {b.iteration.file.download_url && <> · <a href={b.iteration.file.download_url}>bajar «{b.iteration.file.name}»</a></>}
+                </Typography>
+            ) : b.iteration?.video_note && (
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25, overflowWrap: "anywhere" }}>{b.iteration.video_note}</Typography>
+            )}
             {b.need && ["approved", "production", "review"].includes(b.status) && (
                 <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Por qué:</b> {b.need}</Typography>
             )}

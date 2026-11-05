@@ -67,8 +67,14 @@ export type EditorBatch = EditorFields & {
 export type ReferenceSource = "reference" | "own" | "iteration";
 export type ReferenceBrief = { id: number; code: string; type_label: string | null; link: string | null; file: StoredFile | null; why?: string | null };
 
-/** .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos. */
-export type Iteration = { code: string | null; file: StoredFile | null; thumbnail: string | null; texts: string[]; script: { hook: string | null; text: string | null } | null };
+/**
+ * .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos.
+ * .103: el video de los ganadores de antes del sistema se trae de Meta; mientras llega, video_note dice por qué no está.
+ */
+export type Iteration = {
+    code: string | null; file: StoredFile | null; video_note?: string | null; thumbnail: string | null; texts: string[];
+    script: { hook: string | null; text: string | null } | null;
+};
 
 /** .93: un lado de la comparación (la referencia a la izquierda, lo entregado a la derecha). */
 export type CompareSide = { label: string; file?: StoredFile | null; thumbnail?: string | null; lines: string[]; empty?: string | null; link?: { href: string; label: string } | null };
@@ -112,7 +118,8 @@ export const referenceSide = (
     }
     if (iteration && source !== "own" && source !== "reference") {
         return { label: `El ganador · ${iteration.code ?? ""}`.replace(/ · $/, ""), file: iteration.file, thumbnail: iteration.thumbnail,
-            lines: [iteration.script?.hook ? `Su hook: «${iteration.script.hook}»` : "", ...iteration.texts.map((x) => `“${x}”`)].filter(Boolean) };
+            lines: [iteration.file ? "" : iteration.video_note ?? "", iteration.script?.hook ? `Su hook: «${iteration.script.hook}»` : "",
+                ...iteration.texts.map((x) => `“${x}”`)].filter(Boolean) };
     }
     return {
         label: "La referencia", lines: [],

@@ -100,8 +100,11 @@ export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean }> 
                             {b.reference_script?.text && <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>}
                         </Box>
                     </Stack>
-                    {/* .98: el video del ganador, si se entregó por el sistema */}
+                    {/* .98: el video del ganador, si se entregó por el sistema. .103: o el que se trajo de Meta (o por qué todavía no está) */}
                     {b.iteration?.file && <Box sx={{ mt: 1 }}><FileView file={b.iteration.file} height={240} /></Box>}
+                    {!b.iteration?.file && b.iteration?.video_note && (
+                        <Typography sx={{ fontSize: 13, color: t.muted, mt: 1, overflowWrap: "anywhere" }}>{b.iteration.video_note}</Typography>
+                    )}
                 </Box>
             )}
             <Block title="Entregables" text={b.deliverables} />
