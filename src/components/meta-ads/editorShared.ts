@@ -69,10 +69,11 @@ export type ReferenceBrief = { id: number; code: string; type_label: string | nu
 
 /**
  * .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos.
- * .103: el video de los ganadores de antes del sistema se trae de Meta; mientras llega, video_note dice por qué no está.
+ * .104: si su video no está en el sistema (es de antes), video_note dice su nombre completo y su ángulo para buscarlo en
+ * el Drive antiguo.
  */
 export type Iteration = {
-    code: string | null; file: StoredFile | null; video_note?: string | null; thumbnail: string | null; texts: string[];
+    code: string | null; angle?: string | null; file: StoredFile | null; video_note?: string | null; thumbnail: string | null; texts: string[];
     script: { hook: string | null; text: string | null } | null;
 };
 
