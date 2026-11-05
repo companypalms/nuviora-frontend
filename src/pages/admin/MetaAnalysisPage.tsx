@@ -31,6 +31,7 @@ import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 // .91: los colores y las piezas del diseño nuevo, en un archivo común (las pantallas de los editores también los usan)
 import { appear, cardSx, geist, inkSx, plural, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, Section, TextAction } from "../../components/ui/designParts";
+import { BatchVideos } from "../../components/meta-ads/batchVideos";
 
 type Tone = "default" | "info" | "success" | "warning" | "error";
 type Group = "frenar" | "arreglar" | "crecer" | "aviso";
@@ -40,6 +41,8 @@ type UrgentItem = {
     group?: Group; title?: string; why?: string | null; detail?: string[];
     /** .83: dónde ("FlexiStep · Aragua") y cómo (los pasos en Ads Manager; los nombres exactos van entre « »). */
     where?: string; steps?: string[];
+    /** .102: los batches de la banca que lanza la misión (sus videos se bajan ahí mismo). */
+    batches?: string[];
     /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
     money?: { cut: number | null; add: number | null } | null;
 };
@@ -114,6 +117,8 @@ const KIND_GROUP: Record<string, Group> = {
     late_urgent: "arreglar", late_batch: "arreglar", launch_ready: "arreglar",
     scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
 };
+/** "B0110, B0111 y B0112". */
+const andList = (xs: string[]) => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
 const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";
 const titleOf = (i: UrgentItem) => i.title ?? i.label;
 /** Dónde. Las de la .82 ya traen el producto y la ciudad en la frase; las de antes, no. */
@@ -223,9 +228,16 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                             {open ? "Ocultar" : item.steps?.length ? "Cómo y por qué" : "¿Por qué?"}
                         </TextAction>
                     </Typography>
-                ) : whereOf(item) && <Typography sx={{ fontSize: 13, color: t.faint, mt: 0.25 }}>{whereOf(item)}</Typography>}
+                ) : (whereOf(item) || item.batches?.length) && (
+                    <Typography sx={{ fontSize: 13, color: t.faint, mt: 0.25, overflowWrap: "anywhere" }}>
+                        {whereOf(item)}
+                        {/* .102: el sistema lo pasa solo a En test cuando lo ve en Meta (lo lee cada 30 minutos) */}
+                        {item.batches?.length ? `${whereOf(item) ? " · " : ""}${andList(item.batches)} ${item.batches.length === 1 ? "pasa" : "pasan"} a En test en cuanto Meta lo muestre (hasta 30 minutos)` : null}
+                    </Typography>
+                )}
                 <Collapse in={open && !done && !disagree} unmountOnExit>
                     {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
+                    {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
                     <WhyBox item={item}>
                         <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>
                     </WhyBox>
@@ -251,6 +263,7 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
             {whereOf(item) && <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}</Typography>}
             <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: whereOf(item) ? 0.25 : 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
             {item.steps?.length ? <Steps steps={item.steps} /> : null}
+            {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
             {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
             {!oldRule(item) && <>
                 <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 1.25, overflowWrap: "anywhere" }}>
