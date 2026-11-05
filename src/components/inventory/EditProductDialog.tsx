@@ -15,6 +15,8 @@ import { IProduct } from '../../interfaces/inventory.types';
 import { request } from '../../common/request';
 import { toast } from 'react-toastify';
 import { IResponse } from '../../interfaces/response-type';
+import { useUserStore } from '../../store/user/UserStore';
+import { DeliveryPdfSection } from './DeliveryPdfSection';
 
 interface EditProductDialogProps {
     open: boolean;
@@ -29,6 +31,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     onSuccess,
     product
 }) => {
+    const role = useUserStore((s) => s.user.role?.description) ?? '';
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
@@ -128,6 +131,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 </Typography>
                             </Grid>
                         </Grid>
+                        {/* .106: el PDF al entregar se guarda solo (no con "Guardar Cambios") */}
+                        {product && ['Admin', 'Master'].includes(role) && <DeliveryPdfSection productId={product.id} />}
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 2, pt: 0 }}>
