@@ -1,10 +1,15 @@
 // src/components/calendar/calendar.ts
-// El calendario del dueño (Etapa 3): tipos, llamadas y fechas. Qué toca cada día (y la regla del domingo) lo calcula el
+// El calendario del dueño (Etapa 3; "Tu día" desde la .107): tipos, llamadas y fechas. Qué toca cada día (y la regla del domingo) lo calcula el
 // backend (Services\Calendar\Rules\Schedule): aquí solo se muestra. Solo el Admin.
 import { api } from "../finance/finance";
+import type { Tokens } from "../ui/design";
 export { todayCaracas } from "../finance/finance";
 
 export type ItemType = "payment" | "task" | "review";
+/** .107 "Tu día": la prioridad de cada cosa (la cambia el dueño, para todos los días). */
+export type Priority = "alta" | "normal" | "baja";
+/** Las etapas del día, en el orden en que se hacen: lo urgente (atrasado o ya es su hora), alta, normal, baja y lo que tiene hora más tarde. */
+export type StageKey = "urgent" | Priority | "later";
 /** missed: su día pasó sin hacerse, pero no se acumula (las tareas de todos los días). */
 export type ItemStatus = "pending" | "done" | "dismissed" | "overdue" | "missed";
 export type Repeat = "none" | "weekly" | "monthly" | "twice_monthly";
@@ -45,18 +50,31 @@ export type CalendarItem = {
     text: string;
     status: ItemStatus; accumulates: boolean; auto: boolean; link: string | null; actions: ItemAction[]; lines: ItemLine[];
     note_id: number | null; note_fields: NoteFields | null; mark: ItemMark | null;
+    /** .107: su prioridad, cuántos minutos toma y el lugar que le puso el dueño arrastrando (null = el automático). */
+    priority: Priority; minutes: number; rank: number | null;
 };
+
+/** .107: una etapa del día con sus cosas en orden, cada una con por qué va ahí ("Atrasada: era del 4/11."). */
+export type PlanStage = { key: StageKey; label: string; minutes: number; items: { item_key: string; due_date: string; reason: string }[] };
 
 /** Un recordatorio del sistema en la ventana "Recordatorios fijos". */
 export type ReminderSetting = {
     key: string; title: string; help: string; type: ItemType; schedule: string; auto: boolean; on: boolean; weekday: number | null;
+    priority: Priority; minutes: number;
 };
-export type CalendarSettings = { rules: ReminderSetting[]; weekdays: Record<string, string> };
+/** .107 expenses: la prioridad y los minutos de los gastos fijos que no tienen los suyos. */
+export type CalendarSettings = { rules: ReminderSetting[]; weekdays: Record<string, string>; expenses: { priority: Priority; minutes: number } };
 
-export type RangeResponse = { from: string; to: string; today: string; started_on: string; days: Record<string, CalendarItem[]> };
+export type RangeResponse = {
+    from: string; to: string; today: string; started_on: string; days: Record<string, CalendarItem[]>;
+    /** .107: cada día en el orden en que se hace (lo atrasado va en el de hoy). */
+    plans: Record<string, PlanStage[]>;
+};
 export type TodayResponse = {
     date: string; label: string; items: CalendarItem[]; overdue: CalendarItem[];
     counts: { pending: number; overdue: number; done: number }; text: string;
+    /** .107: el orden de hoy por etapas, y los minutos de trabajo que faltan (con lo atrasado). */
+    plan: PlanStage[]; minutes_left: number;
 };
 export type CalendarOptions = { kinds: Record<NoteKind, string>; repeats: Record<Repeat, string> };
 
@@ -72,7 +90,7 @@ export const onCalendarChanged = (fn: () => void) => {
     return () => window.removeEventListener(CHANGED, fn);
 };
 export const fetchCalendarOptions = () => api<CalendarOptions>("/calendar/options");
-export const saveNote = (id: number | null, body: NoteFields) =>
+export const saveNote = (id: number | null, body: NoteFields & { priority?: Priority; minutes?: number }) =>
     api<{ message: string }>(id ? `/calendar/notes/${id}` : "/calendar/notes", id ? "PUT" : "POST", body);
 export const archiveNote = (id: number) => api<{ message: string }>(`/calendar/notes/${id}/archive`, "POST");
 export const markItem = (item: CalendarItem, status: "done" | "dismissed", note?: string) =>
@@ -82,6 +100,13 @@ export const unmarkItem = (item: CalendarItem) =>
 export const fetchCalendarSettings = () => api<CalendarSettings>("/calendar/settings");
 export const saveCalendarSettings = (rules: Record<string, { on: boolean; weekday?: number }>) =>
     api<CalendarSettings & { message: string }>("/calendar/settings", "PUT", { rules });
+/** .107: la prioridad o los minutos de una o varias cosas, para todos los días ("expense:*": todos los gastos fijos). */
+export const saveItemPlan = (items: { item_key: string; priority?: Priority; minutes?: number }[]) =>
+    api<{ message: string }>("/calendar/item-plan", "PUT", { items });
+/** .107: el orden arrastrado de un grupo de prioridad, de arriba hacia abajo (la que llegó de otro grupo toma esta prioridad). */
+export const saveOrder = (priority: Priority, itemKeys: string[]) =>
+    api<{ message: string }>("/calendar/order", "PUT", { priority, item_keys: itemKeys });
+export const resetOrder = () => api<{ message: string }>("/calendar/order", "DELETE");
 
 /** La rutina de todos los días va aparte, debajo de lo propio del día. */
 export const isRoutine = (i: CalendarItem) => i.group === "daily";
@@ -160,5 +185,38 @@ export const repeatChoices = (date: string): { value: Repeat; label: string }[] 
 
 export const isClosed = (i: CalendarItem) => i.status === "done" || i.status === "dismissed";
 
+/* ── .107 "Tu día" ── */
+
+export const PRIORITIES: { key: Priority; label: string; hint: string }[] = [
+    { key: "alta", label: "Alta", hint: "lo importante" },
+    { key: "normal", label: "Normal", hint: "lo de siempre" },
+    { key: "baja", label: "Baja", hint: "puede esperar" },
+];
+/** Los minutos que se eligen con un toque. */
+export const MINUTE_CHOICES = [5, 10, 15, 20, 30, 45, 60, 90];
+/** Una cosa en un día (la misma nota puede salir en otro día). */
+export const planKey = (i: { item_key: string; due_date: string }) => `${i.item_key}|${i.due_date}`;
+/** "5 min", "1 h 25 min". */
+export const minutesText = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`);
+/** Dónde se hace: la rutina, Meta Ads, un pago o una nota tuya. */
+export const whereOf = (i: CalendarItem) =>
+    i.group === "daily" ? "Rutina" : i.group === "meta" ? "Meta Ads y editores" : i.type === "payment" ? "Pago"
+        : i.source !== "system" ? (i.source === "assistant" ? "Nota de tu asistente" : "Tu nota") : i.type === "review" ? "Revisión de números" : "Tarea fija";
+
 /** Una nota nueva en esa fecha: una tarea de ese día. */
 export const emptyNote = (date: string): NoteFields => ({ title: "", details: null, date, time: null, kind: "task", repeat: "none", repeat_until: null });
+/** .107: lo que se elige al anotar, además de la nota: prioridad normal y 15 minutos. */
+export const NOTE_PLAN = { priority: "normal" as Priority, minutes: 15 };
+
+/** El color de cada etapa: rojo lo urgente, ámbar lo de prioridad alta; lo demás en grises (siempre con su nombre al lado). */
+export const stageColor = (key: StageKey, t: Tokens) =>
+    key === "urgent" ? t.red : key === "alta" ? t.amber : key === "normal" ? t.ink : key === "baja" ? t.gray : t.muted;
+
+/** "Hecho por Francisco · 29/10 15:46", o "Se tildó sola: …". */
+export const markLine = (item: CalendarItem) => {
+    const m = item.mark;
+    if (!m) return null;
+    if (m.source === "auto") return `Se tildó sola: ${m.note ?? "el sistema vio que ya está hecho."}`;
+    const when = m.at ? ` · ${shortDate(m.at.slice(0, 10)).split(" ")[1]} ${m.at.slice(11, 16)}` : "";
+    return `${m.status === "done" ? "Hecho" : "Descartado"}${m.by ? ` por ${m.by}` : ""}${when}${m.note ? ` · ${m.note}` : ""}`;
+};

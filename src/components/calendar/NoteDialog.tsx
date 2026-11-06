@@ -1,25 +1,34 @@
 // src/components/calendar/NoteDialog.tsx
 // "Anotar" en el calendario (o editar una nota): qué hay que hacer, la fecha, la hora si quiere, si es una tarea o un pago,
 // y si se repite (cada semana, cada mes, o el 15 y el último) y hasta cuándo. Lo revisa el backend (NoteRules) y, si algo
-// está mal, se marca la casilla con el motivo.
+// está mal, se marca la casilla con el motivo. .107: también su prioridad y cuánto toma (vienen en normal y 15 minutos),
+// con el estilo nuevo y a pantalla completa en el celular.
 import React, { FC, useState } from "react";
 import {
-    Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography,
+    Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography, useMediaQuery,
 } from "@mui/material";
+import { Theme } from "@mui/material/styles";
 import { toast } from "react-toastify";
-import { NoteFields, NoteKind, Repeat, archiveNote, repeatChoices, saveNote } from "./calendar";
+import { geist, inkSx, useTokens } from "../ui/design";
+import { NOTE_PLAN, NoteFields, NoteKind, Priority, Repeat, archiveNote, repeatChoices, saveNote } from "./calendar";
+import { PlanPicker } from "./PlanMenu";
+
+export type NoteOpen = { id: number | null; fields: NoteFields; plan?: { priority: Priority; minutes: number } };
 
 type Props = {
     /** null: cerrada. id null: nota nueva en esa fecha. */
-    open: { id: number | null; fields: NoteFields } | null;
+    open: NoteOpen | null;
     onClose: () => void;
     onSaved: () => void;
 };
 
 export const NoteDialog: FC<Props> = (props) => (props.open ? <NoteForm key={`${props.open.id}-${props.open.fields.date}`} {...props} open={props.open} /> : null);
 
-const NoteForm: FC<Props & { open: { id: number | null; fields: NoteFields } }> = ({ open, onClose, onSaved }) => {
+const NoteForm: FC<Props & { open: NoteOpen }> = ({ open, onClose, onSaved }) => {
+    const t = useTokens();
+    const phone = useMediaQuery((th: Theme) => th.breakpoints.down("sm"));
     const [f, setF] = useState<NoteFields>(open.fields);
+    const [plan, setPlan] = useState(open.plan ?? NOTE_PLAN);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -31,7 +40,7 @@ const NoteForm: FC<Props & { open: { id: number | null; fields: NoteFields } }> 
     const save = async () => {
         setSaving(true);
         try {
-            const r = await saveNote(open.id, { ...f, repeat_until: f.repeat === "none" ? null : f.repeat_until });
+            const r = await saveNote(open.id, { ...f, repeat_until: f.repeat === "none" ? null : f.repeat_until, ...plan });
             toast.success(r.message);
             onSaved();
         } catch (e) {
@@ -51,8 +60,8 @@ const NoteForm: FC<Props & { open: { id: number | null; fields: NoteFields } }> 
     };
 
     return (
-        <Dialog open onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{open.id ? "Editar nota" : "Anotar"}</DialogTitle>
+        <Dialog open onClose={onClose} fullWidth maxWidth="sm" fullScreen={phone} PaperProps={{ sx: { ...geist, borderRadius: phone ? 0 : "12px" } }}>
+            <DialogTitle sx={{ fontSize: 18, fontWeight: 600 }}>{open.id ? "Editar nota" : "Anotar"}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                     <TextField
@@ -75,6 +84,8 @@ const NoteForm: FC<Props & { open: { id: number | null; fields: NoteFields } }> 
                             error={!!errors.time} helperText={errors.time || " "} InputLabelProps={{ shrink: true }} fullWidth
                         />
                     </Stack>
+                    <PlanPicker priority={plan.priority} minutes={plan.minutes} onChange={(p) => setPlan((x) => ({ ...x, ...p }))} />
+                    {(errors.priority || errors.minutes) && <Typography sx={{ fontSize: 13, color: t.red }}>{errors.priority || errors.minutes}</Typography>}
                     <Box>
                         <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>¿Es una tarea o un pago?</Typography>
                         <ToggleButtonGroup exclusive size="small" value={f.kind} onChange={(_, v: NoteKind | null) => v && set("kind", v)}>
@@ -121,8 +132,8 @@ const NoteForm: FC<Props & { open: { id: number | null; fields: NoteFields } }> 
                 {open.id !== null && !confirmDelete && (
                     <Button color="error" onClick={() => setConfirmDelete(true)} sx={{ mr: "auto" }}>Borrar</Button>
                 )}
-                <Button onClick={onClose}>Cancelar</Button>
-                <Button variant="contained" onClick={save} disabled={saving || f.title.trim() === "" || !f.date}>Guardar</Button>
+                <Button onClick={onClose} sx={{ color: t.ink }}>Cancelar</Button>
+                <Button variant="contained" disableElevation onClick={save} disabled={saving || f.title.trim() === "" || !f.date} sx={{ ...inkSx(t), minHeight: { xs: 48, sm: 40 } }}>Guardar</Button>
             </DialogActions>
         </Dialog>
     );

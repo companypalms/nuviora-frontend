@@ -1,30 +1,31 @@
 // src/components/calendar/TodayBox.tsx
-// "Hoy" arriba del Dashboard del Admin (Etapa 3, paso 4): lo atrasado y lo que falta de hoy, para tildarlo o resolverlo
-// sin entrar al calendario (cada cosa con su botón principal: "Abrir panel", "Registrar pago"…). Hasta 6 cosas; el resto,
-// en el calendario. Si ya está todo hecho, una sola línea. Si algo falla, no muestra nada: el Dashboard sigue igual.
+// "Hoy" arriba del Dashboard del Admin (Etapa 3, paso 4). .107: una mini misión, en el mismo orden de "Tu día" (DayPlan):
+// cuánto falta y la barra, lo de ahora con su botón ("Hecho", "Registrar pago" o el de ir a la página) y lo que sigue (hasta
+// 4; 2 en el celular). Si ya está todo hecho, una sola línea. Si algo falla, no muestra nada: el Dashboard sigue igual.
 import React, { FC, useCallback, useEffect, useState } from "react";
-import { Box, Button, Stack, Typography, useMediaQuery } from "@mui/material";
-import { Theme, alpha } from "@mui/material/styles";
-import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import { Box, Button, LinearProgress, Stack, Typography, useMediaQuery } from "@mui/material";
+import { Theme } from "@mui/material/styles";
+import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import { useNavigate } from "react-router-dom";
-import { Panel } from "../ui/surface/Panel";
-import { CalendarItemRow } from "./CalendarItemRow";
+import { toast } from "react-toastify";
+import { cardSx, geist, lineSx, plural, useTokens } from "../ui/design";
+import { Dot, TextAction } from "../ui/designParts";
+import { TaskRow, DoneButton } from "./TaskRow";
 import { itemKey, useCalendarActions } from "./useCalendarActions";
-import { TodayResponse, fetchToday, isClosed, isMeta, isOwn, isRoutine, onCalendarChanged } from "./calendar";
+import { CalendarItem, TodayResponse, fetchToday, isClosed, minutesText, notifyCalendarChanged, onCalendarChanged, planKey, saveItemPlan, stageColor, whereOf } from "./calendar";
+import { PlanPatch } from "./PlanMenu";
 
-/** Cuántas cosas se ven en el Dashboard (en el celular, menos, para que no tape todo); el resto, en el calendario. */
-const VISIBLE = 6;
-const VISIBLE_PHONE = 3;
+/** Cuántas cosas siguen debajo de la de ahora (en el celular, menos, para que no tape todo); el resto, en Tu día. */
+const NEXT = 4;
+const NEXT_PHONE = 2;
 
 export const TodayBox: FC = () => {
+    const t = useTokens();
     const navigate = useNavigate();
-    const phone = useMediaQuery((t: Theme) => t.breakpoints.down("sm"));
-    const visible = phone ? VISIBLE_PHONE : VISIBLE;
+    const phone = useMediaQuery((th: Theme) => th.breakpoints.down("sm"));
     const [data, setData] = useState<TodayResponse | null>(null);
     const [tick, setTick] = useState(0);
-    const refresh = useCallback(() => setTick((t) => t + 1), []);
+    const refresh = useCallback(() => setTick((x) => x + 1), []);
     const { busy, actions, payDialog } = useCalendarActions(refresh);
 
     useEffect(() => {
@@ -32,70 +33,66 @@ export const TodayBox: FC = () => {
         fetchToday(tick > 0).then((r) => { if (alive) setData(r); }).catch(() => undefined);
         return () => { alive = false; };
     }, [tick]);
-    // Si se tilda algo en otra parte (el calendario abierto en otra pestaña no; esta misma página sí), se vuelve a pedir
+    // Si se tilda algo en otra parte de esta misma página, se vuelve a pedir
     useEffect(() => onCalendarChanged(refresh), [refresh]);
 
     if (!data) return null;
 
-    // Primero lo atrasado; después lo de hoy que falta: lo propio del día, Meta Ads y los editores, y la rutina
-    const pendingToday = data.items.filter((i) => !isClosed(i));
-    const list = [...data.overdue, ...pendingToday.filter(isOwn), ...pendingToday.filter(isMeta), ...pendingToday.filter(isRoutine)];
-    const shown = list.slice(0, visible);
-    const doneToday = data.items.length - pendingToday.length;
-    const goCalendar = () => navigate("/calendario");
+    const byKey: Record<string, CalendarItem> = Object.fromEntries([...data.overdue, ...data.items].map((i) => [planKey(i), i]));
+    const order = data.plan.flatMap((s) => s.items.map((i) => ({ ...i, stage: s }))).filter((o) => byKey[planKey(o)]);
+    const closed = data.items.filter(isClosed).length;
+    const total = data.items.length + data.overdue.length;
+    const goDay = () => navigate("/calendario");
+    const onPlan = async (item: CalendarItem, patch: PlanPatch) => {
+        try { toast.success((await saveItemPlan([{ item_key: item.item_key, ...patch }])).message, { autoClose: 2000 }); refresh(); notifyCalendarChanged(); } catch (e) { toast.error((e as Error).message); }
+    };
+    const handlers = { onDone: actions.onToggle, onUndo: actions.onUndo, onDismiss: actions.onDismiss, onEdit: goDay, onPay: actions.onPay, onPlan };
 
-    if (list.length === 0) {
+    if (order.length === 0) {
         return (
-            <Panel sx={(t) => ({ py: 1.25, px: 2, borderLeft: `4px solid ${t.palette.success.main}` })}>
-                <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                    <CheckCircleRoundedIcon sx={{ color: "success.main", fontSize: 20 }} />
-                    <Typography variant="body2" fontWeight={700}>Todo al día</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-                        {data.label}{doneToday > 0 ? ` · ${doneToday} ${doneToday === 1 ? "cosa hecha" : "cosas hechas"} hoy` : ""}
-                    </Typography>
-                    <Button size="small" endIcon={<ArrowForwardRoundedIcon />} onClick={goCalendar}>Ver calendario</Button>
-                </Stack>
-            </Panel>
+            <Box sx={{ ...geist, ...cardSx(t), color: t.ink, p: "12px 16px", display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                <CheckCircleRounded sx={{ color: t.green, fontSize: 20 }} />
+                <Typography sx={{ fontSize: 15, fontWeight: 600 }}>Todo al día</Typography>
+                <Typography sx={{ fontSize: 14, color: t.muted, flex: 1 }}>{data.label}{closed > 0 ? ` · ${plural(closed, "cosa hecha", "cosas hechas")} hoy` : ""}</Typography>
+                <TextAction onClick={goDay} sx={{ fontSize: 14 }}>Abrir Tu día</TextAction>
+            </Box>
         );
     }
 
-    const hasOverdue = data.overdue.length > 0;
+    const [now, ...rest] = order;
+    const item = byKey[planKey(now)];
+    const link = item.actions.find((a) => a.link);
+    const next = rest.slice(0, phone ? NEXT_PHONE : NEXT);
     return (
-        <Panel sx={(t) => ({ p: { xs: 1.5, sm: 2 }, borderLeft: `4px solid ${hasOverdue ? t.palette.error.main : t.palette.primary.main}` })}>
-            <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" sx={{ mb: 1 }}>
-                <EventAvailableRoundedIcon sx={{ color: hasOverdue ? "error.main" : "primary.main", fontSize: 20 }} />
-                <Typography variant="subtitle2" fontWeight={800}>Hoy · {data.label}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 160 }}>{data.text}</Typography>
-                <Button size="small" endIcon={<ArrowForwardRoundedIcon />} onClick={goCalendar}>Ver calendario</Button>
+        <Box sx={{ ...geist, ...cardSx(t), color: t.ink, p: { xs: "12px 12px", sm: "14px 16px" } }}>
+            <Stack direction="row" alignItems="baseline" gap={1} flexWrap="wrap">
+                <Typography sx={{ fontSize: 15, fontWeight: 600 }}>Hoy · {data.label}</Typography>
+                <Typography sx={{ fontSize: 13, color: data.overdue.length ? t.red : t.muted, flex: 1, minWidth: 140 }}>
+                    {plural(order.length, "por hacer", "por hacer")} · ~{minutesText(data.minutes_left)}{data.overdue.length ? ` · ${plural(data.overdue.length, "atrasada", "atrasadas")}` : ""}
+                </Typography>
+                <TextAction onClick={goDay} sx={{ fontSize: 14 }}>Abrir Tu día</TextAction>
             </Stack>
-            <Box
-                sx={{
-                    display: "grid",
-                    // minmax(0, …): el detalle en una línea no estira la columna (en el celular se salía por la derecha)
-                    gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
-                    columnGap: 2,
-                    rowGap: 0.5,
-                }}
-            >
-                {shown.map((item) => (
-                    <Box key={itemKey(item)} sx={(t) => ({ borderRadius: 2, bgcolor: item.status === "overdue" ? "transparent" : alpha(t.palette.text.primary, 0.02) })}>
-                        <CalendarItemRow
-                            item={item}
-                            compact
-                            showDate={item.status === "overdue"}
-                            busy={busy === itemKey(item)}
-                            {...actions}
-                            onEdit={goCalendar}
-                        />
-                    </Box>
-                ))}
+            <LinearProgress variant="determinate" value={total ? (closed / total) * 100 : 0} aria-label={`${closed} de ${total} hechas`}
+                sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: t.soft, "& .MuiLinearProgress-bar": { bgcolor: t.ink, borderRadius: 3 } }} />
+            <Box sx={{ mt: 1.5, p: "12px 14px", borderRadius: "10px", border: `1px solid ${t.ink}` }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <Dot color={stageColor(now.stage.key, t)} size={8} />
+                    <Typography sx={{ fontSize: 12, color: t.muted }}>Ahora · {now.stage.label} · {whereOf(item)} · {minutesText(item.minutes)}</Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 17, fontWeight: 600, mt: 0.5, overflowWrap: "anywhere" }}>{item.title}</Typography>
+                <Typography sx={{ fontSize: 13, color: item.status === "overdue" ? t.red : t.muted, mt: 0.25 }}>{now.reason}</Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
+                    <DoneButton item={item} busy={busy === itemKey(item)} onDone={actions.onToggle} onPay={actions.onPay} />
+                    {link && <Button variant="outlined" sx={{ ...lineSx(t), minHeight: { xs: 48, sm: 40 } }} onClick={() => link.link && navigate(link.link)}>{link.label}</Button>}
+                </Stack>
             </Box>
-            {list.length > visible && (
-                <Button size="small" onClick={goCalendar} sx={{ mt: 1 }}>
-                    Ver {list.length - visible} más en el calendario
-                </Button>
+            {next.length > 0 && (
+                <Box sx={{ mt: 1.25 }}>
+                    {next.map((o) => <TaskRow key={planKey(o)} item={byKey[planKey(o)]} reason={o.reason} compact busy={busy === itemKey(byKey[planKey(o)])} {...handlers} />)}
+                </Box>
             )}
+            {rest.length > next.length && <TextAction onClick={goDay} sx={{ fontSize: 13, color: t.muted }}>Ver {rest.length - next.length} más en Tu día</TextAction>}
             {payDialog}
-        </Panel>
+        </Box>
     );
 };
