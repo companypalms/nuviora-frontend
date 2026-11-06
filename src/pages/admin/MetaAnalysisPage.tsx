@@ -115,7 +115,7 @@ const KIND_GROUP: Record<string, Group> = {
     drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
     intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar", few_batches: "arreglar",
     late_urgent: "arreglar", late_batch: "arreglar", launch_ready: "arreglar",
-    scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso",
+    scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso", cooldown: "aviso",
 };
 /** "B0110, B0111 y B0112". */
 const andList = (xs: string[]) => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
@@ -734,8 +734,8 @@ export const MetaAnalysisPage: React.FC = () => {
                                         {notices.map((i) => (
                                             <Typography key={i.key} sx={{ fontSize: 14, py: 0.25, overflowWrap: "anywhere" }}>
                                                 <b style={{ fontWeight: 600 }}>{i.where ?? i.product}</b> · {i.title ?? i.text}
-                                                {/* .101: los pedidos esperando stock dicen también lo gastado desde entonces */}
-                                                {i.kind === "stock_waiting" && i.why && <Box component="span" sx={{ color: t.muted }}> · {i.why}</Box>}
+                                                {/* .101: los pedidos esperando stock dicen también lo gastado desde entonces; .111: la espera, qué cambió y cuándo */}
+                                                {(i.kind === "stock_waiting" || i.kind === "cooldown") && i.why && <Box component="span" sx={{ color: t.muted }}> · {i.why}</Box>}
                                             </Typography>
                                         ))}
                                     </Box>

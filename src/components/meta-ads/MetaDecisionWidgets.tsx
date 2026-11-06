@@ -180,6 +180,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["evaluation_cap_cpa", "Con 2+ compras en el break-even: tope de evaluación", "×C"],
             ["loser_be_margin_pct", "Perdedor por el break-even: CPA encima por lo menos", "%"], ["loser_be_margin_purchases", "…y sin margen desde", "compras"],
             ["promising_purchases", "Prometedor: compras con CPA ≤ C", "compras"], ["proven_purchases", "PROVEN: compras con CPA ≤ C", "compras"],
+            ["new_ad_hours", "Un anuncio nuevo no se apaga antes de", "horas"],
         ],
     },
     {
@@ -205,7 +206,8 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Nunca presupuesto y creativos el mismo día. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí.", fields: [
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Después de un cambio grande (subir o bajar el presupuesto, un batch nuevo o volver a prenderla), ningún otro en esa campaña hasta que pasen las horas de abajo; apagar los que pierden sí. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí.", fields: [
+            ["change_wait_hours", "Después de un cambio grande, esperar", "horas"],
             ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"],
             ["scale_small_pct", "Subir si el CPA está apenas debajo de C", "%"],
             ["scale_mid_below_pct", "Subida media si está debajo de C desde", "%"], ["scale_mid_pct", "Subida media", "%"],
