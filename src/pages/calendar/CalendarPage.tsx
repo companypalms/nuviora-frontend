@@ -24,6 +24,7 @@ import NotificationsActiveRounded from "@mui/icons-material/NotificationsActiveR
 import MoreVertRounded from "@mui/icons-material/MoreVertRounded";
 import ReplayRounded from "@mui/icons-material/ReplayRounded";
 import ReportProblemRounded from "@mui/icons-material/ReportProblemRounded";
+import PublicRounded from "@mui/icons-material/PublicRounded";
 import TuneRounded from "@mui/icons-material/TuneRounded";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -35,6 +36,7 @@ import { MonthSheet } from "../../components/calendar/MonthSheet";
 import { NoteDialog, NoteOpen } from "../../components/calendar/NoteDialog";
 import { PlanPatch } from "../../components/calendar/PlanMenu";
 import { RemindersDialog } from "../../components/calendar/RemindersDialog";
+import { ZoneDialog } from "../../components/calendar/ZoneDialog";
 import { StageMap, StageStat } from "../../components/calendar/StageMap";
 import { TaskBoard } from "../../components/calendar/TaskBoard";
 import { TaskRow } from "../../components/calendar/TaskRow";
@@ -42,16 +44,15 @@ import { useCalendarActions } from "../../components/calendar/useCalendarActions
 import { DayStat, WeekStrip } from "../../components/calendar/WeekStrip";
 import {
     CalendarItem, PRIORITIES, PlanStage, Priority, RangeResponse, StageKey, TimerAction, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, isClosed,
-    longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, onToday, planKey, resetOrder, saveItemPlan, saveOrder, timerAction, todayCaracas, unmarkItem, weekdayOf,
+    VENEZUELA, longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, onToday, planKey, resetOrder, saveItemPlan, saveOrder, timerAction, todayCaracas, unmarkItem, weekdayOf,
 } from "../../components/calendar/calendar";
-import { clockText, runningOf } from "../../components/calendar/timer";
+import { clockText, hourIn, runningOf } from "../../components/calendar/timer";
 
 const STAGE_ORDER: StageKey[] = ["urgent", "alta", "normal", "baja", "later"];
 const LABELS: Record<StageKey, string> = { urgent: "Urgente", alta: "Alta", normal: "Normal", baja: "Baja", later: "A su hora" };
 /** El día que sigue para trabajar (el domingo no se trabaja). */
 const nextWorkday = (d: string) => addDays(d, weekdayOf(d) === 6 ? 2 : 1);
 const isYmd = (v: string | null): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
-const hourVe = (d: Date) => d.toLocaleTimeString("es-VE", { timeZone: "America/Caracas", hour: "2-digit", minute: "2-digit", hour12: false });
 const dm = (ymd: string) => `${Number(ymd.slice(8, 10))}/${Number(ymd.slice(5, 7))}`;
 
 /** "Hacerla ahora" se recuerda en este navegador solo por hoy (es una comodidad: si se pierde, manda el orden). */
@@ -140,6 +141,7 @@ export const CalendarPage: React.FC = () => {
     const [busy, setBusy] = useState<string | null>(null);
     const [dialog, setDialog] = useState<NoteOpen | null>(null);
     const [remindersOpen, setRemindersOpen] = useState(false);
+    const [zoneOpen, setZoneOpen] = useState(false);
     const [monthOpen, setMonthOpen] = useState(false);
     const [menu, setMenu] = useState<HTMLElement | null>(null);
     const [doneOpen, setDoneOpen] = useState(false);
@@ -329,6 +331,9 @@ export const CalendarPage: React.FC = () => {
 
     /* ── Lo que se ve ── */
 
+    // .108 "Tu hora": las horas del calendario en la zona del dueño (los días siguen siendo los de Venezuela)
+    const zone = data?.zone ?? VENEZUELA;
+
     const otherDay = selected !== today;
     const dayItems = otherDay ? week?.days[selected] : undefined;
     const dayPlan = otherDay ? week?.plans?.[selected] ?? [] : [];
@@ -346,8 +351,8 @@ export const CalendarPage: React.FC = () => {
                     <Box sx={{ minWidth: 0 }}>
                         <Typography component="h1" sx={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" }}>Tu día</Typography>
                         <Typography sx={{ fontSize: 13, color: t.muted }}>
-                            {cap(longDate(today))}{fetchedAt ? ` · al día a las ${hourVe(fetchedAt)}` : ""}
-                            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{fetchedAt ? " (hora de Venezuela)" : ""}</Box>
+                            {cap(longDate(today))}{fetchedAt ? ` · al día a las ${hourIn(fetchedAt.getTime() + (data?.clock_offset ?? 0), zone.key)}` : ""}
+                            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>{fetchedAt ? ` (hora de ${zone.label})` : ""}</Box>
                         </Typography>
                     </Box>
                     <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flex: "none" }}>
@@ -359,6 +364,7 @@ export const CalendarPage: React.FC = () => {
                 <Menu anchorEl={menu} open={Boolean(menu)} onClose={() => setMenu(null)}>
                     <MenuItem onClick={() => { setMenu(null); setMonthOpen(true); }}><ListItemIcon><CalendarMonthRounded fontSize="small" /></ListItemIcon>Ver el mes</MenuItem>
                     <MenuItem onClick={() => { setMenu(null); setRemindersOpen(true); }}><ListItemIcon><TuneRounded fontSize="small" /></ListItemIcon>Recordatorios fijos</MenuItem>
+                    <MenuItem onClick={() => { setMenu(null); setZoneOpen(true); }}><ListItemIcon><PublicRounded fontSize="small" /></ListItemIcon>Tu hora: {zone.label}</MenuItem>
                     <MenuItem onClick={backToAuto}><ListItemIcon><ReplayRounded fontSize="small" /></ListItemIcon>Volver al orden automático</MenuItem>
                 </Menu>
 
@@ -394,7 +400,7 @@ export const CalendarPage: React.FC = () => {
                                     <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>
                                         {plural(dayItems.length, "cosa", "cosas")} · ~{minutesText(dayPlan.reduce((n, s) => n + s.minutes, 0))} de trabajo. Acomódalas arrastrando: el orden vale para todos los días.
                                     </Typography>
-                                    <TaskBoard stages={dayPlan} byKey={dayByKey} busy={busy} {...handlers} onReorder={(p, keys) => reorder(p, keys, dayPlan)} />
+                                    <TaskBoard stages={dayPlan} byKey={dayByKey} busy={busy} {...handlers} onReorder={(p, keys) => reorder(p, keys, dayPlan)} zoneLabel={zone.label} />
                                 </>
                             ) : (
                                 <>
@@ -477,7 +483,7 @@ export const CalendarPage: React.FC = () => {
                             <MissionNow key={planKey(current)} item={byKey[planKey(current)]} reason={current.reason} stage={current.stage}
                                 n={closedToday.length + 1} total={closedToday.length + order.length} busy={busy === planKey(current)}
                                 picked={!runningEntry && !!pickedEntry && pickedEntry !== order[0]} onBackToOrder={() => pick(null)} {...handlers}
-                                timer={data.timers[planKey(current)]} offset={data.clock_offset} usual={data.usual[current.item_key]} onTimer={onTimer} />
+                                timer={data.timers[planKey(current)]} offset={data.clock_offset} usual={data.usual[current.item_key]} onTimer={onTimer} zoneLabel={zone.label} />
                         )}
 
                         {/* 5. Lo que sigue, por etapas: se acomoda arrastrando */}
@@ -488,7 +494,7 @@ export const CalendarPage: React.FC = () => {
                         )}
                         {order.length > 0 && (
                             <TaskBoard stages={data.plan} byKey={byKey} hidden={current ? planKey(current) : null} busy={busy} {...handlers} onNow={onNow}
-                                onReorder={(p, keys) => reorder(p, keys, data.plan)} timingOf={(k) => timingText(data.timers[k])} />
+                                onReorder={(p, keys) => reorder(p, keys, data.plan)} timingOf={(k) => timingText(data.timers[k])} zoneLabel={zone.label} />
                         )}
 
                         {/* 6. Lo hecho hoy y mañana, plegados */}
@@ -519,7 +525,8 @@ export const CalendarPage: React.FC = () => {
                 )}
             </Box>
             <MonthSheet open={monthOpen} today={today} selected={selected} onClose={() => setMonthOpen(false)} onSelect={select} />
-            <NoteDialog open={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); changed(); }} />
+            <NoteDialog open={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); changed(); }} zoneLabel={zone.label} />
+            <ZoneDialog open={zoneOpen} onClose={() => setZoneOpen(false)} onSaved={() => { setZoneOpen(false); changed(); }} />
             <RemindersDialog open={remindersOpen} onClose={() => setRemindersOpen(false)} onSaved={() => { setRemindersOpen(false); changed(); }} />
             {payDialog}
         </Layout>

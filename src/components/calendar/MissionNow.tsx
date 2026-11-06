@@ -33,12 +33,14 @@ type Props = Pick<RowHandlers, "onDone" | "onDismiss" | "onPay" | "onPlan"> & {
     offset?: number;
     usual?: number;
     onTimer: (action: TimerAction, item: CalendarItem) => void;
+    /** .108 "Tu hora": de qué zona son las horas ("Portugal"). */
+    zoneLabel?: string;
 };
 
 /** Lo que se le dice al lector de pantalla: solo a los 5 minutos y al acabarse (no cada segundo). */
 const milestone = (left: number) => (left <= 0 ? "Se acabó el tiempo." : left <= 300 ? "Quedan 5 minutos." : "");
 
-export const MissionNow: FC<Props> = ({ item, reason, stage, n, total, busy, picked, onBackToOrder, onDone, onDismiss, onPay, onPlan, timer, offset = 0, usual, onTimer }) => {
+export const MissionNow: FC<Props> = ({ item, reason, stage, n, total, busy, picked, onBackToOrder, onDone, onDismiss, onPay, onPlan, timer, offset = 0, usual, onTimer, zoneLabel = "Venezuela" }) => {
     const t = useTokens();
     const [why, setWhy] = useState(false);
     const links = item.actions.filter((a) => a.link);
@@ -60,7 +62,7 @@ export const MissionNow: FC<Props> = ({ item, reason, stage, n, total, busy, pic
                 </Stack>
                 {!started && <PlanChip item={item} onSave={onPlan} disabled={busy} />}
             </Stack>
-            <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}{item.time ? ` · a las ${item.time} (hora de Venezuela)` : ""}</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}{item.time ? ` · a las ${item.time} (hora de ${zoneLabel})` : ""}</Typography>
             <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: 0.25, overflowWrap: "anywhere" }}>{item.title}</Typography>
 
             {/* .108: el reloj */}

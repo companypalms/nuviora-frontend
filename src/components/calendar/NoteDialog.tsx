@@ -20,11 +20,13 @@ type Props = {
     open: NoteOpen | null;
     onClose: () => void;
     onSaved: () => void;
+    /** .108 "Tu hora": de qué zona es la hora que se anota ("Portugal"). */
+    zoneLabel?: string;
 };
 
 export const NoteDialog: FC<Props> = (props) => (props.open ? <NoteForm key={`${props.open.id}-${props.open.fields.date}`} {...props} open={props.open} /> : null);
 
-const NoteForm: FC<Props & { open: NoteOpen }> = ({ open, onClose, onSaved }) => {
+const NoteForm: FC<Props & { open: NoteOpen }> = ({ open, onClose, onSaved, zoneLabel = "Venezuela" }) => {
     const t = useTokens();
     const phone = useMediaQuery((th: Theme) => th.breakpoints.down("sm"));
     const [f, setF] = useState<NoteFields>(open.fields);
@@ -81,7 +83,7 @@ const NoteForm: FC<Props & { open: NoteOpen }> = ({ open, onClose, onSaved }) =>
                         />
                         <TextField
                             label="Hora (si quieres)" type="time" value={f.time ?? ""} onChange={(e) => set("time", e.target.value || null)}
-                            error={!!errors.time} helperText={errors.time || " "} InputLabelProps={{ shrink: true }} fullWidth
+                            error={!!errors.time} helperText={errors.time || `Hora de ${zoneLabel}`} InputLabelProps={{ shrink: true }} fullWidth
                         />
                     </Stack>
                     <PlanPicker priority={plan.priority} minutes={plan.minutes} onChange={(p) => setPlan((x) => ({ ...x, ...p }))} />

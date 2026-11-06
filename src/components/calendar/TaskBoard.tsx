@@ -28,6 +28,8 @@ type Props = RowHandlers & {
     onReorder: (priority: Priority, keys: string[]) => void;
     /** .108: lo de su reloj en palabras, por planKey. */
     timingOf?: (key: string) => string | undefined;
+    /** .108 "Tu hora": de qué zona son las horas ("Portugal"). */
+    zoneLabel?: string;
 };
 
 type Groups = Record<Priority, string[]>;
@@ -68,7 +70,7 @@ const GroupDrop: FC<{ id: string; empty: boolean; hint: string; children: React.
     );
 };
 
-export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, timingOf, ...handlers }) => {
+export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, timingOf, zoneLabel = "Venezuela", ...handlers }) => {
     const t = useTokens();
     const fromProps = useMemo(() => groupsOf(stages), [stages]);
     const [groups, setGroups] = useState<Groups>(fromProps);
@@ -178,7 +180,7 @@ export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, t
                 <DragOverlay>{active && byKey[active] ? <TaskRow {...rowProps(active)} handle={{}} dragging /> : null}</DragOverlay>
             </DndContext>
             {later && visible(later.items.map(planKey)).length > 0 && (
-                <Section dot={stageColor("later", t)} name="A su hora" hint="(hora de Venezuela)" mt={2.5}>
+                <Section dot={stageColor("later", t)} name="A su hora" hint={`(hora de ${zoneLabel})`} mt={2.5}>
                     {visible(later.items.map(planKey)).map((k) => <TaskRow key={k} {...rowProps(k)} />)}
                 </Section>
             )}

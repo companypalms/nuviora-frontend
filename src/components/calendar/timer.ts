@@ -25,6 +25,25 @@ export const clockText = (seconds: number) => {
     return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 };
 
+/**
+ * .108 "Tu hora": cuándo es (en ms) "AAAA-MM-DD HH:MM" en una zona ("Europe/Lisbon"), con su horario de verano. No usa la
+ * hora de este equipo (la computadora del dueño está en hora de Venezuela).
+ */
+export const zonedMs = (date: string, hm: string, zone: string) => {
+    const guess = Date.parse(`${date}T${hm}:00Z`);
+    const offset = (ms: number) => {
+        const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+            .formatToParts(new Date(ms));
+        const n = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+        return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second")) - ms;
+    };
+    const first = guess - offset(guess);
+    return guess - offset(first);
+};
+
+/** "13:05" en una zona. */
+export const hourIn = (ms: number, zone: string) => new Date(ms).toLocaleTimeString("es-VE", { timeZone: zone, hour: "2-digit", minute: "2-digit", hour12: false });
+
 /** El reloj que corre ahora (uno a la vez), con la clave de su tarea. */
 export const runningOf = (d: TodayResponse | null): { key: string; timer: ItemTimer } | null => {
     const hit = Object.entries(d?.timers ?? {}).find(([, t]) => t.started_at && !t.finished);

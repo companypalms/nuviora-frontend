@@ -20,7 +20,13 @@ export type NoteFields = {
 };
 
 /** source "auto": se tildó sola (el sistema vio que ya está hecho; "note" dice por qué). */
-export type ItemMark = { status: "done" | "dismissed"; note: string | null; source: string; by: string | null; at: string | null };
+export type ItemMark = {
+    status: "done" | "dismissed"; note: string | null; source: string; by: string | null; at: string | null;
+    /** .108: la misma hora, en "Tu hora" (la que se muestra). */
+    at_zone?: string | null;
+};
+/** .108 "Tu hora": la zona en que el dueño ve y anota las horas de su calendario ("Europe/Lisbon", "Portugal"). */
+export type CalendarZone = { key: string; label: string };
 
 /**
  * Un botón de un recordatorio: va a una página ("link"), lo marca como hecho ("mark", como "Están bien" de la tasa) o
@@ -63,12 +69,16 @@ export type ReminderSetting = {
     priority: Priority; minutes: number;
 };
 /** .107 expenses: la prioridad y los minutos de los gastos fijos que no tienen los suyos. */
-export type CalendarSettings = { rules: ReminderSetting[]; weekdays: Record<string, string>; expenses: { priority: Priority; minutes: number } };
+export type CalendarSettings = {
+    rules: ReminderSetting[]; weekdays: Record<string, string>; expenses: { priority: Priority; minutes: number };
+    timezone: CalendarZone & { zones: CalendarZone[] };
+};
 
 export type RangeResponse = {
     from: string; to: string; today: string; started_on: string; days: Record<string, CalendarItem[]>;
     /** .107: cada día en el orden en que se hace (lo atrasado va en el de hoy). */
     plans: Record<string, PlanStage[]>;
+    zone?: CalendarZone;
 };
 /**
  * .108: el reloj de una tarea en su día. started_at null = en pausa; ends_at = cuándo se acaba si corre; later_at = la dejó
@@ -89,6 +99,8 @@ export type TodayResponse = {
     resolved: CalendarItem[];
     score: { on_time: number; timed: number; streak: number; best: number };
     server_now: string;
+    /** .108 "Tu hora": la zona de las horas de este calendario (los días siguen siendo los de Venezuela). */
+    zone: CalendarZone;
     /** Lo calcula la pantalla al recibirlo: cuánto va adelantado el reloj del servidor (ms). */
     clock_offset?: number;
 };
@@ -144,6 +156,9 @@ export const saveItemPlan = (items: { item_key: string; priority?: Priority; min
 export const saveOrder = (priority: Priority, itemKeys: string[]) =>
     api<{ message: string }>("/calendar/order", "PUT", { priority, item_keys: itemKeys });
 export const resetOrder = () => api<{ message: string }>("/calendar/order", "DELETE");
+/** .108 "Tu hora": la zona de las horas del calendario (todo lo demás del sistema sigue en hora de Venezuela). */
+export const saveTimezone = (timezone: string) => api<{ message: string }>("/calendar/timezone", "PUT", { timezone });
+export const VENEZUELA: CalendarZone = { key: "America/Caracas", label: "Venezuela" };
 
 /** La rutina de todos los días va aparte, debajo de lo propio del día. */
 export const isRoutine = (i: CalendarItem) => i.group === "daily";
@@ -254,6 +269,8 @@ export const markLine = (item: CalendarItem) => {
     const m = item.mark;
     if (!m) return null;
     if (m.source === "auto") return `Se tildó sola: ${m.note ?? "el sistema vio que ya está hecho."}`;
-    const when = m.at ? ` · ${shortDate(m.at.slice(0, 10)).split(" ")[1]} ${m.at.slice(11, 16)}` : "";
+    // .108: la hora en "Tu hora"
+    const at = m.at_zone ?? m.at;
+    const when = at ? ` · ${shortDate(at.slice(0, 10)).split(" ")[1]} ${at.slice(11, 16)}` : "";
     return `${m.status === "done" ? "Hecho" : "Descartado"}${m.by ? ` por ${m.by}` : ""}${when}${m.note ? ` · ${m.note}` : ""}`;
 };
