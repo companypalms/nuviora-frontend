@@ -1,12 +1,14 @@
 // src/components/ui/notifications/CalendarBell.tsx
 // El ícono del calendario arriba, junto a la campanita (Etapa 3, paso 4): cuántas cosas faltan hoy más las atrasadas. Solo
 // el Admin. Se pide al abrir cada pantalla (el servidor lo guarda un minuto), cada 5 minutos y cuando se tilda algo.
+// .108: si corre el reloj de una tarea de Tu día, debajo se ve lo que le queda (4:59), en rojo con lo de más (+1:20).
 import { useCallback, useEffect, useState } from "react";
-import { Badge, IconButton, Tooltip } from "@mui/material";
+import { Badge, Box, IconButton, Tooltip } from "@mui/material";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUserStore } from "../../../store/user/UserStore";
-import { TodayResponse, fetchToday, onCalendarChanged } from "../../calendar/calendar";
+import { TodayResponse, fetchToday, onCalendarChanged, onToday } from "../../calendar/calendar";
+import { clockOf, clockText, runningOf, useTick } from "../../calendar/timer";
 
 const REFRESH_MS = 5 * 60_000;
 
@@ -32,6 +34,12 @@ export const CalendarBell = () => {
         fetchToday(fresh).then(setData).catch(() => undefined);
     }, []);
 
+    // .108: también lo que piden otras pantallas (Tu día al empezar un reloj)
+    useEffect(() => (isAdmin ? onToday(setData) : undefined), [isAdmin]);
+    const running = runningOf(data);
+    const now = useTick(!!running);
+    const clock = running ? clockOf(running.timer, now + (data?.clock_offset ?? 0)) : null;
+
     useEffect(() => {
         if (!isAdmin) return;
         load();
@@ -44,7 +52,7 @@ export const CalendarBell = () => {
     const count = data ? data.counts.pending + data.counts.overdue : 0;
 
     return (
-        <Tooltip title={tooltip(data)}>
+        <Tooltip title={clock ? `${tooltip(data)}. Reloj: ${clock.over ? `se acabó el tiempo (+${clockText(-clock.left)})` : `quedan ${clockText(clock.left)}`}` : tooltip(data)}>
             <IconButton
                 aria-label={tooltip(data)}
                 onClick={() => navigate("/calendario")}
@@ -53,6 +61,12 @@ export const CalendarBell = () => {
                 <Badge badgeContent={count} color={data && data.counts.overdue > 0 ? "error" : "primary"} max={99}>
                     <CalendarMonthRoundedIcon />
                 </Badge>
+                {clock && (
+                    <Box component="span" aria-hidden sx={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)", px: 0.5, borderRadius: "6px",
+                        fontSize: 10, fontWeight: 700, lineHeight: "14px", fontFeatureSettings: '"tnum"', whiteSpace: "nowrap", color: "#fff", bgcolor: clock.over ? "#C62E34" : "#1C2230" }}>
+                        {clock.over ? `+${clockText(-clock.left)}` : clockText(clock.left)}
+                    </Box>
+                )}
             </IconButton>
         </Tooltip>
     );

@@ -41,6 +41,8 @@ type Props = RowHandlers & {
     canDown?: boolean;
     /** El cuadro del Dashboard: sin agarre ni "Cómo y por qué". */
     compact?: boolean;
+    /** .108: lo de su reloj, en palabras ("En pausa · 3:20", "12 min · a tiempo"). */
+    timing?: string;
     dragging?: boolean;
 };
 
@@ -96,7 +98,7 @@ export const ItemDetails: FC<{ item: CalendarItem; busy?: boolean; onDone: (i: C
     );
 };
 
-export const TaskRow: FC<Props> = ({ item, reason, busy, handle, onMove, canUp, canDown, compact, dragging, onDone, onUndo, onDismiss, onEdit, onPay, onPlan, onNow }) => {
+export const TaskRow: FC<Props> = ({ item, reason, busy, handle, onMove, canUp, canDown, compact, dragging, timing, onDone, onUndo, onDismiss, onEdit, onPay, onPlan, onNow }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -110,7 +112,8 @@ export const TaskRow: FC<Props> = ({ item, reason, busy, handle, onMove, canUp, 
     const check = () => (done ? onUndo(item) : pay !== null ? onPay(item, pay) : onDone(item));
     const box = { width: 22, height: 22, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" } as const;
     const late = item.status === "overdue" && !reason ? `Atrasada: era del ${shortDate(item.date).split(" ")[1]}` : null;
-    const line = closed ? markLine(item) : [late, reason, whereOf(item), item.time && item.status !== "overdue" ? `a las ${item.time}` : null].filter(Boolean).join(" · ");
+    const line = closed ? [markLine(item), timing].filter(Boolean).join(" · ")
+        : [late, timing, reason, whereOf(item), item.time && item.status !== "overdue" ? `a las ${item.time}` : null].filter(Boolean).join(" · ");
 
     return (
         <Box sx={{ ...cardSx(t), display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "flex-start", p: { xs: "8px 8px 8px 4px", sm: "10px 10px 10px 6px" }, mb: 0.75,

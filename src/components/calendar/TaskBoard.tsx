@@ -26,6 +26,8 @@ type Props = RowHandlers & {
     busy?: string | null;
     /** El grupo entero de una prioridad, de arriba hacia abajo, después de arrastrar (o de subir o bajar). */
     onReorder: (priority: Priority, keys: string[]) => void;
+    /** .108: lo de su reloj en palabras, por planKey. */
+    timingOf?: (key: string) => string | undefined;
 };
 
 type Groups = Record<Priority, string[]>;
@@ -66,7 +68,7 @@ const GroupDrop: FC<{ id: string; empty: boolean; hint: string; children: React.
     );
 };
 
-export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, ...handlers }) => {
+export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, timingOf, ...handlers }) => {
     const t = useTokens();
     const fromProps = useMemo(() => groupsOf(stages), [stages]);
     const [groups, setGroups] = useState<Groups>(fromProps);
@@ -140,7 +142,7 @@ export const TaskBoard: FC<Props> = ({ stages, byKey, hidden, busy, onReorder, .
     // En el grupo de una prioridad no se repite "Prioridad alta" (lo dice el grupo) ni "en el orden que pusiste" (se ve):
     // solo "Es la más corta."
     const shortReason = (r?: string) => (r && /^Prioridad \p{L}+[.:]/u.test(r) ? (r.endsWith("la más corta.") ? "Es la más corta." : undefined) : r);
-    const rowProps = (id: string) => ({ item: byKey[id], reason: shortReason(reason[id]), busy: busy === id, ...handlers });
+    const rowProps = (id: string) => ({ item: byKey[id], reason: shortReason(reason[id]), busy: busy === id, timing: timingOf?.(id), ...handlers });
     const fixed = (key: "urgent" | "later") => stages.find((s) => s.key === key);
     const urgent = fixed("urgent");
     const later = fixed("later");

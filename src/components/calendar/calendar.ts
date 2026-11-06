@@ -70,17 +70,54 @@ export type RangeResponse = {
     /** .107: cada día en el orden en que se hace (lo atrasado va en el de hoy). */
     plans: Record<string, PlanStage[]>;
 };
+/**
+ * .108: el reloj de una tarea en su día. started_at null = en pausa; ends_at = cuándo se acaba si corre; later_at = la dejó
+ * "Más tarde"; finished y on_time = ya se hizo, y si fue dentro de los minutos que tenía al empezar.
+ */
+export type ItemTimer = {
+    minutes: number; extra_minutes: number; spent_seconds: number; started_at: string | null; ends_at: string | null;
+    later_at: string | null; finished: boolean; on_time: boolean | null;
+};
 export type TodayResponse = {
     date: string; label: string; items: CalendarItem[]; overdue: CalendarItem[];
     counts: { pending: number; overdue: number; done: number }; text: string;
     /** .107: el orden de hoy por etapas, y los minutos de trabajo que faltan (con lo atrasado). */
     plan: PlanStage[]; minutes_left: number;
+    /** .108: el reloj de cada cosa (por planKey), cuánto sueles tardar (por item_key, en minutos), los números del día y la hora del servidor. */
+    timers: Record<string, ItemTimer>; usual: Record<string, number>;
+    /** .108: lo atrasado que se hizo o descartó hoy (cuenta en lo hecho de hoy). */
+    resolved: CalendarItem[];
+    score: { on_time: number; timed: number; streak: number; best: number };
+    server_now: string;
+    /** Lo calcula la pantalla al recibirlo: cuánto va adelantado el reloj del servidor (ms). */
+    clock_offset?: number;
 };
+export type TimerAction = "start" | "pause" | "extend" | "later";
 export type CalendarOptions = { kinds: Record<NoteKind, string>; repeats: Record<Repeat, string> };
 
 export const fetchRange = (from: string, to: string) => api<RangeResponse>(`/calendar?from=${from}&to=${to}`);
-/** fresh: recién calculado (el servidor guarda lo de hoy un minuto, porque el número de arriba lo pide cada pantalla). */
-export const fetchToday = (fresh = false) => api<TodayResponse>(`/calendar/today${fresh ? "?fresh=1" : ""}`);
+/**
+ * fresh: recién calculado (el servidor guarda lo de hoy un minuto, porque el número de arriba lo pide cada pantalla).
+ * .108: cada respuesta se avisa a quien escucha (onToday): el reloj de los avisos, en cualquier pantalla, sabe al momento
+ * cuándo se acaba el tiempo.
+ */
+export const fetchToday = (fresh = false) => api<TodayResponse>(`/calendar/today${fresh ? "?fresh=1" : ""}`).then((r) => {
+    const d = { ...r, clock_offset: r.server_now ? Date.parse(r.server_now) - Date.now() : 0 };
+    lastToday = d;
+    todayListeners.forEach((fn) => fn(d));
+    return d;
+});
+let lastToday: TodayResponse | null = null;
+const todayListeners = new Set<(d: TodayResponse) => void>();
+/** Escuchar cada "hoy" que llega (de cualquier pantalla); devuelve cómo dejar de escuchar. */
+export const onToday = (fn: (d: TodayResponse) => void) => {
+    todayListeners.add(fn);
+    if (lastToday) fn(lastToday);
+    return () => { todayListeners.delete(fn); };
+};
+/** .108: el reloj de una tarea de hoy: empezar (o seguir), pausar, +5 min o "Más tarde". */
+export const timerAction = (action: TimerAction, item: { item_key: string; due_date: string }) =>
+    api<{ message: string }>(`/calendar/timer/${action}`, "POST", { item_key: item.item_key, due_date: item.due_date });
 
 /** Avisa que algo del calendario cambió (se tildó, se anotó, se pagó): el cuadro "Hoy" y el número de arriba se actualizan. */
 const CHANGED = "calendar:changed";

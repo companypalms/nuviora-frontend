@@ -9,6 +9,7 @@ import { BroadcastMonitor } from './notifications/BroadcastMonitor';
 import { AppToasts } from './notifications/AppToasts';
 import { HelpChat } from '../help/HelpChat';
 import { EDITOR_ROLES } from '../meta-ads/editorShared';
+import { CalendarTimerMonitor } from '../calendar/CalendarTimerMonitor';
 type Props = {
     children: React.ReactNode;
     noMargin?: boolean;
@@ -23,6 +24,8 @@ export const Layout: FC<Props> = ({ children, container = true, noMargin = false
         <Box sx={{ display: 'flex', flexDirection: 'row', minHeight: '100vh', justifyContent: 'space-between' }}>
             <NotificationMonitor />
             <BroadcastMonitor />
+            {/* .108: los avisos del reloj de Tu día ("se acabó el tiempo", "ya es la hora"), en cualquier pantalla. Solo el Admin */}
+            <CalendarTimerMonitor />
             <SideBar />
             <Box sx={{
                 flex: 1,

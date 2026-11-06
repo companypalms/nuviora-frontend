@@ -14,6 +14,7 @@ import { TaskRow, DoneButton } from "./TaskRow";
 import { itemKey, useCalendarActions } from "./useCalendarActions";
 import { CalendarItem, TodayResponse, fetchToday, isClosed, minutesText, notifyCalendarChanged, onCalendarChanged, planKey, saveItemPlan, stageColor, whereOf } from "./calendar";
 import { PlanPatch } from "./PlanMenu";
+import { clockOf, clockText, runningOf, useTick } from "./timer";
 
 /** Cuántas cosas siguen debajo de la de ahora (en el celular, menos, para que no tape todo); el resto, en Tu día. */
 const NEXT = 4;
@@ -36,12 +37,15 @@ export const TodayBox: FC = () => {
     // Si se tilda algo en otra parte de esta misma página, se vuelve a pedir
     useEffect(() => onCalendarChanged(refresh), [refresh]);
 
+    // .108: si corre un reloj, esa es la de ahora (y se ve lo que le queda)
+    const running = runningOf(data);
+    const now = useTick(!!running);
     if (!data) return null;
 
     const byKey: Record<string, CalendarItem> = Object.fromEntries([...data.overdue, ...data.items].map((i) => [planKey(i), i]));
     const order = data.plan.flatMap((s) => s.items.map((i) => ({ ...i, stage: s }))).filter((o) => byKey[planKey(o)]);
-    const closed = data.items.filter(isClosed).length;
-    const total = data.items.length + data.overdue.length;
+    const closed = data.items.filter(isClosed).length + (data.resolved?.length ?? 0);
+    const total = data.items.length + data.overdue.length + (data.resolved?.length ?? 0);
     const goDay = () => navigate("/calendario");
     const onPlan = async (item: CalendarItem, patch: PlanPatch) => {
         try { toast.success((await saveItemPlan([{ item_key: item.item_key, ...patch }])).message, { autoClose: 2000 }); refresh(); notifyCalendarChanged(); } catch (e) { toast.error((e as Error).message); }
@@ -59,8 +63,10 @@ export const TodayBox: FC = () => {
         );
     }
 
-    const [now, ...rest] = order;
-    const item = byKey[planKey(now)];
+    const runAt = running ? order.findIndex((o) => planKey(o) === running.key) : -1;
+    const [first, ...rest] = runAt > 0 ? [order[runAt], ...order.filter((_, i) => i !== runAt)] : order;
+    const item = byKey[planKey(first)];
+    const clock = running && runAt >= 0 ? clockOf(running.timer, now + (data.clock_offset ?? 0)) : null;
     const link = item.actions.find((a) => a.link);
     const next = rest.slice(0, phone ? NEXT_PHONE : NEXT);
     return (
@@ -76,11 +82,16 @@ export const TodayBox: FC = () => {
                 sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: t.soft, "& .MuiLinearProgress-bar": { bgcolor: t.ink, borderRadius: 3 } }} />
             <Box sx={{ mt: 1.5, p: "12px 14px", borderRadius: "10px", border: `1px solid ${t.ink}` }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                    <Dot color={stageColor(now.stage.key, t)} size={8} />
-                    <Typography sx={{ fontSize: 12, color: t.muted }}>Ahora · {now.stage.label} · {whereOf(item)} · {minutesText(item.minutes)}</Typography>
+                    <Dot color={stageColor(first.stage.key, t)} size={8} />
+                    <Typography sx={{ fontSize: 12, color: t.muted }}>Ahora · {first.stage.label} · {whereOf(item)} · {minutesText(item.minutes)}</Typography>
+                    {clock && (
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, fontFeatureSettings: '"tnum"', color: clock.over ? t.red : t.ink, ml: "auto !important" }}>
+                            {clock.over ? `+${clockText(-clock.left)} de más` : `quedan ${clockText(clock.left)}`}
+                        </Typography>
+                    )}
                 </Stack>
                 <Typography sx={{ fontSize: 17, fontWeight: 600, mt: 0.5, overflowWrap: "anywhere" }}>{item.title}</Typography>
-                <Typography sx={{ fontSize: 13, color: item.status === "overdue" ? t.red : t.muted, mt: 0.25 }}>{now.reason}</Typography>
+                <Typography sx={{ fontSize: 13, color: item.status === "overdue" ? t.red : t.muted, mt: 0.25 }}>{first.reason}</Typography>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
                     <DoneButton item={item} busy={busy === itemKey(item)} onDone={actions.onToggle} onPay={actions.onPay} />
                     {link && <Button variant="outlined" sx={{ ...lineSx(t), minHeight: { xs: 48, sm: 40 } }} onClick={() => link.link && navigate(link.link)}>{link.label}</Button>}

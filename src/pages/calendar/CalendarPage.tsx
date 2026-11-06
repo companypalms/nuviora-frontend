@@ -7,7 +7,11 @@
 // de ahora en grande, con "Hecho" (la siguiente entra sola); "Lo que sigue" por etapas, que se acomoda arrastrando (se guarda
 // para todos los días); lo que tiene hora más tarde; lo hecho hoy, plegado; y mañana, plegado. El orden lo arma el backend
 // (Calendar\Rules\DayPlan). Todo se puede deshacer. El mes completo, en "Ver el mes". Solo el Admin (la ruta y el backend).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// .108 (dueño: "un sistema de tiempo de cuánto me debe tomar cada tarea y con notificaciones de que se agotó el tiempo"): la
+// misión tiene su reloj (Empezar, Pausar, +5 min, Más tarde, Hecho; uno a la vez, guardado en el sistema); el marcador dice
+// lo hecho a tiempo y la racha; "Activar avisos en este equipo" pide el permiso del navegador. Los avisos de "se acabó el
+// tiempo" y "ya es la hora" los da CalendarTimerMonitor, en cualquier pantalla.
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, Collapse, IconButton, LinearProgress, ListItemIcon, Menu, MenuItem, Skeleton, Stack, Typography } from "@mui/material";
 import AddRounded from "@mui/icons-material/AddRounded";
 import CalendarMonthRounded from "@mui/icons-material/CalendarMonthRounded";
@@ -15,6 +19,8 @@ import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import EmojiEventsRounded from "@mui/icons-material/EmojiEventsRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import EventAvailableRounded from "@mui/icons-material/EventAvailableRounded";
+import LocalFireDepartmentRounded from "@mui/icons-material/LocalFireDepartmentRounded";
+import NotificationsActiveRounded from "@mui/icons-material/NotificationsActiveRounded";
 import MoreVertRounded from "@mui/icons-material/MoreVertRounded";
 import ReplayRounded from "@mui/icons-material/ReplayRounded";
 import ReportProblemRounded from "@mui/icons-material/ReportProblemRounded";
@@ -35,9 +41,10 @@ import { TaskRow } from "../../components/calendar/TaskRow";
 import { useCalendarActions } from "../../components/calendar/useCalendarActions";
 import { DayStat, WeekStrip } from "../../components/calendar/WeekStrip";
 import {
-    CalendarItem, PRIORITIES, PlanStage, Priority, RangeResponse, StageKey, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, isClosed,
-    longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, planKey, resetOrder, saveItemPlan, saveOrder, todayCaracas, unmarkItem, weekdayOf,
+    CalendarItem, PRIORITIES, PlanStage, Priority, RangeResponse, StageKey, TimerAction, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, isClosed,
+    longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, onToday, planKey, resetOrder, saveItemPlan, saveOrder, timerAction, todayCaracas, unmarkItem, weekdayOf,
 } from "../../components/calendar/calendar";
+import { clockText, runningOf } from "../../components/calendar/timer";
 
 const STAGE_ORDER: StageKey[] = ["urgent", "alta", "normal", "baja", "later"];
 const LABELS: Record<StageKey, string> = { urgent: "Urgente", alta: "Alta", normal: "Normal", baja: "Baja", later: "A su hora" };
@@ -58,10 +65,13 @@ const writePick = (day: string, key: string | null) => {
 const applyMark = (d: TodayResponse, item: CalendarItem, status: "done" | "dismissed"): TodayResponse => {
     const pk = planKey(item);
     const set = (i: CalendarItem) => (planKey(i) === pk ? { ...i, status } : i);
+    // lo atrasado que se resuelve pasa a "resuelto hoy" (cuenta en lo hecho de hoy)
+    const late = d.overdue.find((i) => planKey(i) === pk);
     return {
         ...d,
         items: d.items.map(set),
-        overdue: d.overdue.map(set),
+        overdue: d.overdue.filter((i) => planKey(i) !== pk),
+        resolved: late ? [...(d.resolved ?? []), { ...late, status }] : d.resolved ?? [],
         plan: d.plan.map((s) => ({ ...s, items: s.items.filter((x) => planKey(x) !== pk), minutes: s.items.some((x) => planKey(x) === pk) ? s.minutes - item.minutes : s.minutes }))
             .filter((s) => s.items.length > 0),
         minutes_left: Math.max(0, d.minutes_left - item.minutes),
@@ -81,6 +91,19 @@ const applyOrder = (d: TodayResponse, p: Priority, keys: string[]): TodayRespons
     }).filter((s) => s.items.length > 0);
     const byKey = Object.fromEntries(items.map((i) => [planKey(i), i]));
     return { ...d, items, plan: stages.map((s) => ({ ...s, minutes: s.items.reduce((n, x) => n + (byKey[planKey(x)]?.minutes ?? 0), 0) })) };
+};
+
+/** .108: los avisos del navegador en este equipo: "default" (sin preguntar), "granted", "denied" o "none" (no hay). */
+const notifPermission = (): NotificationPermission | "none" => (typeof window !== "undefined" && "Notification" in window ? Notification.permission : "none");
+const NOTIF_SKIP = "tudia.avisos.despues";
+const skipped = () => { try { return localStorage.getItem(NOTIF_SKIP) === todayCaracas(); } catch { return false; } };
+
+/** Lo que el reloj ya hizo, en palabras: "En pausa · 3:20", "12 min · a tiempo". */
+const timingText = (t: TodayResponse["timers"][string] | undefined) => {
+    if (!t) return undefined;
+    if (t.finished) return `${minutesText(Math.max(1, Math.round(t.spent_seconds / 60)))} · ${t.on_time ? "a tiempo" : "más de lo pensado"}`;
+    if (t.started_at) return "Corriendo";
+    return t.spent_seconds > 0 ? `En pausa · ${clockText(t.spent_seconds)}` : undefined;
 };
 
 const PageSkeleton: React.FC = () => (
@@ -121,6 +144,8 @@ export const CalendarPage: React.FC = () => {
     const [menu, setMenu] = useState<HTMLElement | null>(null);
     const [doneOpen, setDoneOpen] = useState(false);
     const [nextOpen, setNextOpen] = useState(false);
+    const [notif, setNotif] = useState(notifPermission);
+    const [notifLater, setNotifLater] = useState(skipped);
 
     const refresh = useCallback(() => setTick((x) => x + 1), []);
     const changed = useCallback(() => { refresh(); notifyCalendarChanged(); }, [refresh]);
@@ -128,14 +153,14 @@ export const CalendarPage: React.FC = () => {
 
     // Lo de hoy (recién calculado después de un cambio) y, cada minuto mientras está abierta, lo que diga el servidor (lo que
     // tiene hora sube a urgente cuando llega su hora)
-    // Dos pedidos seguidos pueden contestar al revés: solo cuenta el último
-    const seq = useRef(0);
-    const loadToday = useCallback((fresh: boolean) => {
-        const n = ++seq.current;
-        return fetchToday(fresh)
-            .then((r) => { if (n === seq.current) { setData(r); setError(null); setFetchedAt(new Date()); } })
-            .catch((e: Error) => { if (n === seq.current) setError(e.message); });
-    }, []);
+    // .108: lo de hoy llega de cualquier lado (esta pantalla, el aviso del reloj, el ícono del calendario): se queda lo más
+    // nuevo según la hora del servidor (dos pedidos seguidos pueden contestar al revés)
+    useEffect(() => onToday((r) => {
+        setData((prev) => (!prev || !prev.server_now || r.server_now >= prev.server_now ? r : prev));
+        setError(null);
+        setFetchedAt(new Date());
+    }), []);
+    const loadToday = useCallback((fresh: boolean) => fetchToday(fresh).then(() => undefined).catch((e: Error) => setError(e.message)), []);
     useEffect(() => { loadToday(tick > 0); }, [tick, loadToday]);
     useEffect(() => {
         const id = window.setInterval(() => { if (!document.hidden) loadToday(false); }, 60_000);
@@ -171,12 +196,16 @@ export const CalendarPage: React.FC = () => {
         return () => window.clearTimeout(id);
     }, [cheer]);
 
-    const byKey = useMemo(() => Object.fromEntries([...(data?.overdue ?? []), ...(data?.items ?? [])].map((i) => [planKey(i), i])), [data]);
+    const byKey = useMemo(() => Object.fromEntries([...(data?.overdue ?? []), ...(data?.resolved ?? []), ...(data?.items ?? [])].map((i) => [planKey(i), i])), [data]);
     const order = useMemo(() => (data?.plan ?? []).flatMap((s) => s.items.map((i) => ({ ...i, stage: s }))).filter((o) => byKey[planKey(o)]), [data, byKey]);
     const pickedEntry = picked ? order.find((o) => planKey(o) === picked) : undefined;
-    const current = pickedEntry ?? order[0] ?? null;
-    const closedToday = (data?.items ?? []).filter(isClosed);
-    const dayTotal = (data?.items.length ?? 0) + (data?.overdue.filter((i) => !isClosed(i)).length ?? 0);
+    // .108: si un reloj corre, esa es la misión de ahora
+    const running = runningOf(data);
+    const runningEntry = running ? order.find((o) => planKey(o) === running.key) : undefined;
+    const current = runningEntry ?? pickedEntry ?? order[0] ?? null;
+    // .108: lo hecho hoy incluye lo atrasado que se resolvió hoy
+    const closedToday = [...(data?.items ?? []).filter(isClosed), ...(data?.resolved ?? [])];
+    const dayTotal = (data?.items.length ?? 0) + (data?.overdue.length ?? 0) + (data?.resolved?.length ?? 0);
     const allDone = !!data && order.length === 0;
 
     // El mapa: cuántas de cada etapa hay hoy y cuántas se hicieron (lo hecho cuenta en su prioridad)
@@ -184,11 +213,12 @@ export const CalendarPage: React.FC = () => {
         if (!data) return [];
         const stats = (["urgent", "alta", "normal", "baja"] as StageKey[]).map((key) => {
             const pending = data.plan.find((s) => s.key === key)?.items.length ?? 0;
-            const d = key === "urgent" ? 0 : closedToday.filter((i) => i.priority === key).length;
+            // lo atrasado que se resolvió hoy cuenta en urgente; lo de hoy, en su prioridad
+            const d = key === "urgent" ? (data.resolved?.length ?? 0) : data.items.filter((i) => isClosed(i) && i.priority === key).length;
             return { key, label: LABELS[key], n: pending + d, d };
         });
         return stats.filter((s) => s.n > 0);
-    }, [data, closedToday]);
+    }, [data]);
 
     const stats: Record<string, DayStat> = useMemo(() => {
         const out: Record<string, DayStat> = {};
@@ -255,6 +285,34 @@ export const CalendarPage: React.FC = () => {
             changed();
         } catch (e) { if (before) setData(before); toast.error((e as Error).message); }
     };
+    // .108: el reloj. Empezar se ve al momento (corre uno a la vez); lo demás espera al servidor
+    const onTimer = async (action: TimerAction, item: CalendarItem) => {
+        const pk = planKey(item);
+        const before = data;
+        if (before && action === "start") {
+            const nowIso = new Date(Date.now() + (before.clock_offset ?? 0)).toISOString();
+            const timers = Object.fromEntries(Object.entries(before.timers).map(([k, t]) => [k, t.started_at && k !== pk
+                ? { ...t, started_at: null, ends_at: null, spent_seconds: t.spent_seconds + Math.max(0, Math.floor((Date.parse(nowIso) - Date.parse(t.started_at)) / 1000)) } : t]));
+            const own = timers[pk] ?? { minutes: item.minutes, extra_minutes: 0, spent_seconds: 0, started_at: null, ends_at: null, later_at: null, finished: false, on_time: null };
+            setData({ ...before, timers: { ...timers, [pk]: { ...own, started_at: own.started_at ?? nowIso, later_at: null } } });
+        }
+        setBusy(pk);
+        try {
+            const r = await timerAction(action, item);
+            if (action !== "start") toast.success(r.message, { autoClose: 1500 });
+            if (action === "later" && picked === pk) pick(null);
+            changed();
+        } catch (e) {
+            if (before) setData(before);
+            toast.error((e as Error).message);
+        } finally { setBusy(null); }
+    };
+    const askNotif = async () => {
+        if (notifPermission() === "none") return;
+        try { setNotif(await Notification.requestPermission()); } catch { setNotif(notifPermission()); }
+    };
+    const notifAfter = () => { setNotifLater(true); try { localStorage.setItem(NOTIF_SKIP, todayCaracas()); } catch { /* solo por esta vez */ } };
+
     const backToAuto = async () => {
         setMenu(null);
         try { toast.success((await resetOrder()).message); changed(); } catch (e) { toast.error((e as Error).message); }
@@ -353,14 +411,37 @@ export const CalendarPage: React.FC = () => {
                         {dayTotal > 0 && (
                             <>
                                 <Scoreboard tiles={[
-                                    { label: "Por hacer", value: order.length, help: "Lo que te falta hoy, con lo atrasado." },
-                                    { label: "Tiempo de trabajo", value: data.minutes_left > 0 ? `~${minutesText(data.minutes_left)}` : "0 min",
-                                        help: "La suma de los minutos de lo que te falta. Cambia los minutos de cada tarea con un toque en su botón de tiempo." },
-                                    { label: "Hechas", value: `${closedToday.length} de ${dayTotal}`, help: "Lo de hoy que ya hiciste o descartaste.", color: allDone ? t.green : undefined },
+                                    { label: "Por hacer", help: "Lo que te falta hoy (con lo atrasado) y la suma de sus minutos. Cambia los minutos de cada tarea con un toque en su botón de tiempo.",
+                                        value: <>{order.length}<Box component="span" sx={{ fontSize: { xs: 12, sm: 13 }, fontWeight: 400, color: t.muted, ml: 0.75, whiteSpace: "nowrap" }}>
+                                            {data.minutes_left > 0 ? `~${minutesText(data.minutes_left)}` : ""}</Box></> },
+                                    { label: "A tiempo hoy", help: "Las tareas que hiciste con el reloj dentro de sus minutos. Toca «Empezar» en la misión para medir tu tiempo.",
+                                        value: data.score.timed > 0 ? `${data.score.on_time} de ${data.score.timed}` : "—",
+                                        color: data.score.timed > 0 && data.score.on_time === data.score.timed ? t.green : undefined },
+                                    { label: <><LocalFireDepartmentRounded sx={{ fontSize: 14, verticalAlign: "-2px", mr: 0.25 }} />Racha</>, value: plural(data.score.streak, "día", "días"),
+                                        help: `Días de trabajo seguidos en que terminaste todo (hecho o descartado). El domingo no la corta. Tu mejor racha: ${plural(data.score.best, "día", "días")}.` },
                                 ]} />
                                 <LinearProgress variant="determinate" value={dayTotal ? (closedToday.length / dayTotal) * 100 : 0} aria-label={`${closedToday.length} de ${dayTotal} hechas`}
                                     sx={{ mt: 1.25, height: 6, borderRadius: 3, bgcolor: t.soft, "& .MuiLinearProgress-bar": { bgcolor: allDone ? t.green : t.ink, borderRadius: 3, transition: "transform 200ms" } }} />
                             </>
+                        )}
+
+                        {notif === "default" && !notifLater && dayTotal > 0 && (
+                            <Box sx={{ ...cardSx(t), mt: 2, p: "12px 14px", display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                                <NotificationsActiveRounded sx={{ color: t.muted, mt: "2px" }} />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 500 }}>Activa los avisos en este equipo</Typography>
+                                    <Typography sx={{ fontSize: 13, color: t.muted }}>Para saber cuándo se acaba el tiempo de una tarea aunque estés en otra pestaña. Funciona mientras Nuviora esté abierto.</Typography>
+                                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                                        <Button variant="contained" disableElevation onClick={askNotif} sx={{ ...inkSx(t), minHeight: { xs: 44, sm: 36 } }}>Activar avisos</Button>
+                                        <TextAction onClick={notifAfter} sx={{ fontSize: 13, color: t.muted }}>Ahora no</TextAction>
+                                    </Stack>
+                                </Box>
+                            </Box>
+                        )}
+                        {notif === "denied" && !notifLater && dayTotal > 0 && (
+                            <Typography sx={{ fontSize: 13, color: t.muted, mt: 1.5 }}>
+                                Los avisos del navegador están bloqueados en este equipo: el aviso de tiempo sale igual dentro de Nuviora, con su sonido. Para activarlos, toca el candado junto a la dirección › Notificaciones › Permitir. · <TextAction onClick={notifAfter} sx={{ color: t.muted }}>Entendido</TextAction>
+                            </Typography>
                         )}
 
                         {/* 4. Las etapas y la misión de ahora */}
@@ -382,7 +463,12 @@ export const CalendarPage: React.FC = () => {
                             <Box role="status" sx={{ ...cardSx(t), p: 3, mt: 2, textAlign: "center", ...appear }}>
                                 <EmojiEventsRounded sx={{ fontSize: 48, color: t.green }} />
                                 <Typography sx={{ fontSize: 20, fontWeight: 600, mt: 0.5 }}>Día completo</Typography>
-                                <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.75 }}>Hiciste {plural(closedToday.filter((i) => i.status === "done").length, "cosa", "cosas")} hoy.</Typography>
+                                <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.75 }}>
+                                    Hiciste {plural(closedToday.filter((i) => i.status === "done").length, "cosa", "cosas")} hoy{data.score.timed > 0 ? `, ${data.score.on_time} de ${data.score.timed} a tiempo` : ""}.
+                                </Typography>
+                                <Typography sx={{ fontSize: 14, color: t.muted }}>
+                                    Racha: {plural(data.score.streak, "día seguido", "días seguidos")}. Tu mejor racha: {plural(data.score.best, "día", "días")}.
+                                </Typography>
                                 {nextItems.length > 0 && (
                                     <Typography sx={{ fontSize: 14, color: t.muted }}>El {longDate(tomorrow)} tienes {plural(nextItems.length, "cosa", "cosas")} · ~{minutesText(nextMinutes)}.</Typography>
                                 )}
@@ -390,7 +476,8 @@ export const CalendarPage: React.FC = () => {
                         ) : current && byKey[planKey(current)] && (
                             <MissionNow key={planKey(current)} item={byKey[planKey(current)]} reason={current.reason} stage={current.stage}
                                 n={closedToday.length + 1} total={closedToday.length + order.length} busy={busy === planKey(current)}
-                                picked={!!pickedEntry && pickedEntry !== order[0]} onBackToOrder={() => pick(null)} {...handlers} />
+                                picked={!runningEntry && !!pickedEntry && pickedEntry !== order[0]} onBackToOrder={() => pick(null)} {...handlers}
+                                timer={data.timers[planKey(current)]} offset={data.clock_offset} usual={data.usual[current.item_key]} onTimer={onTimer} />
                         )}
 
                         {/* 5. Lo que sigue, por etapas: se acomoda arrastrando */}
@@ -401,7 +488,7 @@ export const CalendarPage: React.FC = () => {
                         )}
                         {order.length > 0 && (
                             <TaskBoard stages={data.plan} byKey={byKey} hidden={current ? planKey(current) : null} busy={busy} {...handlers} onNow={onNow}
-                                onReorder={(p, keys) => reorder(p, keys, data.plan)} />
+                                onReorder={(p, keys) => reorder(p, keys, data.plan)} timingOf={(k) => timingText(data.timers[k])} />
                         )}
 
                         {/* 6. Lo hecho hoy y mañana, plegados */}
@@ -410,7 +497,7 @@ export const CalendarPage: React.FC = () => {
                                 <TextAction onClick={() => setDoneOpen((o) => !o)} aria-expanded={doneOpen} sx={{ fontSize: 13, color: t.muted }}>
                                     {doneOpen ? "Ocultar" : "Ver lo que hiciste"}<ExpandMoreRounded sx={{ fontSize: 16, verticalAlign: "-3px", transform: doneOpen ? "rotate(180deg)" : "none" }} />
                                 </TextAction>
-                                <Collapse in={doneOpen} unmountOnExit><Box sx={{ mt: 1 }}>{closedToday.map((i) => <TaskRow key={planKey(i)} item={i} busy={busy === planKey(i)} {...handlers} />)}</Box></Collapse>
+                                <Collapse in={doneOpen} unmountOnExit><Box sx={{ mt: 1 }}>{closedToday.map((i) => <TaskRow key={planKey(i)} item={i} busy={busy === planKey(i)} timing={timingText(data.timers[planKey(i)])} {...handlers} />)}</Box></Collapse>
                             </Section>
                         )}
                         {nextItems.length > 0 && (
