@@ -10,6 +10,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import MapIcon from '@mui/icons-material/Map';
 import { PhoneActionMenu } from './PhoneActionMenu';
 import { CourierShipmentSection } from './CourierShipmentSection';
+import { CourierBox } from './CourierBox';
 
 interface OrderHeaderProps {
     order: any;
@@ -32,6 +33,13 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 }) => {
     return (
         <Grid container spacing={4}>
+            {/* .112: en una encomienda, lo primero: a qué oficina va y los datos de la guía */}
+            {order.courier_shipment && (
+                <Grid size={{ xs: 12 }}>
+                    <CourierBox order={order} />
+                </Grid>
+            )}
+
             {/* 👤 SECCIÓN CLIENTE */}
             <Grid size={{ xs: 12, sm: 6 }}>
                 <Typography variant="overline" color="text.secondary" fontWeight="bold">Detalles del Cliente</Typography>
@@ -68,7 +76,7 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                                 <LocationOnIcon fontSize="small" />
                             </Paper>
                             <Box>
-                                <Typography variant="caption" color="text.secondary" display="block">Dirección de Envío</Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">{order.courier_shipment ? 'Dirección del cliente (no es a donde va el motorizado)' : 'Dirección de Envío'}</Typography>
                                 <Typography variant="body2" fontWeight="bold">
                                     {order.client.address1}
                                 </Typography>

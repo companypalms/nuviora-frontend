@@ -58,17 +58,8 @@ const CourierShipmentForm: React.FC<Props> = ({ order, user, onSaved, dense }) =
         } finally { setSaving(false); }
     };
 
-    if (!canEdit) {
-        if (!order.courier_shipment) return null;
-        return (
-            <Box sx={{ p: 1.5, borderRadius: 2, border: 1, borderColor: "divider" }}>
-                <Typography variant="caption" color="text.secondary" display="block">Envío por agencia de encomiendas</Typography>
-                <Typography variant="body2" fontWeight="bold">{order.courier_recipient_name}</Typography>
-                <Typography variant="body2">Cédula: {order.courier_recipient_id_number} · Teléfono: {order.courier_recipient_phone}</Typography>
-                <Typography variant="caption" color="text.secondary">El link de ubicación es el de la oficina de donde sale la encomienda.</Typography>
-            </Box>
-        );
-    }
+    // .112: quien no los edita (la agencia) los ve arriba de todo, en CourierBox
+    if (!canEdit) return null;
 
     const complete = form.name.trim() !== "" && form.idNumber.trim() !== "" && form.phone.trim() !== "";
     return (

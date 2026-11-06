@@ -11,7 +11,7 @@ import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import { NotificationsActiveRounded, WarningAmberRounded, HistoryRounded, ReplayRounded, WhatsApp } from "@mui/icons-material";
 
 import React, { FC, useState } from "react";
-import { darken } from "@mui/material/styles";
+import { alpha, darken } from "@mui/material/styles";
 import { toast } from "react-toastify";
 import { request } from "../../common/request";
 import { sendOrderStatus } from "../../common/orderStatus";
@@ -414,6 +414,11 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                     <TypographyCustom variant="caption" color="primary.main" sx={{ fontWeight: 'bold', display: 'block' }}>
                         Agencia: {isAgent ? 'Asignada' : order.agency?.names}
                     </TypographyCustom>
+                )}
+                {/* .112: que la agencia vea que es encomienda antes de abrirla */}
+                {order.courier_shipment && (
+                    <Chip size="small" label="📦 Encomienda"
+                        sx={{ mt: 0.5, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.warning.main, 0.18) }} />
                 )}
                 {order.novedad_type && (
                     <TypographyCustom variant="caption" sx={{ color: order.status.description === ORDER_STATUS.NOVEDAD_SOLUCIONADA ? 'green' : 'orange', fontWeight: 'bold', display: 'block', mt: 0.5 }}>

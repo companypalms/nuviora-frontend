@@ -4,6 +4,7 @@ import { TextFieldCustom } from "../../components/custom";
 import { Link } from "react-router-dom";
 import { PhoneActionMenu } from '../../components/orders/PhoneActionMenu';
 import { CourierShipmentSection } from '../../components/orders/CourierShipmentSection';
+import { CourierBox } from '../../components/orders/CourierBox';
 import MapIcon from '@mui/icons-material/Map';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 
@@ -58,6 +59,13 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
                 </Grid>
             )}
 
+            {/* .112: en una encomienda, lo primero: a qué oficina va y los datos de la guía */}
+            {order.courier_shipment && (
+                <Grid size={{ xs: 12 }}>
+                    <CourierBox order={order} />
+                </Grid>
+            )}
+
             {/* COLUMN 1: CLIENTE */}
             <Grid size={{ xs: 12, sm: 6 }}>
                 <InfoRow label="Cliente">
@@ -75,7 +83,7 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
                 </InfoRow>
 
                 {order.client?.address1 && (
-                    <InfoRow label="Dirección de Envío">
+                    <InfoRow label={order.courier_shipment ? "Dirección del cliente (no es a donde va el motorizado)" : "Dirección de Envío"}>
                         <Typography variant="body1" fontWeight="bold">
                             {order.client.address1}
                         </Typography>

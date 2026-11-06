@@ -28,6 +28,7 @@ import { OrderTripsCard } from "./OrderTripsCard";
 import { RefundDialog } from "./RefundDialog";
 import { fmtMoney } from "../../lib/money";
 import { pagoMovilBlock } from "../../lib/paymentAccount";
+import { courierSummaryBlock } from "../../lib/courier";
 import { ButtonCustom } from "../custom";
 import { ProductSearchDialog } from "../products/ProductsSearchDialog";
 import { UpsellConfirmDialog } from "./UpsellConfirmDialog";
@@ -297,7 +298,13 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
 
         // .60: al final, si se paga por pago móvil, los datos de la cuenta de ESTA orden para que el motorizado se los dé al cliente
         const pagoMovil = pagoMovilBlock(order);
-        const message = `🚀 *ORDEN ${orderNo(order.name)}*${locationDetails || '\n📍 *Ubicación:* No asignada'}\n🏢 *Agencia:* ${agencyDisplay}\n👤 *Cliente:* ${order.client?.first_name} ${order.client?.last_name}\n📞 *Teléfono:* ${order.client?.phone}\n📦 *Productos:*\n${productsList}\n${paymentInfo}${pagoMovil.text}`;
+        // .112: en una encomienda, el motorizado lleva el paquete a la oficina y la guía va con los datos de quien recibe
+        // (en lugar de la casa del cliente, el cliente y "Link Maps")
+        const where = order.courier_shipment
+            ? courierSummaryBlock(order)
+            : (locationDetails || '\n📍 *Ubicación:* No asignada');
+        const clientLines = order.courier_shipment ? '' : `\n👤 *Cliente:* ${order.client?.first_name} ${order.client?.last_name}\n📞 *Teléfono:* ${order.client?.phone}`;
+        const message = `🚀 *ORDEN ${orderNo(order.name)}*${where}\n🏢 *Agencia:* ${agencyDisplay}${clientLines}\n📦 *Productos:*\n${productsList}\n${paymentInfo}${pagoMovil.text}`;
         navigator.clipboard.writeText(message);
         toast.info('📋 Información copiada');
         if (pagoMovil.missing) {
