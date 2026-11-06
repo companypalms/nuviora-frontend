@@ -202,6 +202,8 @@ export type CpaDetail = {
     no_cost?: boolean;
     /** .101: los pedidos terminados de la cohorte elegida (city_min_purchases ahora cuenta pedidos terminados) y los sin stock */
     closed?: number; sin_stock?: number;
+    /** .110: desde cuántas horas en "Sin Stock" un pedido no contó (los de antes de la .110 no lo guardaron) */
+    sin_stock_hours?: number;
 };
 
 export type CpaRow = CpaVersion & { product: string; city: string | null };
@@ -317,7 +319,7 @@ export const usd4 = (v: number) => `$${new Intl.NumberFormat("es-VE", { minimumF
 
 export type FinanceSettings = {
     maturity_lag_days: number; analysis_window_days: number; analysis_long_window_days: number;
-    fixed_cost_min_pct: number; cpa_city_min_purchases: number;
+    fixed_cost_min_pct: number; cpa_city_min_purchases: number; cpa_sin_stock_hours: number;
     commissions: { order: number; upsell_unit: number; deliverer: number };
     vehicle_wear: WearRule;
     wear_modes: Record<WearMode, string>;

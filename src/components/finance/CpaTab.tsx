@@ -12,13 +12,13 @@ import { CpaRow, CpaVersion, CpaWindow, FixedShare, api, count, day, errorMessag
 
 type Response = {
     window: { from: string; to: string; long_from: string; days: number; long_days: number };
-    fixed: FixedShare; city_min_purchases: number; last_computed_at: string | null; rows: CpaRow[];
+    fixed: FixedShare; city_min_purchases: number; sin_stock_hours?: number; last_computed_at: string | null; rows: CpaRow[];
 };
 
-const windowLine = (label: string, w: CpaWindow | null) => !w ? `${label}: sin datos`
+const windowLine = (label: string, w: CpaWindow | null, hours?: number) => !w ? `${label}: sin datos`
     : `${label} (${day(w.from)} – ${day(w.to)}): objetivo ${money(w.target)} · break-even ${money(w.break_even)} · ${count(w.purchases)} compras de Meta`
         + (w.closed !== undefined ? ` · ${w.closed} pedidos terminados` : "")
-        + (w.sin_stock ? ` · ${w.sin_stock} pedidos sin stock no cuentan (ni su parte de las compras)` : "")
+        + (w.sin_stock ? ` · ${w.sin_stock} pedidos ${hours !== undefined ? `en "Sin Stock" (o que estuvieron ahí más de ${count(hours)} h)` : "sin stock"} no cuentan (ni su parte de las compras)` : "")
         + (w.missing_trips > 0 ? ` · ${w.missing_trips} carreras sin costo completadas con ${money(w.shipping_filled)}` : "");
 
 /** Qué fechas se usaron: las de 7 días, las de 28 o el número del producto (ciudad con pocos pedidos terminados). */
@@ -31,7 +31,7 @@ const Basis: React.FC<{ v: CpaVersion }> = ({ v }) => {
         : d.chosen === "long" && (d.short?.closed ?? d.short?.purchases ?? 0) < d.city_min_purchases ? `Menos de ${d.city_min_purchases} pedidos terminados en ${d.short?.days ?? 7} días: usa los ${d.long?.days ?? 28}.`
         : "La más prudente de las dos (la de objetivo más bajo).";
     return (
-        <Tooltip title={<>{why}<br />{windowLine(`${d.short?.days ?? 7} días`, d.short)}<br />{windowLine(`${d.long?.days ?? 28} días`, d.long)}</>}>
+        <Tooltip title={<>{why}<br />{windowLine(`${d.short?.days ?? 7} días`, d.short, d.sin_stock_hours)}<br />{windowLine(`${d.long?.days ?? 28} días`, d.long, d.sin_stock_hours)}</>}>
             <Chip size="small" variant="outlined" label={label} />
         </Tooltip>
     );
@@ -153,7 +153,7 @@ export const CpaTab: React.FC = () => {
             </Panel>
             <Alert severity="info" variant="outlined">
                 <Typography variant="body2">· <b>Break-even</b> = (R − V − gastos fijos) / P: el CPA máximo que puede mostrar Ads Manager para quedar en $0, ya con los gastos fijos cubiertos. <b>Objetivo</b> = lo mismo, dejando además la utilidad del producto. P son las compras de Meta (lo que cuenta Ads Manager), no los pedidos entregados: la efectividad real de cada ciudad ya va adentro. El CPA Meta en rojo pasa el break-even.</Typography>
-                <Typography variant="body2" sx={{ mt: 1 }}>· <b>Prudente</b>: R es solo lo cobrado de lo entregado; V incluye producto, envíos (también los fallidos; una carrera sin costo cuenta lo que cuesta en promedio una carrera en esa ciudad) y las comisiones de todos los roles. Se calcula con 7 y con 28 días y vale el objetivo más bajo: si empeora se nota enseguida, si mejora no se confía hasta que se sostenga. Un número necesita {data?.city_min_purchases ?? 30} pedidos terminados (entregados o cancelados): con menos, una ciudad usa sus 28 días o el número de su producto, y un producto nuevo usa tu referencia en Meta Ads. Los pedidos que hoy están en "Sin Stock" no cuentan, ni su parte de las compras de Meta: no son culpa de la publicidad.</Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>· <b>Prudente</b>: R es solo lo cobrado de lo entregado; V incluye producto, envíos (también los fallidos; una carrera sin costo cuenta lo que cuesta en promedio una carrera en esa ciudad) y las comisiones de todos los roles. Se calcula con 7 y con 28 días y vale el objetivo más bajo: si empeora se nota enseguida, si mejora no se confía hasta que se sostenga. Un número necesita {data?.city_min_purchases ?? 30} pedidos terminados (entregados o cancelados): con menos, una ciudad usa sus 28 días o el número de su producto, y un producto nuevo usa tu referencia en Meta Ads. Los pedidos que hoy están en "Sin Stock", o que estuvieron ahí más de {count(data?.sin_stock_hours ?? 12)} horas (aunque después se entregaran), no cuentan, ni su parte de las compras de Meta: no son culpa de la publicidad.</Typography>
             </Alert>
             <History row={history} onClose={() => setHistory(null)} />
         </Stack>

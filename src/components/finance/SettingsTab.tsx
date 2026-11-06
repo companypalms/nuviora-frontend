@@ -42,13 +42,13 @@ const MarginRow: React.FC<{ p: Product; types: FinanceSettings["target_types"] }
 
 export const SettingsTab: React.FC = () => {
     const [data, setData] = useState<FinanceSettings | null>(null);
-    const [form, setForm] = useState({ lag: "", window: "", longWindow: "", fixedMin: "", cityMin: "", order: "", upsell: "", deliverer: "", wearMode: "percent", wearValue: "", reason: "" });
+    const [form, setForm] = useState({ lag: "", window: "", longWindow: "", fixedMin: "", cityMin: "", sinStockHours: "", order: "", upsell: "", deliverer: "", wearMode: "percent", wearValue: "", reason: "" });
     const [saving, setSaving] = useState(false);
     const load = useCallback(() => {
         api<FinanceSettings>("/finance/settings").then((d) => {
             setData(d);
             setForm({ lag: String(d.maturity_lag_days), window: String(d.analysis_window_days), longWindow: String(d.analysis_long_window_days),
-                fixedMin: String(d.fixed_cost_min_pct), cityMin: String(d.cpa_city_min_purchases), order: String(d.commissions.order),
+                fixedMin: String(d.fixed_cost_min_pct), cityMin: String(d.cpa_city_min_purchases), sinStockHours: String(d.cpa_sin_stock_hours), order: String(d.commissions.order),
                 upsell: String(d.commissions.upsell_unit), deliverer: String(d.commissions.deliverer), wearMode: d.vehicle_wear.mode,
                 wearValue: String(d.vehicle_wear.value), reason: "" });
         }).catch((e) => toast.error(errorMessage(e)));
@@ -60,7 +60,7 @@ export const SettingsTab: React.FC = () => {
         try {
             const res = await api<{ message: string }>("/finance/settings", "PUT", {
                 maturity_lag_days: Number(form.lag), analysis_window_days: Number(form.window), analysis_long_window_days: Number(form.longWindow),
-                fixed_cost_min_pct: num(form.fixedMin), cpa_city_min_purchases: Number(form.cityMin), commission_order: num(form.order),
+                fixed_cost_min_pct: num(form.fixedMin), cpa_city_min_purchases: Number(form.cityMin), cpa_sin_stock_hours: num(form.sinStockHours), commission_order: num(form.order),
                 commission_upsell_unit: num(form.upsell), commission_deliverer: num(form.deliverer),
                 vehicle_wear_mode: form.wearMode, vehicle_wear_value: num(form.wearValue), reason: form.reason || null,
             });
@@ -88,6 +88,7 @@ export const SettingsTab: React.FC = () => {
                     <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                         {field("fixedMin", "Gastos fijos, como mínimo", "%", "De cada venta; si lo real es más, vale lo real")}
                         {field("cityMin", "Pedidos terminados para confiar", "pedidos", "Entregados o cancelados. Con menos, la ciudad usa sus días largos o su producto; un producto nuevo, tu referencia")}
+                        {field("sinStockHours", "En Sin Stock más de", "horas", "Un pedido que esperó stock más que esto no cuenta para el CPA (ni su parte de Meta), aunque después se entregara")}
                     </Stack>
                     <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
                         {field("order", "Comisión por pedido entregado", "$")}
