@@ -36,6 +36,8 @@ export interface SourceCard {
     currency: string;
     payments: number;
     pending: number;
+    // .115: pagos en bolívares que no aparecieron en su banco y se buscan también en este
+    searching: number;
     range: { from: string; to: string };
     format_saved: boolean;
     statement: StatementInfo | null;
@@ -78,6 +80,8 @@ export interface ItemView {
 export interface DayDetail {
     day: DayCard;
     sources: SourceCard[];
+    // .115: cuentas que recibieron pagos y no tienen extracto asignado (el sistema no puede pedirlo)
+    unlinked?: { id: number; name: string; payments: number }[];
     summary: {
         total: number;
         by_status: Partial<Record<ItemStatus, number>>;

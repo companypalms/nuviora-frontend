@@ -83,6 +83,23 @@ export const ReconciliationDay: React.FC = () => {
                 </Box>
 
                 <Typography variant="h6" component="h2" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Extractos</Typography>
+                {/* .115: si una cuenta no tiene extracto, el sistema no puede pedirlo ni verificar sus pagos */}
+                {detail.unlinked?.map((a) => (
+                    <Alert key={a.id} severity="warning" sx={{ mb: 2, borderRadius: 3 }}>
+                        {plural(a.payments, "pago fue", "pagos fueron")} a «{a.name}», pero esa cuenta no tiene extracto asignado: no se puede
+                        pedir su extracto ni verificarlos. Asígnale uno en Cuentas de la empresa («Extracto donde se verifica»).
+                        <Box sx={{ mt: 1 }}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => navigate("/admin/tasa-y-pagos?seccion=cuentas")}
+                                sx={{ textTransform: "none", minHeight: { xs: 44, sm: 36 } }}
+                            >
+                                Ir a Cuentas
+                            </Button>
+                        </Box>
+                    </Alert>
+                ))}
                 <StatementSources date={day.date} sources={detail.sources} onChanged={load} />
 
                 <Typography variant="h6" component="h2" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Resumen</Typography>

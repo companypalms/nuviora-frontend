@@ -87,8 +87,15 @@ export const StatementSources: React.FC<Props> = ({ date, sources, onChanged }) 
                                         <Chip size="small" color={st ? "success" : "warning"} label={st ? "Extracto subido" : "Falta el extracto"} />
                                     </Box>
                                     <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                        {s.pending > 0 ? plural(s.pending, "pago pendiente de verificar", "pagos pendientes de verificar") : plural(s.payments, "pago", "pagos")}
+                                        {s.payments === 0 && s.searching > 0
+                                            ? `Para buscar ${plural(s.searching, "pago que no apareció en su banco", "pagos que no aparecieron en su banco")}`
+                                            : s.pending > 0 ? plural(s.pending, "pago pendiente de verificar", "pagos pendientes de verificar") : plural(s.payments, "pago", "pagos")}
                                     </Typography>
+                                    {s.payments > 0 && s.searching > 0 && !st && (
+                                        <Typography variant="body2">
+                                            Y para buscar {plural(s.searching, "pago que no apareció en su banco", "pagos que no aparecieron en su banco")}
+                                        </Typography>
+                                    )}
                                     {!st && (
                                         <Typography variant="caption" color="text.secondary" display="block">
                                             El extracto tiene que tener los movimientos {range}.
