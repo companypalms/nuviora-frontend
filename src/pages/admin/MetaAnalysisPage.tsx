@@ -20,7 +20,7 @@ import {
     Stack, TextField, Tooltip, Typography,
 } from "@mui/material";
 import {
-    CheckCircleRounded, CheckRounded, EmojiEventsRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, LocalFireDepartmentRounded,
+    CheckCircleRounded, CheckRounded, ContentCopyRounded, EmojiEventsRounded, ExpandMoreRounded, GroupsRounded, InsightsRounded, ListAltRounded, LocalFireDepartmentRounded,
     NotificationsNoneRounded, RemoveRounded, ReportProblemRounded, TaskAltRounded,
 } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
@@ -29,7 +29,7 @@ import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 // .91: los colores y las piezas del diseño nuevo, en un archivo común (las pantallas de los editores también los usan)
-import { appear, cardSx, geist, inkSx, plural, Tokens, useTokens } from "../../components/ui/design";
+import { appear, cardSx, geist, inkSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { NewProductCard, NewProductView } from "../../components/meta-ads/NewProductCard";
 import { Dot, Section, TextAction } from "../../components/ui/designParts";
 import { BatchVideos } from "../../components/meta-ads/batchVideos";
@@ -44,6 +44,8 @@ type UrgentItem = {
     where?: string; steps?: string[];
     /** .102: los batches de la banca que lanza la misión (sus videos se bajan ahí mismo). */
     batches?: string[];
+    /** .124: los parámetros de URL de los anuncios nuevos, para copiarlos ahí mismo. */
+    copy?: { label: string; text: string } | null;
     /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
     money?: { cut: number | null; add: number | null } | null;
     /** .118: no se puede descartar (no_disagree) o se marca sola (no_done). */
@@ -189,6 +191,25 @@ const Steps: React.FC<{ steps: string[]; size?: number }> = ({ steps, size = 15 
     );
 };
 
+/** .124: los parámetros de URL de los anuncios nuevos: el texto a la vista (por si el navegador no deja copiar) y el botón. */
+const CopyParams: React.FC<{ copy: { label: string; text: string } }> = ({ copy }) => {
+    const t = useTokens();
+    const [done, setDone] = useState(false);
+    const onCopy = () => (navigator.clipboard ? navigator.clipboard.writeText(copy.text) : Promise.reject(new Error("sin portapapeles")))
+        .then(() => { setDone(true); window.setTimeout(() => setDone(false), 2500); })
+        .catch(() => toast.info("El navegador no dejó copiarlo solo: selecciona el texto y cópialo."));
+    return (
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap", bgcolor: t.soft, borderRadius: "8px", p: "8px 10px", mt: 1 }}>
+            <Typography component="code" sx={{ flex: "1 1 220px", minWidth: 0, fontFamily: "ui-monospace, Consolas, monospace", fontSize: 12.5, lineHeight: 1.5, color: t.ink,
+                overflowWrap: "anywhere", userSelect: "all" }}>{copy.text}</Typography>
+            <Button variant="outlined" startIcon={done ? <CheckRounded /> : <ContentCopyRounded />} onClick={onCopy}
+                sx={{ flex: "none", color: t.ink, borderColor: t.line, borderRadius: "10px", bgcolor: t.card, ...tapSx, "&:hover": { borderColor: t.faint, bgcolor: t.card } }}>
+                <span aria-live="polite">{done ? "Copiado" : copy.label}</span>
+            </Button>
+        </Box>
+    );
+};
+
 /** El porqué de una misión, plegado: los números en palabras y la regla. */
 const WhyBox: React.FC<{ item: UrgentItem; children?: React.ReactNode }> = ({ item, children }) => {
     const t = useTokens();
@@ -240,6 +261,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                 )}
                 <Collapse in={open && !done && !disagree} unmountOnExit>
                     {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
+                    {item.copy ? <CopyParams copy={item.copy} /> : null}
                     {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
                     <WhyBox item={item}>
                         {!item.no_disagree && <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>}
@@ -266,6 +288,7 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
             {whereOf(item) && <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}</Typography>}
             <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: whereOf(item) ? 0.25 : 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
             {item.steps?.length ? <Steps steps={item.steps} /> : null}
+            {item.copy ? <CopyParams copy={item.copy} /> : null}
             {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
             {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
             {!oldRule(item) && <>

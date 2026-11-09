@@ -224,10 +224,12 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Presupuesto y precio", help: "Los mínimos de gasto de los ad sets (CBO) y la opción de bajar el precio.", fields: [
+        title: "Presupuesto y precio", help: "Los mínimos de gasto de los ad sets (CBO) y la opción de bajar el precio. El gasto mínimo de un batch va solo mientras se prueba: cuando ya tiene veredicto en esa ciudad, o pasan los días de abajo, sale la misión de quitarlo.", fields: [
             ["startup_min_mult", "Arranque: C × batches nuevos × desde", "veces"], ["startup_max_mult", "…hasta", "veces"],
-            ["mins_low_pct", "Mínimos bajos debajo de", "% del presupuesto"], ["mins_ok_pct", "Mínimos bien hasta", "% del presupuesto"],
-            ["mins_review_pct", "Revisar hasta (más, no)", "% del presupuesto"], ["price_step", "Probar bajar el precio de a", "$"],
+            ["mins_ok_pct", "Mínimos bien hasta", "% del presupuesto"],
+            ["mins_review_pct", "Revisar hasta (más, no)", "% del presupuesto"],
+            ["min_spend_days", "Gasto mínimo: un batch sin veredicto ya se probó a los", "días prendido"],
+            ["price_step", "Probar bajar el precio de a", "$"],
         ],
     },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
