@@ -177,7 +177,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
     {
         title: "Estados de anuncios y batches", help: "Con el gasto y las compras de toda su vida. ×C = veces el CPA objetivo de esa ciudad. Con pocas compras, uno apenas encima del break-even no se apaga: puede ser mala suerte.", fields: [
             ["no_data_cpa", "Sin datos: gastó menos de", "×C"], ["loser_spend_cpa", "Perdedor: gastó, con 0 o 1 compra", "×C"],
-            ["evaluation_cap_cpa", "Con 2+ compras en el break-even: tope de evaluación", "×C"],
+            ["evaluation_cap_cpa", "Con 2+ compras en el break-even: tope de evaluación (y gasto con el que se apaga un ganador que pierde)", "×C"],
             ["loser_be_margin_pct", "Perdedor por el break-even: CPA encima por lo menos", "%"], ["loser_be_margin_purchases", "…y sin margen desde", "compras"],
             ["promising_purchases", "Prometedor: compras con CPA ≤ C", "compras"], ["proven_purchases", "PROVEN: compras con CPA ≤ C", "compras"],
             ["new_ad_hours", "Un anuncio nuevo no se apaga antes de", "horas"],
