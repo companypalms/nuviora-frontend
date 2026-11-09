@@ -208,7 +208,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Después de un cambio grande (subir o bajar el presupuesto, un batch nuevo o volver a prenderla), ningún otro en esa campaña hasta que pasen las horas de abajo; apagar los que pierden sí. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí. Entre C y el BE va un cambio a la vez: primero un batch nuevo; si pasados los días cerrados de abajo no volvió a C, se devuelve la última subida; después otro batch, y así.", fields: [
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Después de un cambio grande (subir o bajar el presupuesto, un batch nuevo o volver a prenderla), ningún otro en esa campaña hasta que pasen las horas de abajo; apagar los que pierden sí. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí. Entre C y el BE va un cambio a la vez: primero un batch nuevo; si pasados los días cerrados de abajo no volvió a C, se devuelve la última subida; después otro batch, y así. En el BE o encima y sin batch para lanzar, la cuenta corre igual. Una campaña que en los días de abajo no dejó dinero (vendió en el BE o encima) y en los últimos 3 tampoco, se pausa; si en los últimos 3 vende debajo del BE, no.", fields: [
             ["change_wait_hours", "Después de un cambio grande, esperar", "horas"],
             ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"],
             ["scale_small_pct", "Subir si el CPA está apenas debajo de C", "%"],
@@ -218,9 +218,13 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["band_undo_days", "Entre C y BE: se devuelve una subida de los últimos", "días"],
             ["decrease_pct", "En el BE o encima: bajar", "%"],
             ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
+            ["chronic_days", "Sin dejar dinero: se miran los últimos", "días"],
+            ["chronic_min_cpa", "Sin dejar dinero: con al menos este gasto en esos días", "×C"],
+            ["drop_min_batches", "Decidir si se suelta un producto: con al menos", "batches nuevos en esos días"],
             ["relaunch_batches", "Una campaña apagada se prende con estos batches nunca publicados ahí", "batches"],
             ["stock_warn_days", "Avisar poco stock con menos de", "días de ventas"],
             ["stock_waiting_min", "Pedidos esperando stock (últimos 14 días) para avisar y no subir", "pedidos"],
+            ["sync_stale_hours", "Avisar si los datos de Meta tienen más de", "horas"],
         ],
     },
     {
