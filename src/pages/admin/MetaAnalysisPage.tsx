@@ -55,6 +55,8 @@ type Mark = { status: "done" | "disagree"; note: string | null; by: string | nul
 type CityFact = {
     campaign_meta_id: string; campaign: string | null; city: string | null; notes: string[]; budget_notes: string[]; price_option: string | null;
     action: { key: string; label: string; tone: Tone; data: string; reading: string; proposal: string | null };
+    /** .126: lo que dejó la campaña en 3 y en 7 días (compras de Meta × BE − gasto). Los análisis de antes no lo traen. */
+    numbers?: { gain3?: number | null; gain7?: number | null } | null;
 };
 type CreativeFact = {
     id: number; label: string; verdict: string; verdict_key: string; tone: Tone; reading: string; proposal: string | null; cross: string | null;
@@ -63,12 +65,16 @@ type CreativeFact = {
     /** .70: ESCALAR, MANTENER, PARAR o ITERAR (de tus reglas), sus números y qué hacer el editor (en palabras). Los análisis viejos no lo traen. */
     call?: { key: "scale" | "keep" | "stop" | "iterate" | "stop_city"; label: string; tone: Tone; todo: string; editor: string | null };
     numbers?: string[];
+    /** .126: lo que dejó en 7 días y en toda su vida. */
+    gain?: { week: number | null; life: number | null } | null;
 };
 type ProductFact = {
     product_id: number; product: string; mode: string; money_at_risk: number;
     urgency: { level: number; label: string; batches: string; reasons: string[] } | null;
     next_work: string[]; price: string[]; price_watch: string | null; alarms: string[];
     cities: CityFact[]; creatives: CreativeFact[]; batches: { name: string; verdict: string; reading: string; proposal: string | null }[];
+    /** .126: lo que dejó el producto entero en 3 y en 7 días, y lo gastado. */
+    gain?: { d3: number; d7: number; spend3: number; spend7: number } | null;
 };
 type AiProduct = { producto: string; diagnostico: string; ciudades: { ciudad: string; lectura: string }[]; decisiones_creativas: string[]; mensaje_editor: string; aprendizaje: string };
 type Analysis = {
@@ -122,6 +128,8 @@ const KIND_GROUP: Record<string, Group> = {
     late_urgent: "arreglar", late_batch: "arreglar", launch_ready: "arreglar",
     scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso", cooldown: "aviso",
 };
+/** .126: "dejó unos $1.050,00" o "perdió unos $50,00" (ganancia estimada: compras de Meta × tu BE − gasto). */
+const leftText = (gain: number) => `${gain >= 0 ? "dejó" : "perdió"} unos ${fmt.money(Math.abs(gain))}`;
 /** "B0110, B0111 y B0112". */
 const andList = (xs: string[]) => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`;
 const groupOf = (i: UrgentItem): Group => i.group ?? KIND_GROUP[i.kind] ?? "aviso";
@@ -431,6 +439,10 @@ const ProductDetail: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<str
                             <Dot color={toneColor(c.action.tone, t)} size={8} />
                             <Typography sx={{ fontSize: 14, fontWeight: 500 }}>{c.city ?? "—"}</Typography>
                             <Typography sx={{ fontSize: 13, color: t.muted }}>{c.action.label}</Typography>
+                            {/* .126: lo que dejó, en dólares */}
+                            {c.numbers?.gain3 != null && (
+                                <Typography sx={{ fontSize: 13, color: c.numbers.gain3 < 0 ? t.red : t.muted }}>· {leftText(c.numbers.gain3)} en 3 días</Typography>
+                            )}
                         </Stack>
                         <Typography sx={{ fontSize: 13, color: t.muted, pl: 2 }}>{cityText(c.city) ?? `${c.action.reading} ${c.action.proposal ?? ""}`}</Typography>
                         {c.action.data && <Typography sx={{ fontSize: 12, color: t.faint, pl: 2 }}>{c.action.data}</Typography>}
@@ -440,11 +452,11 @@ const ProductDetail: React.FC<{ p: ProductFact; ai?: AiProduct; sent: Record<str
             </>}
 
             {calls && <>
-                <Typography sx={sub}>Cada creativo, de más a menos gasto en 7 días</Typography>
+                <Typography sx={sub}>Cada creativo, del que más dejó al que menos (7 días)</Typography>
                 {p.creatives.map((cr) => <CreativeCall key={cr.id} cr={cr} sent={sent[String(cr.id)]} today={today} turn={turn} />)}
             </>}
             {!calls && p.creatives.length > 0 && <>
-                <Typography sx={sub}>Creativos, de más a menos gasto en 7 días</Typography>
+                <Typography sx={sub}>Creativos, del que más dejó al que menos (7 días)</Typography>
                 {p.creatives.map((cr) => (
                     <Typography key={cr.id} sx={{ fontSize: 13, mb: 0.5 }}>
                         <Link component={RouterLink} to={`/meta-ads/creativos/${cr.id}`} sx={{ color: t.ink, fontWeight: 500 }}>{cr.label}</Link>
@@ -612,6 +624,12 @@ export const MetaAnalysisPage: React.FC = () => {
         return Object.entries(a.sent ?? {}).map(([id, s]) => ({ ...s, product: product.get(Number(id)) ?? "", creative: label.get(Number(id)) ?? "" }));
     }, [a]);
 
+    // .126: lo que dejó toda la publicidad en 3 días (la suma de los productos que se pueden calcular)
+    const total = useMemo(() => {
+        const withGain = (a?.facts ?? []).filter((p) => p.gain);
+        return withGain.length ? { gain: withGain.reduce((sum, p) => sum + p.gain!.d3, 0), spend: withGain.reduce((sum, p) => sum + p.gain!.spend3, 0) } : null;
+    }, [a]);
+
     const aiFor = (p: ProductFact, i: number) => a?.text?.productos.find((x) => norm(x.producto) === norm(p.product)) ?? a?.text?.productos[i];
     const summaryOf = (p: ProductFact) => {
         const mine = tasks.filter((i) => i.product_id === p.product_id && !isResolved(marks[i.key]));
@@ -662,6 +680,13 @@ export const MetaAnalysisPage: React.FC = () => {
                             </Typography>
                         </Stack>
 
+                        {total && total.spend > 0 && (
+                            <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>
+                                En 3 días gastaste <b style={{ fontWeight: 600 }}>{fmt.money(total.spend)}</b> y la publicidad te{" "}
+                                <Box component="b" sx={{ fontWeight: 600, color: total.gain < 0 ? t.red : t.ink }}>{leftText(total.gain)}</Box>
+                                <Box component="span" sx={{ color: t.muted }}> (unos {fmt.money(Math.abs(total.gain) / 3)} por día) · estimado: compras de Meta × tu BE − gasto</Box>
+                            </Typography>
+                        )}
                         {missingToday && !running && (
                             <Typography role="status" sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
                                 Todavía no está el análisis de hoy: sale solo a las 12:30 a. m. (hora de Venezuela). Si no quieres esperar, toca "Analizar hoy". Abajo ves el de ayer.
@@ -774,7 +799,7 @@ export const MetaAnalysisPage: React.FC = () => {
 
                             {/* 6. Cada producto, plegado */}
                             {a.facts.length > 0 && (
-                                <Section icon={<ListAltRounded />} name="Cada producto" hint="el detalle, si lo quieres ver">
+                                <Section icon={<ListAltRounded />} name="Cada producto" hint="del que más deja al que menos; el detalle, si lo quieres ver">
                                     <Box sx={{ ...cardSx(t), px: "14px" }}>
                                         {a.facts.map((p, i) => {
                                             const s = summaryOf(p);
@@ -789,7 +814,11 @@ export const MetaAnalysisPage: React.FC = () => {
                                                             <Typography sx={{ fontSize: 14, fontWeight: 500, overflowWrap: "anywhere" }}>{p.product}</Typography>
                                                         </Stack>
                                                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: t.muted, minWidth: 0, flex: "0 1 auto" }}>
-                                                            <Typography sx={{ fontSize: 13, textAlign: "right" }}>{s.text}</Typography>
+                                                            <Typography sx={{ fontSize: 13, textAlign: "right" }}>
+                                                                {/* .126: lo que dejó en 7 días (la lista viene ordenada por eso) */}
+                                                                {p.gain && <Box component="span" sx={{ color: p.gain.d7 < 0 ? t.red : t.ink }}>{leftText(p.gain.d7)} en 7 días · </Box>}
+                                                                {s.text}
+                                                            </Typography>
                                                             <ExpandMoreRounded sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 200ms" }} />
                                                         </Stack>
                                                     </ButtonBase>
