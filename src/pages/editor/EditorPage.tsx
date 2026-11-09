@@ -22,7 +22,7 @@ import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } from "../../components/meta-ads/editorWork";
-import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
+import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, saysPerPiece, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
@@ -67,9 +67,18 @@ const piecesText = (b: EditorBatch) => plural(b.pieces.length, "pieza", "piezas"
 /** .99 (dueño: "no dice si es iteración… si es tres piezas totalmente nuevas de un ángulo en particular"): qué hay que hacer. */
 const whatOf = (b: EditorBatch) => b.task?.title ?? piecesText(b);
 
-/** .99: el detalle de qué hay que hacer, debajo del título de la misión. */
+/** .99: el detalle de qué hay que hacer, debajo del título de la misión. .128: en una variación, la hipótesis y cómo hacerlo. */
 const TaskDetail: React.FC<{ b: EditorBatch }> = ({ b }) => {
     const t = useTokens();
+    if (b.task?.hypothesis) {
+        return (
+            <>
+                {([["La hipótesis", b.task.hypothesis], ["Cómo hacerlo", b.task.detail]] as const).map(([label, text]) => text && (
+                    <Typography key={label} sx={{ fontSize: 14, lineHeight: 1.5, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>{label}:</b> {text}</Typography>
+                ))}
+            </>
+        );
+    }
     return b.task?.detail ? <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>{b.task.detail}</Typography> : null;
 };
 
@@ -408,7 +417,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
         b.uploads ? "Toca «Entregar de nuevo» y sube solo las piezas que cambiaste: las demás quedan como estaban." : "Toca «Entregar de nuevo» y pega el enlace de las piezas que cambiaste.",
         "Revisa el hook de cada una y entrega.",
     ] : [
-        `Haz ${b.pieces.length === 1 ? "la pieza" : `las ${b.pieces.length} piezas`}: ${b.pieces.map((p) => p.code).filter(Boolean).join(", ")}. Qué lleva cada una, en «Ver todo el encargo».`,
+        `Haz ${b.pieces.length === 1 ? "la pieza" : `las ${b.pieces.length} piezas`}: ${b.pieces.map((p) => p.code).filter(Boolean).join(", ")}.${saysPerPiece(b) ? " Qué lleva cada una, en «Ver todo el encargo»." : ""}`,
         b.uploads ? "Toca «Entregar» y sube el archivo de cada pieza: se nombra solo." : "Sube cada video a Drive con su código y toca «Entregar» para pegar los enlaces.",
         "Escribe el hook de cada una y entrega.",
     ];
@@ -456,7 +465,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         : <TaskDetail b={mission} />}
                     <Returned b={mission} />
                     {mission.suggested_reference && <SuggestedRef r={mission.suggested_reference} />}
-                    <NumberedSteps label="Cómo hacerlo" steps={missionSteps(mission)} />
+                    <NumberedSteps label="Pasos para entregar" steps={missionSteps(mission)} />
                     {mission.goal && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><b style={{ fontWeight: 600 }}>Lo que buscamos:</b> {mission.goal}</Typography>}
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }} sx={{ mt: 2 }}>
                         <Button variant="contained" disableElevation startIcon={<UploadRounded />} onClick={() => setDeliverId(mission.id)} disabled={!mission.can.deliver}
@@ -467,7 +476,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     </Stack>
                     <Collapse in={missionOpen} unmountOnExit>
                         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${t.line}` }}>
-                            <BriefDetail b={mission} hideSuggested />
+                            <BriefDetail b={mission} hideSuggested hideTask={!mission.returned} />
                             <DeliveriesList deliveries={mission.deliveries} />
                             <Stack direction="row" columnGap={2} flexWrap="wrap" sx={{ mt: 1, fontSize: 14 }}>
                                 <CopyBrief text={mission.brief} asLink />

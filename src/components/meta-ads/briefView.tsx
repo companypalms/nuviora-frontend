@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { Box, Collapse, Link, Stack, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { OpenInNewRounded } from "@mui/icons-material";
-import { EditorBatch, ReferenceBrief, ReviewContext } from "./editorShared";
+import { EditorBatch, piecesDiffer, ReferenceBrief, ReviewContext, saysPerPiece } from "./editorShared";
 import { PersonaBox, ProductBox } from "./productProfile";
 import { FileView } from "./fileView";
 import { useTokens } from "../ui/design";
@@ -46,13 +46,19 @@ export const SuggestedRef: React.FC<{ r: ReferenceBrief }> = ({ r }) => {
     );
 };
 
-/** Todo el encargo: qué probamos, lo que buscamos, a quién le hablas, el producto, la referencia y qué lleva cada pieza. */
-export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean }> = ({ b, hideSuggested = false }) => {
+/** Todo el encargo: la hipótesis y cómo hacerlo, qué probamos, a quién le hablas, el producto, la referencia y qué lleva cada pieza. */
+export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean; hideTask?: boolean }> = ({ b, hideSuggested = false, hideTask = false }) => {
     const t = useTokens();
-    const planned = b.pieces.some((p) => p.hypothesis);
+    const differ = piecesDiffer(b);
     return (
         <Box sx={{ mt: 0.5 }}>
             {b.suggested_reference && !hideSuggested && <SuggestedRef r={b.suggested_reference} />}
+            {b.task?.hypothesis && !hideTask && (
+                <>
+                    <Block title="La hipótesis" text={b.task.hypothesis} />
+                    <Block title="Cómo hacerlo" text={b.task.detail} />
+                </>
+            )}
             <Block title="Qué estamos probando" text={b.test_idea} />
             <Block title="Lo que buscamos" text={b.goal} />
             <PersonaBox persona={b.persona} />
@@ -65,20 +71,17 @@ export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean }> 
                     {[b.format && FORMATS[b.format], b.style_label && `Estilo: ${b.style_label}`, b.offer].filter(Boolean).join(" · ")}
                 </Typography>
             )}
-            {b.pieces.length > 0 && (
+            {saysPerPiece(b) && (
                 <Box sx={{ mt: 1.5 }}>
-                    <Typography sx={{ fontSize: 13, color: t.muted }}>{planned ? "Qué lleva cada pieza" : "Ideas para cada pieza (tú decides cómo)"}</Typography>
+                    <Typography sx={{ fontSize: 13, color: t.muted }}>Qué lleva cada pieza</Typography>
                     <Stack spacing={0.75} sx={{ mt: 0.5 }}>
                         {b.pieces.map((p, i) => (
-                            <Box key={p.id}>
-                                <Typography sx={{ fontSize: 14, lineHeight: 1.5, overflowWrap: "anywhere" }}>
-                                    <b style={{ fontWeight: 600 }}>{p.code ?? `Pieza ${i + 1}`}</b>
-                                    {p.hypothesis && p.test_label && <> · {p.test_label}{p.style_label ? ` (${p.style_label})` : ""}</>}
-                                    {": "}{p.change || <span style={{ color: t.faint }}>sin detalle</span>}
-                                    {p.format && p.format !== b.format && <> ({(FORMATS[p.format] ?? p.format).toLowerCase()})</>}
-                                </Typography>
-                                {p.hypothesis && <Typography sx={{ fontSize: 13, color: t.muted }}>Qué probamos: {p.hypothesis}</Typography>}
-                            </Box>
+                            <Typography key={p.id} sx={{ fontSize: 14, lineHeight: 1.5, overflowWrap: "anywhere" }}>
+                                <b style={{ fontWeight: 600 }}>{p.code ?? `Pieza ${i + 1}`}</b>
+                                {differ && p.test_label && <> · {p.test_label}{p.style_label ? ` (${p.style_label})` : ""}</>}
+                                {p.change && `: ${p.change}`}
+                                {p.format && p.format !== b.format && <> ({(FORMATS[p.format] ?? p.format).toLowerCase()})</>}
+                            </Typography>
                         ))}
                     </Stack>
                 </Box>

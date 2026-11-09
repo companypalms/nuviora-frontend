@@ -33,7 +33,8 @@ export type EditorGameData = {
 };
 
 /** .99: qué hay que hacer en el encargo, en una frase (BatchTask del servidor): "3 iteraciones del hook de C0146". */
-export type BatchTask = { title: string; detail: string | null };
+/** .128: en una variación, hypothesis y detail (cómo hacerlo) son textos fijos: ni la IA ni el sistema dictan qué decir. */
+export type BatchTask = { title: string; detail: string | null; hypothesis?: string | null };
 
 /** .91: los encargos como los ve el editor (EditorWork::present), para "Mis encargos" y "El equipo". */
 export type EditorStatus = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
@@ -225,3 +226,8 @@ export const fieldErrors = (e: unknown): Record<string, string> | null => {
     const errs = (e as { errors?: Record<string, string[]> }).errors;
     return errs ? Object.fromEntries(Object.entries(errs).map(([k, v]) => [k, v[0]])) : null;
 };
+
+export const piecesDiffer = (b: EditorBatch) => new Set(b.pieces.map((p) => `${p.test_label ?? ""}|${p.style_label ?? ""}`)).size > 1;
+
+/** `.128`: la lista de piezas solo sale si alguien escribió qué lleva cada una o si son de tipos distintos (1 de hook y 2 de formato). */
+export const saysPerPiece = (b: EditorBatch) => piecesDiffer(b) || b.pieces.some((p) => p.change);

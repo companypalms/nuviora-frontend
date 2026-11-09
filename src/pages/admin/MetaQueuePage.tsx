@@ -336,12 +336,15 @@ const BatchCard: React.FC<{
                 {b.returned && <Chip size="small" color="warning" variant="outlined" label={`Devuelto (${b.returned.version})`} />}
                 {pending && <Chip size="small" color="secondary" label={`${pending.version} por revisar`} />}
             </Stack>
-            {b.task && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué hay que hacer:</b> {b.task.title}{b.task.detail ? `. ${b.task.detail}` : ""}</Typography>}
-            {b.test_idea && <Typography variant="body2" sx={{ mt: b.task ? 0.25 : 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
+            {b.task && <Typography variant="body2" sx={{ mt: 0.75, overflowWrap: "anywhere" }}><b>Qué hay que hacer:</b> {b.task.title}{b.task.detail && !b.task.hypothesis ? `. ${b.task.detail}` : ""}</Typography>}
+            {/* .128: lo que leen el líder y el editor en una variación; de un encargo de las reglas no les llega lo que redactó la IA */}
+            {b.task?.hypothesis && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>La hipótesis (la leen el líder y el editor):</b> {b.task.hypothesis}</Typography>}
+            {b.task?.hypothesis && b.task.detail && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Cómo hacerlo:</b> {b.task.detail}</Typography>}
+            {b.test_idea && (b.source !== "rules" || b.kind !== "iteration") && <Typography variant="body2" sx={{ mt: b.task ? 0.25 : 0.75, overflowWrap: "anywhere" }}><b>Qué estamos probando:</b> {b.test_idea}</Typography>}
             {b.persona?.name && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Le habla a:</b> {b.persona.name}</Typography>}
-            {b.goal && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
-            {b.keep && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que funcionó:</b> {b.keep}</Typography>}
-            {b.improve && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que hay que mejorar:</b> {b.improve}</Typography>}
+            {b.goal && b.source !== "rules" && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que buscamos:</b> {b.goal}</Typography>}
+            {b.keep && b.source !== "rules" && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que funcionó:</b> {b.keep}</Typography>}
+            {b.improve && b.source !== "rules" && <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Lo que hay que mejorar:</b> {b.improve}</Typography>}
             {b.hypothesis && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Hipótesis (solo tú):</b> {b.hypothesis}</Typography>}
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
                 {[b.reference && `Referencia: ${b.reference}`, b.city && `Ciudad: ${b.city}`, b.format && data.formats[b.format], b.style && (data.styles?.[b.style] ?? b.style), b.due_date && `Plazo: ${b.due_date}`,
@@ -370,8 +373,8 @@ const BatchCard: React.FC<{
                 <Box component="ol" sx={{ m: 0, mt: 0.75, pl: 2.5 }}>
                     {b.pieces.map((p, i) => (
                         <Typography key={p.id ?? i} component="li" variant="body2" sx={{ overflowWrap: "anywhere" }}>
-                            {p.code && <b>{p.code} </b>}{p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}: </b>}
-                            {p.change || <span style={{ opacity: 0.6 }}>sin detalle</span>}
+                            {p.code && <b>{p.code} </b>}{p.test_label && <b>{p.test_label}{p.style_label ? ` (${p.style_label})` : ""}{b.source !== "rules" && p.change ? ": " : ""}</b>}
+                            {(b.source !== "rules" && p.change) || (!p.test_label && <span style={{ opacity: 0.6 }}>sin detalle</span>)}
                             {/* .90: el archivo en el sistema (ver y bajar con su nombre); los viejos, en Drive */}
                             {p.file?.url ? <> · <a href={p.file.url} target="_blank" rel="noopener noreferrer">ver</a>{p.file.download_url && <> · <a href={p.file.download_url}>bajar «{p.file.name}»</a></>}</>
                                 : p.link && <> · <a href={p.link} target="_blank" rel="noopener noreferrer">video <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></a></>}

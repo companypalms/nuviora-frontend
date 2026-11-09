@@ -401,7 +401,7 @@ const CreativeCall: React.FC<{ cr: CreativeFact; sent?: Sent; today: boolean; tu
             {(cr.numbers ?? []).map((n, i) => <Typography key={i} sx={{ fontSize: 12, color: t.muted }}>{n}</Typography>)}
             {call.editor && (
                 <Box sx={{ mt: 0.75, p: "8px 10px", borderRadius: "8px", bgcolor: t.soft }}>
-                    <Typography sx={{ fontSize: 13, whiteSpace: "pre-line" }}><b>Para el editor:</b> {call.editor}</Typography>
+                    <Typography sx={{ fontSize: 13, whiteSpace: "pre-line" }}><b>Qué pasa con el video:</b> {call.editor}</Typography>
                     {sent ? (
                         <Typography sx={{ fontSize: 12, mt: 0.5, color: t.green, fontWeight: 600 }}>
                             Le llegó al editor líder: {sent.code ?? "encargo"} · {sent.status_label} · {sent.editor ? `lo hace ${sent.editor}` : "todavía sin editor"}

@@ -120,7 +120,9 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, pri
                     {task && (
                         <Typography component="span" sx={{ display: "block", fontSize: 15, fontWeight: 500, mt: 0.5, overflowWrap: "anywhere" }}>
                             {task.title}
-                            {task.detail && <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, fontWeight: 400 }}>{task.detail}</Typography>}
+                            {/* .128: en una variación, la hipótesis y cómo hacerlo */}
+                            {task.hypothesis && <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, fontWeight: 400, mt: 0.5 }}><b style={{ fontWeight: 600 }}>La hipótesis:</b> {task.hypothesis}</Typography>}
+                            {task.detail && <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, fontWeight: 400, mt: task.hypothesis ? 0.5 : 0 }}>{task.hypothesis && <b style={{ fontWeight: 600 }}>Cómo hacerlo: </b>}{task.detail}</Typography>}
                         </Typography>
                     )}
                     <Typography component="span" sx={{ display: "block", fontSize: 13, color: t.muted, mt: task ? 1 : 0 }}>¿Quién lo hace? El sugerido es el que está más libre.</Typography>
