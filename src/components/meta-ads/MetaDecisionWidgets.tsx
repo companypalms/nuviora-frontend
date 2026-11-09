@@ -113,7 +113,7 @@ export const CreativeDecisionBox: React.FC<{ d: CreativeDecision | null | undefi
 // ---------------------------------------------------------------- paso 2b: qué hacer con cada campaña y cada producto
 
 export type CampaignAction = {
-    key: "no_target" | "wait" | "none" | "scale" | "hold" | "hold_prune" | "intervene" | "decrease" | "pause_city" | "last_test" | "drop";
+    key: "no_target" | "wait" | "none" | "scale" | "hold" | "hold_prune" | "intervene" | "decrease" | "pause_city" | "relaunch" | "left_city";
     label: string; tone: "default" | "info" | "success" | "warning" | "error";
     data: string; reading: string; proposal: string | null; from: number | null; to: number | null; campaign?: string;
 };
@@ -214,7 +214,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["scale_big_below_pct", "Subida grande si está debajo de C desde", "%"], ["scale_big_pct", "Subida grande (tope 20 %)", "%"],
             ["decrease_pct", "Bajar", "%"],
             ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
-            ["last_test_budget_cpa", "Último test: por día", "×C"], ["last_test_days", "Último test: durante", "días"],
+            ["relaunch_batches", "Una campaña apagada se prende con estos batches nunca publicados ahí", "batches"],
             ["stock_warn_days", "Avisar poco stock con menos de", "días de ventas"],
             ["stock_waiting_min", "Pedidos esperando stock (últimos 14 días) para avisar y no subir", "pedidos"],
         ],
