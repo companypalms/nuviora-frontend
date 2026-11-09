@@ -29,10 +29,28 @@ export type ItemMark = {
 export type CalendarZone = { key: string; label: string };
 
 /**
- * Un botón de un recordatorio: va a una página ("link"), lo marca como hecho ("mark", como "Están bien" de la tasa) o
- * registra el pago de un gasto fijo de Finanzas ("pay": el gasto recurrente, con la ventana de pago de Finanzas).
+ * Un botón de un recordatorio: va a una página ("link"), lo marca como hecho ("mark", como "Están bien" de la tasa),
+ * registra el pago de un gasto fijo de Finanzas ("pay": el gasto recurrente, con la ventana de pago de Finanzas) o abre la
+ * decisión del ángulo que propuso la IA ("angle": .116).
  */
-export type ItemAction = { label: string; link?: string; mark?: "done"; pay?: number };
+export type ItemAction = { label: string; link?: string; mark?: "done"; pay?: number; angle?: number };
+
+/** .116: el ángulo que propuso la IA y los de la ficha ("note": "Descansa hasta el 23/11", "Perdió en el testeo"). */
+export type AngleProposal = {
+    id: number; product: string; status: string; code: string | null; name: string | null; about: string | null; why: string | null;
+    angles: { code: string; name: string | null; note: string | null }[];
+};
+export type AngleChoice = "accepted" | "other" | "existing";
+export const fetchAngleProposal = (id: number) => api<AngleProposal>(`/meta/angle-proposals/${id}`);
+export const decideAngle = (id: number, body: { choice: AngleChoice; name: string | null; about: string | null; code: string | null }) =>
+    api<{ message: string }>(`/meta/angle-proposals/${id}/decide`, "POST", body);
+/** .116: se decidió un ángulo: la pantalla "Tu día" se vuelve a pedir. */
+const ANGLE_DECIDED = "calendar:angle-decided";
+export const notifyAngleDecided = () => window.dispatchEvent(new Event(ANGLE_DECIDED));
+export const onAngleDecided = (fn: () => void) => {
+    window.addEventListener(ANGLE_DECIDED, fn);
+    return () => window.removeEventListener(ANGLE_DECIDED, fn);
+};
 
 /** El detalle de un pago de la semana: cada vendedora o agencia, su monto y una nota (de qué sale, en qué estado está). */
 export type ItemLine = { label: string; value: string; note: string | null };

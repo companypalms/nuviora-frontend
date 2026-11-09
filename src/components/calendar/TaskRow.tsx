@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { cardSx, inkSx, lineSx, useTokens } from "../ui/design";
 import { TextAction } from "../ui/designParts";
 import { CalendarItem, isAutoDone, isClosed, markLine, payTarget, shortDate, whereOf } from "./calendar";
+import { AngleDecisionDialog } from "./AngleDecisionDialog";
 import { PlanChip, PlanPatch } from "./PlanMenu";
 
 export type RowHandlers = {
@@ -54,6 +55,7 @@ export const ItemDetails: FC<{ item: CalendarItem; busy?: boolean; onDone: (i: C
     const t = useTokens();
     const navigate = useNavigate();
     const [all, setAll] = useState(false);
+    const [angle, setAngle] = useState<number | null>(null);
     const closed = isClosed(item);
     const lines = all ? item.lines : item.lines.slice(0, LINES_VISIBLE);
     const moved = item.date !== item.due_date;
@@ -88,12 +90,13 @@ export const ItemDetails: FC<{ item: CalendarItem; busy?: boolean; onDone: (i: C
                 <Stack direction="row" gap={0.75} flexWrap="wrap" sx={{ mt: 1.25 }}>
                     {actions.map((a) => (
                         <Button key={a.label} variant="outlined" size="small" disabled={busy} sx={{ ...lineSx(t), minHeight: 36, fontSize: 13 }}
-                            onClick={() => (a.pay ? onPay(item, a.pay) : a.mark ? onDone(item) : a.link && navigate(a.link))}>
+                            onClick={() => (a.angle ? setAngle(a.angle) : a.pay ? onPay(item, a.pay) : a.mark ? onDone(item) : a.link && navigate(a.link))}>
                             {a.label}
                         </Button>
                     ))}
                 </Stack>
             )}
+            {angle !== null && <AngleDecisionDialog id={angle} onClose={() => setAngle(null)} />}
         </Box>
     );
 };

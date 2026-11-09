@@ -43,7 +43,7 @@ const milestone = (left: number) => (left <= 0 ? "Se acabó el tiempo." : left <
 export const MissionNow: FC<Props> = ({ item, reason, stage, n, total, busy, picked, onBackToOrder, onDone, onDismiss, onPay, onPlan, timer, offset = 0, usual, onTimer, zoneLabel = "Venezuela" }) => {
     const t = useTokens();
     const [why, setWhy] = useState(false);
-    const links = item.actions.filter((a) => a.link);
+    const links = item.actions.filter((a) => a.link || a.angle);
     const running = !!timer?.started_at;
     const now = useTick(running);
     const clock = timer ? clockOf(timer, now + offset) : null;

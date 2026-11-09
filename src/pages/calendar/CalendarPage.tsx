@@ -44,7 +44,7 @@ import { useCalendarActions } from "../../components/calendar/useCalendarActions
 import { DayStat, WeekStrip } from "../../components/calendar/WeekStrip";
 import {
     CalendarItem, PRIORITIES, PlanStage, Priority, RangeResponse, StageKey, TimerAction, TodayResponse, addDays, cap, emptyNote, fetchRange, fetchToday, isClosed,
-    VENEZUELA, longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, onToday, planKey, resetOrder, saveItemPlan, saveOrder, timerAction, todayCaracas, unmarkItem, weekdayOf,
+    VENEZUELA, longDate, markItem, minutesText, mondayOf, notifyCalendarChanged, onAngleDecided, onToday, planKey, resetOrder, saveItemPlan, saveOrder, timerAction, todayCaracas, unmarkItem, weekdayOf,
 } from "../../components/calendar/calendar";
 import { clockText, hourIn, runningOf } from "../../components/calendar/timer";
 
@@ -152,6 +152,7 @@ export const CalendarPage: React.FC = () => {
     const refresh = useCallback(() => setTick((x) => x + 1), []);
     const changed = useCallback(() => { refresh(); notifyCalendarChanged(); }, [refresh]);
     const { actions: payActions, payDialog } = useCalendarActions(refresh);
+    useEffect(() => onAngleDecided(refresh), [refresh]); // .116: la tarea del ángulo se va al decidir
 
     // Lo de hoy (recién calculado después de un cambio) y, cada minuto mientras está abierta, lo que diga el servidor (lo que
     // tiene hora sube a urgente cuando llega su hora)

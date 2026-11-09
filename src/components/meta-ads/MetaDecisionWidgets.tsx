@@ -236,6 +236,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["corrections_days", "Correcciones del líder después de la entrega", "días"],
             ["new_products_month", "Productos nuevos al mes (pronóstico)", "productos"], ["start_batches", "Batches de inicio de un producto nuevo", "batches"],
             ["batch_life_days", "Un batch bueno dura (si Meta no tiene historia)", "días"],
+            ["angle_rest_batches", "Un ángulo descansa con estos batches perdidos seguidos", "batches"], ["angle_rest_days", "Días que descansa", "días"],
         ],
     },
     {
