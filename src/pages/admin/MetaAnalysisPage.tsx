@@ -30,6 +30,7 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime, fmt } from "../../components/meta-ads/metaAds";
 // .91: los colores y las piezas del diseño nuevo, en un archivo común (las pantallas de los editores también los usan)
 import { appear, cardSx, geist, inkSx, plural, Tokens, useTokens } from "../../components/ui/design";
+import { NewProductCard, NewProductView } from "../../components/meta-ads/NewProductCard";
 import { Dot, Section, TextAction } from "../../components/ui/designParts";
 import { BatchVideos } from "../../components/meta-ads/batchVideos";
 
@@ -45,6 +46,8 @@ type UrgentItem = {
     batches?: string[];
     /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
     money?: { cut: number | null; add: number | null } | null;
+    /** .118: no se puede descartar (no_disagree) o se marca sola (no_done). */
+    no_disagree?: boolean; no_done?: boolean;
 };
 type Mark = { status: "done" | "disagree"; note: string | null; by: string | null; at: string };
 type CityFact = {
@@ -80,7 +83,7 @@ type Analysis = {
 };
 type Sent = { code: string | null; status: string; status_label: string; editor: string | null };
 type Turn = { pick: number; open: string[]; full: boolean };
-type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number };
+type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number; new_product?: NewProductView | null };
 
 /** Los grupos, en el orden en que se hacen, con su porqué. */
 
@@ -207,7 +210,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
     const box = { width: 22, height: 22, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" } as const;
     return (
         <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75 }}>
-            <Checkbox checked={done} indeterminate={disagree} onChange={(e) => onMark(e.target.checked ? "done" : null)} disableRipple sx={{ p: 0, mt: "1px" }}
+            <Checkbox checked={done} indeterminate={disagree} onChange={(e) => onMark(e.target.checked ? "done" : null)} disabled={item.no_done} disableRipple sx={{ p: 0, mt: "1px" }}
                 inputProps={{ "aria-label": `Hecho: ${whereOf(item) ? `${whereOf(item)}, ` : ""}${titleOf(item)}` }}
                 icon={<Box sx={{ ...box, border: `1.5px solid ${t.faint}` }} />}
                 checkedIcon={<Box sx={{ ...box, bgcolor: t.ink, color: t.onInk }}><CheckRounded sx={{ fontSize: 16 }} /></Box>}
@@ -239,7 +242,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                     {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
                     {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
                     <WhyBox item={item}>
-                        <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>
+                        {!item.no_disagree && <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>}
                     </WhyBox>
                 </Collapse>
             </Box>
@@ -273,9 +276,10 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
                 <Collapse in={open} unmountOnExit><WhyBox item={item} /></Collapse>
             </>}
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
-                <Button variant="contained" disableElevation startIcon={<CheckRounded />} sx={{ ...inkSx(t), minHeight: 40 }} onClick={() => onMark("done")}>Hecho</Button>
-                <Button variant="outlined" sx={{ color: t.ink, borderColor: t.line, borderRadius: "10px", minHeight: 40, "&:hover": { borderColor: t.faint, bgcolor: "transparent" } }}
-                    onClick={() => setDialog(true)}>No estoy de acuerdo</Button>
+                {item.no_done ? <Typography sx={{ fontSize: 13, color: t.muted }}>Se marca sola cuando la termines.</Typography>
+                    : <Button variant="contained" disableElevation startIcon={<CheckRounded />} sx={{ ...inkSx(t), minHeight: 40 }} onClick={() => onMark("done")}>Hecho</Button>}
+                {!item.no_disagree && <Button variant="outlined" sx={{ color: t.ink, borderColor: t.line, borderRadius: "10px", minHeight: 40, "&:hover": { borderColor: t.faint, bgcolor: "transparent" } }}
+                    onClick={() => setDialog(true)}>No estoy de acuerdo</Button>}
             </Stack>
             {dialog && <DisagreeDialog item={item} mark={mark} onClose={() => setDialog(false)} onMark={onMark} />}
         </Box>
@@ -547,6 +551,7 @@ export const MetaAnalysisPage: React.FC = () => {
         try {
             const r = await api<{ marks: Record<string, Mark> }>(`/meta/analysis/${a.id}/marks`, "PUT", { key, status, note: note ?? null });
             setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: r.marks } } : d);
+            if (key.startsWith("new_product:")) load(); // .118: la tarjeta de la misión también cambia
         } catch (e) {
             setData((d) => d && d.analysis ? { ...d, analysis: { ...d.analysis, marks: before } } : d);
             toast.error(`No se guardó: ${(e as Error).message}`);
@@ -656,6 +661,8 @@ export const MetaAnalysisPage: React.FC = () => {
                                 </Button>
                             </Box>
                         ) : <>
+                            {/* .118: la misión de lanzar un producto nuevo */}
+                            {data.new_product && (today || missingToday) && <NewProductCard view={data.new_product} onChanged={(v) => setData((d) => d ? { ...d, new_product: v } : d)} />}
                             {/* 2. El marcador, las etapas y la misión de ahora */}
                             {tasks.length === 0 ? (
                                 <Box sx={{ ...cardSx(t), p: "14px 16px", mt: 2, display: "flex", gap: 1.5, alignItems: "center" }}>
