@@ -688,7 +688,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                         <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.75 }}>{daySummary(tasks, marks)}</Typography>
                                         {(cut > 0 || add > 0) && (
                                             <Typography sx={{ fontSize: 14, color: t.muted }}>
-                                                Presupuesto por día: {[cut > 0 && `−${fmt.money(cut)} en lo que pierde`, add > 0 && `+${fmt.money(add)} en lo que gana`].filter(Boolean).join(" y ")}.
+                                                Presupuesto por día: {[cut > 0 && `−${fmt.money(cut)} donde bajaste`, add > 0 && `+${fmt.money(add)} donde subiste`].filter(Boolean).join(" y ")}.
                                             </Typography>
                                         )}
                                         <Typography sx={{ fontSize: 14, color: t.muted }}>

@@ -113,7 +113,7 @@ export const CreativeDecisionBox: React.FC<{ d: CreativeDecision | null | undefi
 // ---------------------------------------------------------------- paso 2b: qué hacer con cada campaña y cada producto
 
 export type CampaignAction = {
-    key: "no_target" | "wait" | "none" | "scale" | "hold" | "hold_prune" | "intervene" | "decrease" | "pause_city" | "relaunch" | "left_city";
+    key: "no_target" | "wait" | "none" | "scale" | "hold" | "hold_prune" | "intervene" | "decrease" | "step_down" | "pause_city" | "relaunch" | "left_city";
     label: string; tone: "default" | "info" | "success" | "warning" | "error";
     data: string; reading: string; proposal: string | null; from: number | null; to: number | null; campaign?: string;
 };
@@ -139,7 +139,7 @@ export const ActionChip: React.FC<{ a?: CampaignAction | null; extra?: (string |
                 {more.map((t, i) => <Typography key={i} variant="caption" component="div" sx={{ mt: 0.5 }}>• {t}</Typography>)}
             </Box>
         }>
-            <Chip size="small" color={a.tone} variant={["scale", "decrease", "pause_city", "drop"].includes(a.key) ? "filled" : "outlined"}
+            <Chip size="small" color={a.tone} variant={["scale", "decrease", "step_down", "pause_city", "drop"].includes(a.key) ? "filled" : "outlined"}
                 label={a.label} sx={{ mt: 0.5, mr: 0.5, maxWidth: "100%" }} />
         </Tooltip>
     );
@@ -186,8 +186,8 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Embudo y saturación", help: "Con la frecuencia de los 3 días cerrados.", fields: [
-            ["funnel_middle_from", "Medio del embudo desde"], ["funnel_bottom_above", "Abajo del embudo: más de"], ["saturation_from", "Campaña saturada desde"],
+        title: "Embudo y frecuencia", help: "Con la frecuencia de los 3 días cerrados. La frecuencia alta es solo un aviso: no frena la subida del presupuesto.", fields: [
+            ["funnel_middle_from", "Medio del embudo desde"], ["funnel_bottom_above", "Abajo del embudo: más de"], ["saturation_from", "Avisar frecuencia alta desde"],
         ],
     },
     {
@@ -208,13 +208,15 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Después de un cambio grande (subir o bajar el presupuesto, un batch nuevo o volver a prenderla), ningún otro en esa campaña hasta que pasen las horas de abajo; apagar los que pierden sí. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí.", fields: [
+        title: "Escalar, bajar y pausar", help: "Qué hacer con cada campaña, con los 3 días cerrados. Después de un cambio grande (subir o bajar el presupuesto, un batch nuevo o volver a prenderla), ningún otro en esa campaña hasta que pasen las horas de abajo; apagar los que pierden sí. La subida depende de qué tan debajo de C está el CPA de 3 días, y nunca pasa del 20 % en 24 horas. El poco stock solo avisa; con pedidos esperando stock en la ciudad, no se sube ahí. Entre C y el BE va un cambio a la vez: primero un batch nuevo; si pasados los días cerrados de abajo no volvió a C, se devuelve la última subida; después otro batch, y así.", fields: [
             ["change_wait_hours", "Después de un cambio grande, esperar", "horas"],
             ["scale_min_purchases", "Escalar con al menos", "compras en 3 días"],
             ["scale_small_pct", "Subir si el CPA está apenas debajo de C", "%"],
             ["scale_mid_below_pct", "Subida media si está debajo de C desde", "%"], ["scale_mid_pct", "Subida media", "%"],
             ["scale_big_below_pct", "Subida grande si está debajo de C desde", "%"], ["scale_big_pct", "Subida grande (tope 20 %)", "%"],
-            ["decrease_pct", "Bajar", "%"],
+            ["band_wait_days", "Entre C y BE: después de un batch o de devolver una subida, esperar", "días cerrados"],
+            ["band_undo_days", "Entre C y BE: se devuelve una subida de los últimos", "días"],
+            ["decrease_pct", "En el BE o encima: bajar", "%"],
             ["decrease_after_days", "Bajar si sigue en el BE después de intervenir", "días"], ["pause_after_days", "Pausar la ciudad a los", "días"],
             ["relaunch_batches", "Una campaña apagada se prende con estos batches nunca publicados ahí", "batches"],
             ["stock_warn_days", "Avisar poco stock con menos de", "días de ventas"],
