@@ -179,6 +179,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["no_data_cpa", "Sin datos: gastó menos de", "×C"], ["loser_spend_cpa", "Perdedor: gastó, con 0 o 1 compra", "×C"],
             ["evaluation_cap_cpa", "Con 2+ compras en el break-even: tope de evaluación (y gasto con el que se apaga un ganador que pierde)", "×C"],
             ["loser_be_margin_pct", "Perdedor por el break-even: CPA encima por lo menos", "%"], ["loser_be_margin_purchases", "…y sin margen desde", "compras"],
+            ["be_estimate_mult", "Campaña sin break-even: se estima en", "×C"],
             ["promising_purchases", "Prometedor: compras con CPA ≤ C", "compras"], ["proven_purchases", "PROVEN: compras con CPA ≤ C", "compras"],
             ["new_ad_hours", "Un anuncio nuevo no se apaga antes de", "horas"],
         ],
