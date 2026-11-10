@@ -702,6 +702,9 @@ export const MetaAnalysisPage: React.FC = () => {
                                         </span>
                                     </Tooltip>
                                 )}
+                                {/* .134: cada cambio que hiciste en Meta y si se cumplió su hipótesis */}
+                                {" · "}
+                                <Link component={RouterLink} to="/meta-ads/cambios" sx={{ color: t.ink, textUnderlineOffset: 3 }}>Historial de cambios</Link>
                             </Typography>
                         </Stack>
 

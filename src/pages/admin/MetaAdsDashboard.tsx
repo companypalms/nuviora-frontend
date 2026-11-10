@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert, Box, Button, Chip, Collapse, IconButton, Paper, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography,
 } from "@mui/material";
-import { ExpandLessRounded, ExpandMoreRounded, InsightsRounded, SettingsRounded } from "@mui/icons-material";
+import { ExpandLessRounded, ExpandMoreRounded, HistoryRounded, InsightsRounded, SettingsRounded } from "@mui/icons-material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
@@ -199,8 +199,10 @@ export const MetaAdsDashboard: React.FC = () => {
                         {filters.compare && ` · contra ${shortDay(overview.range.prev_from)} – ${shortDay(overview.range.prev_to)}`}
                         {" · "}Última sincronización: {dateTime(overview.last_sync_at)}
                     </Typography>
-                    <Stack direction="row" spacing={1}>
+                    <Stack direction="row" gap={1} flexWrap="wrap" useFlexGap>
                         <Button size="small" variant="contained" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>
+                        {/* .134: el historial de cambios, junto a las demás pantallas de Meta (también está en el menú) */}
+                        <Button size="small" variant="outlined" startIcon={<HistoryRounded />} component={RouterLink} to="/meta-ads/cambios">Historial de cambios</Button>
                         <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/cola">Cola y banca</Button>
                         <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/landings">Landings</Button>
                         <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads">Configuración</Button>
