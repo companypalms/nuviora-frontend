@@ -12,11 +12,14 @@ export type Priority = "alta" | "normal" | "baja";
 export type StageKey = "urgent" | Priority | "later";
 /** missed: su día pasó sin hacerse, pero no se acumula (las tareas de todos los días). */
 export type ItemStatus = "pending" | "done" | "dismissed" | "overdue" | "missed";
-export type Repeat = "none" | "weekly" | "monthly" | "twice_monthly";
+/** .129: también todos los días (de lunes a sábado), algunos días de la semana y cada cierto número de días. */
+export type Repeat = "none" | "daily" | "weekly" | "every_days" | "monthly" | "twice_monthly";
 export type NoteKind = "task" | "payment";
 
 export type NoteFields = {
     title: string; details: string | null; date: string; time: string | null; kind: NoteKind; repeat: Repeat; repeat_until: string | null;
+    /** .129: los días marcados (1 = lunes … 7 = domingo; null = el de la fecha) y cada cuántas semanas o días. */
+    repeat_days?: number[] | null; repeat_every?: number | null;
 };
 
 /** source "auto": se tildó sola (el sistema vio que ya está hecho; "note" dice por qué). */
@@ -240,17 +243,40 @@ export const TYPE_META: Record<ItemType, { label: string; color: "success" | "in
     review: { label: "Revisión", color: "secondary" },
 };
 
-/** Las opciones de "Se repite", con el día de la fecha elegida: "Cada semana (los jueves)", "Cada mes (el día 5)". */
+/** Las opciones de "Se repite", con el día de la fecha elegida: "Cada mes (el día 5)". */
 export const repeatChoices = (date: string): { value: Repeat; label: string }[] => {
-    const wd = date ? WEEKDAYS[weekdayOf(date) - 1] : "";
-    const plural = wd === "sábado" || wd === "domingo" ? `${wd}s` : wd;
     const dayNum = date ? Number(date.slice(8, 10)) : 0;
     return [
         { value: "none", label: "Solo ese día" },
-        { value: "weekly", label: date ? `Cada semana (los ${plural})` : "Cada semana" },
+        { value: "daily", label: "Todos los días (de lunes a sábado)" },
+        { value: "weekly", label: "Algunos días de la semana" },
+        { value: "every_days", label: "Cada cierto número de días" },
         { value: "monthly", label: date ? (dayNum >= 31 ? "Cada mes (el último día)" : `Cada mes (el día ${dayNum})`) : "Cada mes" },
         { value: "twice_monthly", label: "El 15 y el último de cada mes" },
     ];
+};
+
+/** .129: los días marcados de una nota semanal (la de antes, sin días, es la de su fecha). */
+export const repeatDaysOf = (f: NoteFields): number[] => f.repeat_days ?? (f.date ? [weekdayOf(f.date)] : []);
+
+/** .129: lo que eligió, en una frase: "Se repite cada semana, los martes y jueves, desde el 10/11 hasta el 30/11." */
+export const repeatSentence = (f: NoteFields): string | null => {
+    if (f.repeat === "none" || !f.date) return null;
+    const dm = (ymd: string) => `${Number(ymd.slice(8, 10))}/${Number(ymd.slice(5, 7))}`;
+    const plural = (w: string) => (w === "sábado" || w === "domingo" ? `${w}s` : w);
+    const names = [...repeatDaysOf(f)].sort((a, b) => a - b).map((d) => plural(WEEKDAYS[d - 1]));
+    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}` : names[0];
+    const every = f.repeat_every ?? 1;
+    const dayNum = Number(f.date.slice(8, 10));
+    const what: Record<Exclude<Repeat, "none">, string | null> = {
+        daily: "todos los días, de lunes a sábado",
+        weekly: list ? `${every > 1 ? `cada ${every} semanas` : "cada semana"}, los ${list}` : null,
+        every_days: every >= 2 && every <= 60 ? `cada ${every} días` : null,
+        monthly: dayNum >= 31 ? "cada mes, el último día" : `cada mes, el día ${dayNum}`,
+        twice_monthly: "el 15 y el último de cada mes",
+    };
+    const text = what[f.repeat];
+    return text ? `Se repite ${text}, desde el ${dm(f.date)}${f.repeat_until ? ` hasta el ${dm(f.repeat_until)}` : ", sin fecha de fin"}.` : null;
 };
 
 export const isClosed = (i: CalendarItem) => i.status === "done" || i.status === "dismissed";
@@ -274,7 +300,8 @@ export const whereOf = (i: CalendarItem) =>
         : i.source !== "system" ? (i.source === "assistant" ? "Nota de tu asistente" : "Tu nota") : i.type === "review" ? "Revisión de números" : "Tarea fija";
 
 /** Una nota nueva en esa fecha: una tarea de ese día. */
-export const emptyNote = (date: string): NoteFields => ({ title: "", details: null, date, time: null, kind: "task", repeat: "none", repeat_until: null });
+export const emptyNote = (date: string): NoteFields => ({ title: "", details: null, date, time: null, kind: "task", repeat: "none", repeat_until: null,
+    repeat_days: null, repeat_every: null });
 /** .107: lo que se elige al anotar, además de la nota: prioridad normal y 15 minutos. */
 export const NOTE_PLAN = { priority: "normal" as Priority, minutes: 15 };
 

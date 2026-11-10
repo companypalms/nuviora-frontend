@@ -3,7 +3,7 @@
 // y cuántos minutos toma. Se guarda para todos los días: en los recordatorios fijos, para todos sus días; en una nota, para
 // todas sus fechas. El orden del día cambia solo (DayPlan, en el backend).
 import React, { FC, useState } from "react";
-import { Box, ButtonBase, Popover, Stack, Typography } from "@mui/material";
+import { Box, ButtonBase, Popover, Stack, SxProps, Theme, Typography } from "@mui/material";
 import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
 import { geist, useTokens } from "../ui/design";
 import { CalendarItem, MINUTE_CHOICES, PRIORITIES, Priority, minutesText } from "./calendar";
@@ -11,14 +11,14 @@ import { CalendarItem, MINUTE_CHOICES, PRIORITIES, Priority, minutesText } from 
 export type PlanPatch = { priority?: Priority; minutes?: number };
 
 /** Los botones de elegir uno (prioridad o minutos): el elegido en tinta. */
-export const ChoiceButton: FC<{ on: boolean; onClick: () => void; children: React.ReactNode; label?: string }> = ({ on, onClick, children, label }) => {
+export const ChoiceButton: FC<{ on: boolean; onClick: () => void; children: React.ReactNode; label?: string; sx?: SxProps<Theme> }> = ({ on, onClick, children, label, sx }) => {
     const t = useTokens();
     return (
         <ButtonBase onClick={onClick} aria-pressed={on} aria-label={label}
-            sx={{ minHeight: 40, minWidth: 48, px: 1.5, borderRadius: "8px", fontSize: 14, fontWeight: on ? 600 : 500,
+            sx={[{ minHeight: 40, minWidth: 48, px: 1.5, borderRadius: "8px", fontSize: 14, fontWeight: on ? 600 : 500,
                 border: `1px solid ${on ? t.ink : t.line}`, bgcolor: on ? t.ink : "transparent", color: on ? t.onInk : t.ink,
                 transition: "background-color 150ms, border-color 150ms", "&:hover": { borderColor: t.ink },
-                "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+                "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }, ...(Array.isArray(sx) ? sx : [sx])]}>
             {children}
         </ButtonBase>
     );
