@@ -50,6 +50,8 @@ type UrgentItem = {
     money?: { cut: number | null; add: number | null } | null;
     /** .118: no se puede descartar (no_disagree) o se marca sola (no_done). */
     no_disagree?: boolean; no_done?: boolean;
+    /** .132: lo que pasó la última vez que se hizo lo mismo en esa ciudad (el historial de cambios) y el "ojo" si falló 3 veces seguidas. */
+    last?: { text: string; result: "met" | "not_met"; warn: string | null; kind: string; city: string | null; product_id: number } | null;
 };
 type Mark = { status: "done" | "disagree"; note: string | null; by: string | null; at: string };
 type CityFact = {
@@ -126,7 +128,13 @@ const KIND_GROUP: Record<string, Group> = {
     drop: "frenar", pause_city: "frenar", not_sold: "frenar", stop_creatives: "frenar", decrease: "frenar",
     intervene: "arreglar", last_test: "arreglar", tracking: "arreglar", hold_prune: "arreglar", few_batches: "arreglar",
     late_urgent: "arreglar", late_batch: "arreglar", launch_ready: "arreglar",
-    scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso", cooldown: "aviso",
+    scale: "crecer", launch_test: "crecer", stock_out: "aviso", alarm: "aviso", price: "aviso", cooldown: "aviso", lesson: "aviso",
+};
+/** .132: el historial de cambios, ya filtrado en ese tipo de cambio y esa ciudad. */
+const historyLink = (l: NonNullable<UrgentItem["last"]>) => {
+    const q = new URLSearchParams({ kind: l.kind, product_id: String(l.product_id) });
+    if (l.city) q.set("city", l.city);
+    return `/meta-ads/cambios?${q}`;
 };
 /** .126: "dejó unos $1.050,00" o "perdió unos $50,00" (ganancia estimada: compras de Meta × tu BE − gasto). */
 const leftText = (gain: number) => `${gain >= 0 ? "dejó" : "perdió"} unos ${fmt.money(Math.abs(gain))}`;
@@ -229,6 +237,21 @@ const WhyBox: React.FC<{ item: UrgentItem; children?: React.ReactNode }> = ({ it
     );
 };
 
+/** .132: lo que pasó la última vez que se hizo lo mismo ahí, con su color (verde se cumplió, rojo no) y el enlace al historial. */
+const LastTime: React.FC<{ last: NonNullable<UrgentItem["last"]> }> = ({ last }) => {
+    const t = useTokens();
+    return (
+        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", mt: 1.25, p: "8px 10px", borderRadius: "8px", border: `1px solid ${t.line}` }}>
+            <Box sx={{ mt: "5px", display: "flex" }}><Dot color={last.result === "met" ? t.green : t.red} size={8} /></Box>
+            <Typography component="div" sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere", lineHeight: 1.5 }}>
+                {last.warn && <Box component="span" sx={{ display: "block", fontWeight: 600, color: t.red }}>{last.warn}</Box>}
+                {last.text}{" "}
+                <Link component={RouterLink} to={historyLink(last)} sx={{ color: t.muted, textUnderlineOffset: 3, whiteSpace: "nowrap" }}>Ver el historial</Link>
+            </Typography>
+        </Box>
+    );
+};
+
 /** Una misión de la lista: la casilla (se puede hacer en cualquier orden), qué y dónde; los pasos y el porqué, plegados. */
 const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
     const t = useTokens();
@@ -271,6 +294,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                     {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
                     {item.copy ? <CopyParams copy={item.copy} /> : null}
                     {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
+                    {item.last ? <LastTime last={item.last} /> : null}
                     <WhyBox item={item}>
                         {!item.no_disagree && <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>}
                     </WhyBox>
@@ -298,6 +322,7 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
             {item.steps?.length ? <Steps steps={item.steps} /> : null}
             {item.copy ? <CopyParams copy={item.copy} /> : null}
             {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
+            {item.last ? <LastTime last={item.last} /> : null}
             {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
             {!oldRule(item) && <>
                 <Typography component="div" sx={{ fontSize: 13, color: t.muted, mt: 1.25, overflowWrap: "anywhere" }}>
@@ -791,6 +816,9 @@ export const MetaAnalysisPage: React.FC = () => {
                                                 <b style={{ fontWeight: 600 }}>{i.where ?? i.product}</b> · {i.title ?? i.text}
                                                 {/* .101: los pedidos esperando stock dicen también lo gastado desde entonces; .111: la espera, qué cambió y cuándo */}
                                                 {(i.kind === "stock_waiting" || i.kind === "cooldown") && i.why && <Box component="span" sx={{ color: t.muted }}> · {i.why}</Box>}
+                                                {/* .132: el mismo cambio no se cumplió 3 veces seguidas: el porqué y el historial */}
+                                                {i.kind === "lesson" && i.last && <Box component="span" sx={{ color: t.muted }}> · {i.why} · <Link component={RouterLink} to={historyLink(i.last)}
+                                                    sx={{ color: t.muted, textUnderlineOffset: 3 }}>Ver el historial</Link></Box>}
                                             </Typography>
                                         ))}
                                     </Box>

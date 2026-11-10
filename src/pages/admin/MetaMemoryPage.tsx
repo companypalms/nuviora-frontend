@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { AddRounded, AutoAwesomeRounded, DeleteOutlineRounded, EditRounded } from "@mui/icons-material";
-import { useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { Loading } from "../../components/ui/content/Loading";
@@ -23,7 +23,7 @@ type Page = {
     products: { id: number; name: string; tested: number }[]; product_id: number | null; kinds: Record<string, string>; styles: Record<string, string>;
     summary?: { works: string[]; fails: string[]; untested: string[] } | null; status?: string | null; model?: string | null; error?: string | null;
     unknown_numbers?: string[]; generated_at?: string | null; stale?: boolean; tested?: number; totals?: { won: number; lost: number; tie: number };
-    groups?: Record<"angle" | "persona" | "style", Group[]>; piece_groups?: Group[]; untested?: { angle: string[]; persona: string[]; style: string[] }; batches?: TestedBatch[]; notes?: Note[];
+    groups?: Record<"angle" | "persona" | "style", Group[]>; piece_groups?: Group[]; changes?: string[]; untested?: { angle: string[]; persona: string[]; style: string[] }; batches?: TestedBatch[]; notes?: Note[];
 };
 
 const card = { borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 } as const;
@@ -210,6 +210,19 @@ export const MetaMemoryPage: React.FC = () => {
                         {(data.piece_groups?.length ?? 0) > 0 && (
                             <GroupRows title="Pieza por pieza" rows={data.piece_groups ?? []} unit={["pieza", "piezas"]}
                                 help="Qué probó cada pieza de los encargos y cómo le fue al terminar su test." />
+                        )}
+                        {/* .132: los cambios en Meta de este producto y si se cumplió su hipótesis (la IA también lo lee) */}
+                        {(data.changes?.length ?? 0) > 0 && (
+                            <Paper elevation={0} sx={card}>
+                                <Typography variant="subtitle1" fontWeight="bold">Cambios en Meta</Typography>
+                                <Typography variant="caption" color="text.secondary" component="div">
+                                    Cuántas veces se cumplió la hipótesis de cada cambio que hiciste en este producto. La IA lo lee cada mañana y en los encargos.
+                                </Typography>
+                                <Box component="ul" sx={{ m: 0, mt: 0.75, pl: 2.25 }}>
+                                    {data.changes!.map((c) => <Typography key={c} component="li" variant="body2" sx={{ overflowWrap: "anywhere", mb: 0.5 }}>{c}</Typography>)}
+                                </Box>
+                                <Button size="small" component={RouterLink} to={`/meta-ads/cambios?product_id=${data.product_id}`} sx={{ mt: 0.5 }}>Ver el historial de cambios</Button>
+                            </Paper>
                         )}
                         <Paper elevation={0} sx={card}>
                             <Typography variant="subtitle1" fontWeight="bold">Tus notas</Typography>

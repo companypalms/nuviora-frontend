@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, ButtonBase, CircularProgress, MenuItem, Skeleton, Stack, TextField, Typography } from "@mui/material";
 import { ReportProblemRounded } from "@mui/icons-material";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
@@ -182,11 +183,13 @@ const PageSkeleton: React.FC = () => (
 export const MetaChangesPage: React.FC = () => {
     const t = useTokens();
     const { loadingSession, isValid } = useValidateSession();
+    // .132: desde una misión del análisis llega ya filtrado ("Ver el historial": ese tipo de cambio, ese producto y esa ciudad)
+    const [params] = useSearchParams();
     const [data, setData] = useState<Data | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [productId, setProductId] = useState<number | "">("");
-    const [city, setCity] = useState("");
-    const [kind, setKind] = useState("");
+    const [productId, setProductId] = useState<number | "">(params.get("product_id") ? Number(params.get("product_id")) : "");
+    const [city, setCity] = useState(params.get("city") ?? "");
+    const [kind, setKind] = useState(params.get("kind") ?? "");
     const [result, setResult] = useState<Result | "">("");
     const [refreshing, setRefreshing] = useState(false);
     const [slow, setSlow] = useState(false);
