@@ -39,6 +39,7 @@ import { BusinessReportsPage } from './pages/admin/BusinessReportsPage';
 import { MetaQueuePage } from './pages/admin/MetaQueuePage';
 import { MetaLandingsPage } from './pages/admin/MetaLandingsPage';
 import { MetaMemoryPage } from './pages/admin/MetaMemoryPage';
+import { MetaChangesPage } from './pages/admin/MetaChangesPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { BankPage } from './pages/editor/BankPage';
 import { ProductStatesPage } from './pages/admin/ProductStatesPage';
@@ -175,6 +176,8 @@ function App() {
           <Route path="/meta-ads/productos" element={<RequireRole allowedRoles={['Admin']}><ProductStatesPage /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
           <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
+          {/* .131: cada cambio en Meta con su hipótesis y si se cumplió */}
+          <Route path="/meta-ads/cambios" element={<RequireRole allowedRoles={['Admin']}><MetaChangesPage /></RequireRole>} />
           <Route path="/editor" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorPage /></RequireRole>} />
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           {/* .99: la banca del líder (en su menú) */}

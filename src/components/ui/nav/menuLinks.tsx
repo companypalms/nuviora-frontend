@@ -99,6 +99,8 @@ export const MENU_LINKS: NavLink[] = [
     // Reportes
     { section: "reportes", text: "Meta Ads", icon: <InsightsRounded />, link: "/meta-ads", roles: ["Admin"], keywords: "facebook anuncios campañas publicidad cpa ctr cpm creativos" },
     { section: "reportes", text: "Análisis de campañas", icon: <InsightsRounded />, link: "/meta-ads/analisis", roles: ["Admin"], keywords: "meta ads analisis del dia urgente escalar bajar pausar editores ia" },
+    // .131: cada cambio en Meta con su hipótesis y si se cumplió
+    { section: "reportes", text: "Historial de cambios", icon: <HistoryRounded />, link: "/meta-ads/cambios", roles: ["Admin"], keywords: "meta ads cambios hipotesis se cumplio subir bajar presupuesto pausar apagar anuncios batch gasto minimo aprender" },
     { section: "reportes", text: "Cola y banca de creativos", icon: <InsightsRounded />, link: "/meta-ads/cola", roles: ["Admin"], keywords: "meta ads cola produccion banca batches encargos editores creativos numeros" },
     // .99: pausar, liquidar, abandonar o reactivar un producto (también se le pide al asistente)
     { section: "reportes", text: "Pausar o activar productos", icon: <PauseCircleRounded />, link: "/meta-ads/productos", roles: ["Admin"], keywords: "pausa pausar sin stock agotado proveedor liquidacion abandonar reactivar activar modo producto encargos editores" },
