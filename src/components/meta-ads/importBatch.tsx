@@ -23,7 +23,7 @@ type Options = { products: ReferenceProduct[]; editors: EditorOption[]; me: numb
 type Changes = "" | "hook" | "format" | "mixed";
 const CHANGES: { key: Exclude<Changes, "">; label: string }[] = [{ key: "hook", label: "El hook" }, { key: "format", label: "El formato" }, { key: "mixed", label: "Varias cosas" }];
 type Loaded = { id: number; code: string; status: string; meta_names: { adset: string | null; ads: string[] }; pieces: { id: number; code: string }[] };
-type Item = { key: string; file: File; hook: string; progress: number | null; stored: StoredFile | null; error: string | null };
+type Item = { key: string; file: File; progress: number | null; stored: StoredFile | null; error: string | null };
 
 const MAX = 10;
 /** Por nombre, con los números en orden (2 antes que 10), como se ven en la carpeta. */
@@ -75,7 +75,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
         Array.from(files).forEach((f, i) => {
             const problem = fileProblem("piece", f);
             if (problem) bad.push(`${f.name}: ${problem}`);
-            else fresh.push({ key: `${f.name}-${f.size}-${Date.now()}-${i}`, file: f, hook: "", progress: null, stored: null, error: null });
+            else fresh.push({ key: `${f.name}-${f.size}-${Date.now()}-${i}`, file: f, progress: null, stored: null, error: null });
         });
         setItems((list) => [...list, ...fresh].sort(byName).slice(0, MAX));
         setError(bad.length ? bad[0] : items.length + fresh.length > MAX ? `Un batch lleva hasta ${MAX} videos: quedaron los primeros ${MAX}.` : null);
@@ -98,7 +98,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
             }
         }
         const r = await api<{ batch: Loaded }>(`/editor/imports/${b.id}/finish`, "POST", {
-            pieces: list.map((it, i) => ({ id: b.pieces[i].id, file_id: ids[i], hook: it.hook.trim() || null })),
+            pieces: list.map((it, i) => ({ id: b.pieces[i].id, file_id: ids[i] })),
         });
         setDone(r.batch);
         onDone(r.batch.code);
@@ -251,8 +251,7 @@ export const ImportBatchDialog: React.FC<{ open: boolean; onClose: () => void; o
                                                     )}
                                             </Stack>
                                             {it.progress !== null && <LinearProgress variant="determinate" value={it.progress} sx={{ mt: 0.5, height: 4, borderRadius: 2, "& .MuiLinearProgress-bar": { bgcolor: t.ink } }} />}
-                                            <TextField size="small" placeholder="Hook (opcional): lo primero que se dice o se lee" value={it.hook} disabled={busy}
-                                                onChange={(e) => setItem(it.key, { hook: e.target.value })} fullWidth sx={{ mt: 0.75 }} inputProps={{ maxLength: 300, "aria-label": `Hook de ${it.file.name}` }} />
+                                            {/* .133 (dueño: "no quiero que le pida a nadie escribir el hook del video"): sin el campo del hook */}
                                             {it.error && <Typography role="alert" sx={{ fontSize: 12, color: t.red, mt: 0.5 }}>{it.error}</Typography>}
                                         </Box>
                                     ))}

@@ -8,7 +8,9 @@ export type Delivery = {
     id: number; version: string; editor: string | null; delivered_at: string | null; concept: string | null; angle: string | null; notes: string | null;
     // .90: el archivo en el sistema (las entregas viejas, el enlace de Drive)
     pieces: {
-        piece_id: number; code: string | null; link: string | null; file_id?: number | null; file?: StoredFile | null; hook: string;
+        piece_id: number; code: string | null; link: string | null; file_id?: number | null; file?: StoredFile | null; hook?: string | null;
+        /** .133: el formato que eligió el editor al entregar (ya no escribe el hook). */
+        style?: string | null; style_label?: string | null;
         /** .92: de dónde salió (una referencia, idea propia o la iteración de un ganador). */
         source?: ReferenceSource | null; reference?: ReferenceBrief | null; source_label?: string | null;
     }[];
@@ -32,6 +34,15 @@ export type EditorGameData = {
     team: { streak: number; on_time: { ok: number; total: number }; winners: number } | null;
 };
 
+/**
+ * .133 (dueño, 2026-11-10: "debe elegir el concepto o formato… si es un testimonio, venta directa, UGC, animación con IA"):
+ * los formatos para elegir al entregar cada pieza (el servidor manda los suyos; estos son por si no llegan).
+ */
+export const DELIVERY_STYLES: Record<string, string> = {
+    imagen: "Imagen", ugc: "UGC", testimonio: "Testimonio", entrevista: "Entrevista", animado: "Animación con IA", demostracion: "Demostración",
+    antes_despues: "Antes y después", problema_solucion: "Problema–solución", venta_directa: "Venta directa", otro: "Otro",
+};
+
 /** .99: qué hay que hacer en el encargo, en una frase (BatchTask del servidor): "3 iteraciones del hook de C0146". */
 /** .128: en una variación, hypothesis y detail (cómo hacerlo) son textos fijos: ni la IA ni el sistema dictan qué decir. */
 export type BatchTask = { title: string; detail: string | null; hypothesis?: string | null };
@@ -39,7 +50,7 @@ export type BatchTask = { title: string; detail: string | null; hypothesis?: str
 /** .91: los encargos como los ve el editor (EditorWork::present), para "Mis encargos" y "El equipo". */
 export type EditorStatus = "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: test_label y hypothesis = qué prueba la pieza y su hipótesis. .90: file = su archivo en el sistema. */
-export type EditorPiece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null;
+export type EditorPiece = { id: number; code: string | null; change: string | null; format: string | null; link: string | null; hook: string | null; style?: string | null;
     test_label?: string | null; style_label?: string | null; hypothesis?: string | null; file?: StoredFile | null;
     source?: ReferenceSource | null; reference_id?: number | null };
 export type EditorBatch = EditorFields & {

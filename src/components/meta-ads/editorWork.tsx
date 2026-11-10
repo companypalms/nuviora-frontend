@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import {
-    BatchTask, Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceOption, referenceSide,
+    BatchTask, DELIVERY_STYLES, Delivery, EditorOption, Iteration, REVIEW_REASONS, ReferenceLibraryData, ReferenceSource, ReviewContext, clock, driveFileId, referenceOption, referenceSide,
 } from "./editorShared";
 import { UploadReferenceDialog } from "./references";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
@@ -30,7 +30,7 @@ import { ReviewBrief } from "./briefView";
 import { geist, inkSx, lineSx, tapSx, useTokens } from "../ui/design";
 import { Dot, TextAction } from "../ui/designParts";
 
-type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null;
+type DeliverPiece = { id?: number; code?: string | null; change: string | null; format: string | null; link?: string | null; file?: StoredFile | null; hook?: string | null; style?: string | null;
     source?: ReferenceSource | null; reference_id?: number | null };
 
 const linkProblem = (url: string) => (url.includes("/folders/")
@@ -208,7 +208,7 @@ export const DeliveriesList: React.FC<{ deliveries: Delivery[]; defaultOpen?: bo
                                         {!p.file && p.link && (
                                             <>{" "}<Link href={p.link} target="_blank" rel="noopener noreferrer" underline="hover">abrir en Drive <OpenInNewRounded sx={{ fontSize: 12, verticalAlign: "middle" }} /></Link></>
                                         )}
-                                        {p.hook && <> · hook: {p.hook}</>}
+                                        {p.style_label ? <> · {p.style_label}</> : p.hook ? <> · hook: {p.hook}</> : null}
                                         {(p.reference || p.source_label) && <> · salió de {p.reference ? p.reference.code : p.source_label?.toLowerCase()}</>}
                                     </Typography>
                                     {p.file && <FileView file={p.file} />}
@@ -386,7 +386,7 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, context, detail, 
                         left={referenceSide(p.source, p.reference, context?.iteration)}
                         right={{
                             label: `Lo entregado · ${p.code ?? "la pieza"}`, file: p.file,
-                            lines: [p.hook ? `Hook: ${p.hook}` : ""].filter(Boolean),
+                            lines: [p.style_label ? `Formato: ${p.style_label}` : p.hook ? `Hook: ${p.hook}` : ""].filter(Boolean),
                             empty: !p.file && p.link ? "Entrega de antes: está en Drive." : "Esta pieza no tiene archivo.",
                             link: !p.file && p.link ? { href: p.link, label: "abrir en Drive" } : null,
                         }} />
@@ -445,18 +445,21 @@ export const ReviewDialog = <B,>({ open, title, delivery, url, context, detail, 
     );
 };
 
-type FormPiece = { id: number; code: string | null; change: string | null; link: string; hook: string; file: StoredFile | null; progress: number | null; error: string | null;
+type FormPiece = { id: number; code: string | null; change: string | null; link: string; style: string; file: StoredFile | null; progress: number | null; error: string | null;
     /** .92: de dónde salió ("" = falta elegir) y la referencia. */
     source: ReferenceSource | ""; ref: number | null };
 
 /**
- * Entregar: el archivo (`.90`, subido al sistema; sin almacén, el enlace de Drive) y el hook de cada pieza, y la ficha
+ * Entregar: el archivo (`.90`, subido al sistema; sin almacén, el enlace de Drive) y el formato de cada pieza (`.133`: ya no
+ * se escribe el hook), y la ficha
  * (concepto y ángulo, ya llenos). En una corrección cada pieza parte con su archivo de antes: se vuelve a subir solo la que
  * cambió. `.91`: "2 de 3 listas", una zona grande para tocar o soltar cada archivo, qué pasa al entregar ("own": lo del
  * líder pasa directo a la banca), te lleva a lo que falta y avisa antes de cerrar mientras sube algo.
  */
-export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, iteration, suggestedRef, onClose, onDone }: {
+export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept, url, uploads, own, batchId, productId, angleCode, iterationOf, iteration, suggestedRef, styles, onClose, onDone }: {
     open: boolean; code: string; product?: string; pieces: DeliverPiece[]; angle: string; concept: string; url: string; uploads: boolean; own?: boolean; batchId: number;
+    /** .133: los formatos para elegir en cada pieza (testimonio, UGC, venta directa…). */
+    styles?: Record<string, string>;
     /** .92: para ofrecer primero las referencias de este producto y ángulo; "iterationOf": el ganador de una iteración. */
     productId?: number; angleCode?: string | null; iterationOf?: string | null;
     /** .93: el ganador que se itera, para compararse antes de entregar. */
@@ -467,9 +470,12 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
 }) => {
     const t = useTokens();
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
+    const formats = styles && Object.keys(styles).length ? styles : DELIVERY_STYLES;
     const fresh = () => ({
         concept, angle, notes: "",
-        pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", hook: p.hook ?? "", file: p.file ?? null,
+        pieces: pieces.map((p): FormPiece => ({ id: p.id as number, code: p.code ?? null, change: p.change, link: p.link ?? "", file: p.file ?? null,
+            // .133: el formato que ya tiene la pieza (el que se pidió o el de la entrega anterior), si es de la lista
+            style: p.style && formats[p.style] ? p.style : "",
             // .98: en el encargo de iterar un ganador, todas las piezas salen de ese ganador (fijo, lo marca el sistema)
             progress: null, error: null, source: iterationOf ? "iteration" : p.source ?? (suggestedRef ? "reference" : ""),
             ref: iterationOf ? null : p.reference_id ?? (!p.source ? suggestedRef ?? null : null) })),
@@ -501,11 +507,11 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
     const linkError = (link: string) => (link.trim() === "" ? "Falta el enlace." : driveFileId(link) ? null : linkProblem(link));
     const hasFile = (p: FormPiece) => (uploads ? !!p.file && p.progress === null : !linkError(p.link));
     const sourced = (p: FormPiece) => !!p.source && (p.source !== "reference" || !!p.ref);
-    const ready = (p: FormPiece) => hasFile(p) && p.hook.trim() !== "" && sourced(p);
+    const ready = (p: FormPiece) => hasFile(p) && p.style !== "" && sourced(p);
     const uploading = form.pieces.some((p) => p.progress !== null);
     const done = form.pieces.filter(ready).length;
     const missing = [
-        ...form.pieces.flatMap((p) => [!hasFile(p) && `${uploads ? "el archivo" : "el enlace"} de ${p.code ?? "una pieza"}`, p.hook.trim() === "" && `el hook de ${p.code ?? "una pieza"}`,
+        ...form.pieces.flatMap((p) => [!hasFile(p) && `${uploads ? "el archivo" : "el enlace"} de ${p.code ?? "una pieza"}`, p.style === "" && `el formato de ${p.code ?? "una pieza"}`,
             !sourced(p) && `de dónde salió ${p.code ?? "una pieza"}`]),
         !form.concept.trim() && "el concepto", !form.angle.trim() && "el ángulo",
     ].filter(Boolean) as string[];
@@ -542,7 +548,7 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
         try {
             const r = await api<{ batch: B }>(url, "POST", {
                 concept: form.concept, angle: form.angle, notes: form.notes,
-                pieces: form.pieces.map((p) => ({ ...(uploads ? { id: p.id, file_id: p.file?.id ?? null, hook: p.hook } : { id: p.id, link: p.link, hook: p.hook }),
+                pieces: form.pieces.map((p) => ({ ...(uploads ? { id: p.id, file_id: p.file?.id ?? null, style: p.style } : { id: p.id, link: p.link, style: p.style }),
                     source: p.source || null, reference_id: p.source === "reference" ? p.ref : null })),
             });
             // .89: lo que entrega el editor líder pasa directo a la banca
@@ -659,8 +665,11 @@ export const DeliverDialog = <B,>({ open, code, product, pieces, angle, concept,
                                         </Box>
                                     );
                                 })()}
-                                <TextField label="Hook (lo primero que se dice o se lee)" value={p.hook} onChange={(e) => setPiece(i, { hook: e.target.value })} fullWidth sx={{ mt: 1.5 }}
-                                    error={tried && p.hook.trim() === ""} helperText={tried && p.hook.trim() === "" ? "Falta el hook." : undefined} inputProps={{ maxLength: 300 }} />
+                                {/* .133: ya no se escribe el hook: se elige qué formato es (lo que dice el video lo saca la transcripción) */}
+                                <TextField select label="Formato de esta pieza" value={p.style} onChange={(e) => setPiece(i, { style: e.target.value })} fullWidth sx={{ mt: 1.5 }}
+                                    error={tried && p.style === ""} helperText={tried && p.style === "" ? "Elige su formato." : "Testimonio, UGC, venta directa, animación con IA…"}>
+                                    {Object.entries(formats).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+                                </TextField>
                             </Box>
                         );
                     })}

@@ -35,6 +35,8 @@ type Data = {
     unfilled?: Unfilled[]; forecast?: Forecast | null; today?: string;
     /** .89: entrega + estos días de correcciones = lista en la banca. .90: se entrega subiendo el archivo. */
     corrections_days?: number; uploads?: boolean;
+    /** .133: los formatos para elegir al entregar. */
+    styles?: Record<string, string>;
     /** .94: los números del juego (racha, a la primera, ganadores; para el líder, también los del equipo). */
     game?: EditorGameData;
     /** .99: para el líder, los encargos en espera porque el dueño paró su producto (en pausa, en liquidación o abandonado). */
@@ -282,7 +284,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 <DeliverDialog<EditorBatch> open={!!deliverBatch} code={deliverBatch.code ?? "el encargo"} product={`${deliverBatch.product}${angleOf(deliverBatch) ? ` · ${angleOf(deliverBatch)}` : ""}`}
                     pieces={deliverBatch.pieces} url={`/editor/queue/${deliverBatch.id}/deliver`} uploads={!!(data.uploads ?? deliverBatch.uploads)} own={leader} batchId={deliverBatch.id}
                     productId={deliverBatch.product_id} angleCode={deliverBatch.angle_code} iterationOf={deliverBatch.iteration_of} iteration={deliverBatch.iteration}
-                    suggestedRef={deliverBatch.suggested_reference?.id ?? null}
+                    suggestedRef={deliverBatch.suggested_reference?.id ?? null} styles={data.styles}
                     concept={deliverBatch.deliveries[0]?.concept ?? deliverBatch.concept ?? ""}
                     angle={deliverBatch.deliveries[0]?.angle ?? [deliverBatch.angle_code, deliverBatch.angle_name].filter(Boolean).join(" — ")}
                     onClose={() => setDeliverId(null)}
@@ -415,11 +417,11 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const missionSteps = (b: EditorBatch) => b.returned ? [
         `Cambia lo que pidió ${b.returned.by ?? "el líder"} (arriba).`,
         b.uploads ? "Toca «Entregar de nuevo» y sube solo las piezas que cambiaste: las demás quedan como estaban." : "Toca «Entregar de nuevo» y pega el enlace de las piezas que cambiaste.",
-        "Revisa el hook de cada una y entrega.",
+        "Revisa el formato de cada una y entrega.",
     ] : [
         `Haz ${b.pieces.length === 1 ? "la pieza" : `las ${b.pieces.length} piezas`}: ${b.pieces.map((p) => p.code).filter(Boolean).join(", ")}.${saysPerPiece(b) ? " Qué lleva cada una, en «Ver todo el encargo»." : ""}`,
         b.uploads ? "Toca «Entregar» y sube el archivo de cada pieza: se nombra solo." : "Sube cada video a Drive con su código y toca «Entregar» para pegar los enlaces.",
-        "Escribe el hook de cada una y entrega.",
+        "Elige el formato de cada una (testimonio, UGC, venta directa…) y entrega.",
     ];
     return frame(
         <>
