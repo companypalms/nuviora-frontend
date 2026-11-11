@@ -1,18 +1,20 @@
 // src/components/agency-closures/ClosuresListTab.tsx
-// Los cierres semanales de las agencias (Módulo 3, §31, §36): una fila por agencia y semana con lo que el sistema
+// Los cierres semanales de las agencias (Módulo 3, §31, §36): una tarjeta por agencia y semana con lo que el sistema
 // calculó, lo que cobra la agencia y lo que falta revisar. Al entrar, se ve solo lo que no cuadra (§32).
+// .136: arriba, el marcador de la semana; en cada cierre, los dos montos grandes y la diferencia en palabras.
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, Table, TableBody, TableCell,
-    TableContainer, TableHead, TableRow, TextField, Typography,
+    Alert, Box, Button, ButtonBase, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography,
 } from "@mui/material";
 import { AddRounded, ChevronRightRounded } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Panel } from "../ui/surface/Panel";
-import { Closure, STATUS_COLOR, api, money, signedMoney } from "./closures";
+import { cardSx, geist, plural, useTokens } from "../ui/design";
+import { Dot, Scoreboard, Section } from "../ui/designParts";
+import { Closure, STATUS_COLOR, WeekGap, api, money, systemOf, waitingText } from "./closures";
+import { ClosureCompare } from "./ClosureCompare";
 
-type ListResponse = { closures: Closure[]; agencies: { id: number; name: string }[]; statuses: Record<string, string> };
+type ListResponse = { closures: Closure[]; week: WeekGap | null; agencies: { id: number; name: string }[]; statuses: Record<string, string> };
 
 const NewClosureDialog: React.FC<{ agencies: { id: number; name: string }[]; onClose: () => void; onCreated: (id: number) => void }> = ({ agencies, onClose, onCreated }) => {
     const [form, setForm] = useState({ agency_id: "", week: "" });
@@ -48,21 +50,65 @@ const NewClosureDialog: React.FC<{ agencies: { id: number; name: string }[]; onC
     );
 };
 
-/** §31: "✅ 93 coinciden ⚠ 7 discrepancias ❓ 2 sin matching", en palabras. */
-const Counts: React.FC<{ c: Closure }> = ({ c }) => {
+/** §31: "93 coinciden · 7 con diferencia · 2 sin emparejar", en palabras. */
+const countsText = (c: Closure) => {
     const s = c.summary;
-    if (!s || s.rows === undefined) return <Typography variant="caption" color="text.secondary">—</Typography>;
+    if (!s || s.rows === undefined) return null;
+    return [`${s.ok} coinciden`, s.discrepancies ? `${s.discrepancies} con diferencia` : "", s.unmatched ? `${s.unmatched} sin emparejar` : ""].filter(Boolean).join(" · ");
+};
+
+/** .136: el marcador de la semana más reciente, encima de sus tarjetas: lo mismo con lo mismo (las que subieron su archivo). */
+const WeekBoard: React.FC<{ week: WeekGap }> = ({ week }) => {
+    const t = useTokens();
+    const d = week.difference;
+    const diff = d === null ? "—" : Math.abs(d) < 0.005 ? "Cuadra" : `${money(Math.abs(d))} de ${d > 0 ? "más" : "menos"}`;
     return (
-        <Stack direction="row" gap={0.5} flexWrap="wrap">
-            <Chip size="small" color="success" variant="outlined" label={`${s.ok} coinciden`} />
-            {!!s.discrepancies && <Chip size="small" color="warning" variant="outlined" label={`${s.discrepancies} con diferencia`} />}
-            {!!s.unmatched && <Chip size="small" color="error" variant="outlined" label={`${s.unmatched} sin emparejar`} />}
-        </Stack>
+        <Box sx={{ mb: 1.5 }}>
+            <Scoreboard tiles={[
+                {
+                    label: week.provisional ? "Calcula el sistema (provisional)" : "Calcula el sistema", value: money(week.system),
+                    help: week.provisional ? "Ninguna agencia subió su archivo: lo que ganaron por sus carreras esa semana." : "Lo que el sistema calcula de las agencias que ya subieron su archivo.",
+                },
+                { label: "Cobran las agencias", value: week.reported === null ? "—" : money(week.reported), help: "Lo que cobran en sus archivos las agencias que ya los subieron." },
+                {
+                    label: "Diferencia", help: "Lo que cobran las agencias menos lo que calcula el sistema, de las que ya subieron su archivo.",
+                    value: <Stack direction="row" gap={0.75} alignItems="center"><Dot color={d === null ? t.gray : d > 0.005 ? t.amber : d < -0.005 ? t.gray : t.green} size={9} />{diff}</Stack>,
+                },
+            ]} />
+        </Box>
+    );
+};
+
+const ClosureCard: React.FC<{ c: Closure; onOpen: () => void }> = ({ c, onOpen }) => {
+    const t = useTokens();
+    const system = systemOf(c);
+    const counts = countsText(c);
+    return (
+        <ButtonBase onClick={onOpen} sx={{ ...cardSx(t), display: "block", width: "100%", textAlign: "left", p: { xs: 1.75, sm: 2 }, font: "inherit",
+            "&:hover": { borderColor: t.faint }, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
+            <Stack direction="row" gap={1} alignItems="flex-start" sx={{ mb: 1.25 }}>
+                {/* En el teléfono el estado baja de línea antes que cortar el nombre */}
+                <Stack direction="row" columnGap={1} rowGap={0.5} alignItems="center" flexWrap="wrap" sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontSize: 16, fontWeight: 600, overflowWrap: "anywhere" }}>{c.agency}</Typography>
+                    <Chip size="small" color={STATUS_COLOR[c.status]} label={c.status_label} />
+                </Stack>
+                <ChevronRightRounded sx={{ color: t.faint }} />
+            </Stack>
+            <ClosureCompare system={system.value} systemHint={system.hint} reported={c.reported_total}
+                reportedHint={c.summary?.rows !== undefined ? plural(c.summary.rows, "fila en su archivo", "filas en su archivo") : undefined}
+                difference={c.difference} verdict={c.gap_verdict} waiting={waitingText(c)} />
+            {(counts || c.final_approved_total !== null || c.reminder_due) && (
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                    {[counts, c.final_approved_total !== null ? `Monto final ${money(c.final_approved_total)}` : "", c.reminder_due ? "Aviso activo para la agencia" : ""].filter(Boolean).join(" · ")}
+                </Typography>
+            )}
+        </ButtonBase>
     );
 };
 
 export const ClosuresListTab: React.FC = () => {
     const navigate = useNavigate();
+    const t = useTokens();
     const [data, setData] = useState<ListResponse | null>(null);
     const [filters, setFilters] = useState({ agency_id: "", status: "" });
     const [creating, setCreating] = useState(false);
@@ -78,10 +124,17 @@ export const ClosuresListTab: React.FC = () => {
     if (!data) return <Typography sx={{ p: 2 }}>Cargando…</Typography>;
     const toReview = data.closures.filter((c) => c.status === "pendiente_revision").length;
     const toPay = data.closures.filter((c) => c.status === "listo_pago").length;
+    // Una sección por semana, la más reciente arriba (la lista ya viene así)
+    const weeks = data.closures.reduce<{ start: string; week: string; closures: Closure[] }[]>((acc, c) => {
+        const last = acc[acc.length - 1];
+        if (last && last.start === c.period_start) last.closures.push(c);
+        else acc.push({ start: c.period_start, week: c.week, closures: [c] });
+        return acc;
+    }, []);
 
     return (
-        <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
+        <Stack spacing={2} sx={geist}>
+            <Typography sx={{ fontSize: 14, color: t.muted }}>
                 Cada semana (lunes a domingo) la agencia sube su archivo de cierre. El sistema empareja cada carrera, compara lo que cobra con lo que calculó
                 y solo te muestra lo que no cuadra. Cuando resuelves todo, queda el monto final aprobado y el cierre pasa a "Listo para pago".
             </Typography>
@@ -103,47 +156,19 @@ export const ClosuresListTab: React.FC = () => {
                 <Button startIcon={<AddRounded />} onClick={() => setCreating(true)}>Abrir un cierre</Button>
             </Stack>
 
-            <Panel sx={{ p: 0, overflow: "hidden" }}>
-                {data.closures.length === 0 ? (
-                    <Typography sx={{ p: 2 }} color="text.secondary">
-                        Todavía no hay cierres. El primero se abre el lunes, con la semana anterior de cada agencia que tuvo carreras.
-                    </Typography>
-                ) : (
-                    <TableContainer>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Agencia / semana</TableCell><TableCell>Estado</TableCell>
-                                    <TableCell align="right">Cálculo interno</TableCell><TableCell align="right">Reportado</TableCell>
-                                    <TableCell align="right">Diferencia</TableCell><TableCell align="right">Monto final</TableCell>
-                                    <TableCell>Carreras</TableCell><TableCell />
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {data.closures.map((c) => (
-                                    <TableRow key={c.id} hover sx={{ cursor: "pointer" }} onClick={() => navigate(`/admin/cierres-agencias/${c.id}`)}>
-                                        <TableCell>
-                                            <Typography variant="body2" fontWeight={600}>{c.agency}</Typography>
-                                            <Typography variant="caption" color="text.secondary">Semana {c.week}</Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip size="small" color={STATUS_COLOR[c.status]} label={c.status_label} />
-                                            {c.processing_error && <Typography variant="caption" color="error" sx={{ display: "block", maxWidth: 220 }}>No se pudo procesar el archivo</Typography>}
-                                            {c.reminder_due && <Typography variant="caption" color="warning.main" sx={{ display: "block" }}>Aviso activo para la agencia</Typography>}
-                                        </TableCell>
-                                        <TableCell align="right">{money(c.expected_total)}</TableCell>
-                                        <TableCell align="right">{money(c.reported_total)}</TableCell>
-                                        <TableCell align="right" sx={{ color: (c.difference ?? 0) > 0 ? "warning.main" : undefined, whiteSpace: "nowrap" }}>{signedMoney(c.difference)}</TableCell>
-                                        <TableCell align="right"><Typography variant="body2" fontWeight={600}>{money(c.final_approved_total)}</Typography></TableCell>
-                                        <TableCell sx={{ minWidth: 180 }}><Counts c={c} /></TableCell>
-                                        <TableCell align="right"><ChevronRightRounded color="action" /></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                )}
-            </Panel>
+            {data.closures.length === 0 ? (
+                <Box sx={{ ...cardSx(t), p: 2 }}>
+                    <Typography sx={{ color: t.muted }}>Todavía no hay cierres. El primero se abre el lunes, con la semana anterior de cada agencia que tuvo carreras.</Typography>
+                </Box>
+            ) : weeks.map((w) => (
+                <Section key={w.start} name={`Semana ${w.week}`} mt={1}
+                    hint={data.week?.period_start === w.start ? `${data.week.with_file} de ${plural(data.week.agencies, "agencia subió", "agencias subieron")} su archivo` : plural(w.closures.length, "agencia", "agencias")}>
+                    {data.week?.period_start === w.start && <WeekBoard week={data.week} />}
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
+                        {w.closures.map((c) => <ClosureCard key={c.id} c={c} onOpen={() => navigate(`/admin/cierres-agencias/${c.id}`)} />)}
+                    </Box>
+                </Section>
+            ))}
             {creating && <NewClosureDialog agencies={data.agencies} onClose={() => setCreating(false)} onCreated={(id) => navigate(`/admin/cierres-agencias/${id}`)} />}
         </Stack>
     );

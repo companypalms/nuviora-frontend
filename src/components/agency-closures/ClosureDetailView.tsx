@@ -2,9 +2,11 @@
 // Un cierre semanal (Módulo 3, §31 a §37): el resultado (cálculo interno, lo reportado, la diferencia y las carreras que
 // coinciden, con diferencia o sin emparejar) y, abajo, solo lo que hay que revisar (§32). Todo lo demás queda a un clic:
 // todas las filas, las versiones del archivo y el historial (§40).
+// .136: arriba, los dos montos grandes (lo que calcula el sistema y lo que cobra la agencia), la diferencia en palabras y
+// de dónde sale; cada parte abre sus filas.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert, Box, Button, Chip, Link, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Theme, Typography, useMediaQuery,
+    Alert, Box, Button, ButtonBase, Chip, Link, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, Theme, Typography, useMediaQuery,
 } from "@mui/material";
 import { ArrowBackRounded, DoneAllRounded, DownloadRounded, PaymentsRounded, RefreshRounded, UploadFileRounded } from "@mui/icons-material";
 import { Link as RouterLink } from "react-router-dom";
@@ -13,7 +15,10 @@ import { Panel } from "../ui/surface/Panel";
 import { ApproveDialog } from "./ApproveDialog";
 import { DiscrepancyDialog } from "./DiscrepancyDialog";
 import { PayDialog } from "./PayDialog";
-import { ACCEPT, ClosureRow, ClosureShow, FIELD_LABEL, STATUS_COLOR, api, dateTime, day, download, money, signedMoney, upload } from "./closures";
+import { ACCEPT, ClosureRow, ClosureShow, FIELD_LABEL, GapPart, STATUS_COLOR, api, dateTime, day, download, money, signedMoney, systemOf, upload, waitingText } from "./closures";
+import { ClosureCompare } from "./ClosureCompare";
+import { geist, useTokens } from "../ui/design";
+import { Section, TextAction } from "../ui/designParts";
 
 const ACTION_LABEL: Record<string, string> = {
     closure_file_uploaded: "Subió el archivo", closure_file_replaced: "Reemplazó el archivo", closure_reprocessed: "Volvió a procesar",
@@ -29,11 +34,46 @@ const Stat: React.FC<{ label: string; value: string; hint?: string; strong?: boo
     </Box>
 );
 
+/** .136: a qué parte de la diferencia suma una fila (como ClosureGap::parts del backend). */
+const partOf = (r: ClosureRow): GapPart["key"] | null => {
+    const k = r.discrepancy?.kind;
+    if (k === "amount" || k === "duplicate" || k === "no_expected") return k;
+    if (k === "unmatched" || k === "ambiguous") return "unmatched";
+    return r.expected_cost !== null && r.reported_cost !== null && Math.abs(r.reported_cost - r.expected_cost) >= 0.005 ? "small" : null;
+};
+
+/** .136: "De dónde sale la diferencia": cada parte con su monto; las que tienen filas se abren. */
+const GapParts: React.FC<{ parts: GapPart[]; onPick: (p: GapPart) => void }> = ({ parts, onPick }) => {
+    const t = useTokens();
+    return (
+        <Section name="De dónde sale la diferencia" hint="Toca una para ver esas filas." mt={2.5}>
+            <Box sx={{ border: `1px solid ${t.line}`, borderRadius: "10px", overflow: "hidden" }}>
+                {parts.map((p, i) => {
+                    const line = (
+                        <Stack direction="row" gap={1.5} alignItems="baseline" sx={{ px: 1.75, py: 1.25, width: "100%" }}>
+                            <Typography sx={{ fontSize: 15, flex: 1, minWidth: 0, color: p.amount === null ? t.muted : t.ink }}>{p.text}</Typography>
+                            <Typography sx={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", color: p.amount === null ? t.muted : t.ink }}>
+                                {p.amount === null ? "no suma" : signedMoney(p.amount)}
+                            </Typography>
+                        </Stack>
+                    );
+                    const sx = { display: "flex", width: "100%", textAlign: "left", font: "inherit", borderTop: i ? `1px solid ${t.line}` : "none" } as const;
+                    return p.amount === null
+                        ? <Box key={p.key} sx={sx}>{line}</Box>
+                        : <ButtonBase key={p.key} onClick={() => onPick(p)} sx={{ ...sx, "&:hover": { bgcolor: t.soft }, "&.Mui-focusVisible": { bgcolor: t.soft } }}>{line}</ButtonBase>;
+                })}
+            </Box>
+        </Section>
+    );
+};
+
 const rowTitle = (r: ClosureRow) => r.order?.name ?? (r.external_order_id ? `${r.external_order_id}` : `Fila ${r.position}`);
 
 export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
     const [data, setData] = useState<ClosureShow | null>(null);
     const [view, setView] = useState("open");
+    // .136: la parte de la diferencia que se está mirando (filtra "Todas las filas")
+    const [part, setPart] = useState<GapPart | null>(null);
     const [selected, setSelected] = useState<number | null>(null);
     const [paying, setPaying] = useState(false);
     const [approving, setApproving] = useState<null | "agency" | "manual">(null);
@@ -52,7 +92,7 @@ export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
 
     const cases = useMemo(() => (data?.rows ?? []).filter((r) => r.discrepancy), [data]);
     const open = cases.filter((r) => r.discrepancy!.status === "open");
-    const shown = view === "open" ? open : view === "cases" ? cases : data?.rows ?? [];
+    const shown = view === "open" ? open : view === "cases" ? cases : (data?.rows ?? []).filter((r) => !part || partOf(r) === part.key);
     const row = data?.rows.find((r) => r.id === selected) ?? null;
 
     if (!data || !c) return <Typography sx={{ p: 2 }}>Cargando…</Typography>;
@@ -75,6 +115,12 @@ export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
     };
     const s = c.summary ?? {};
     const current = data.files.find((f) => f.is_current);
+    const pick = (p: GapPart) => {
+        setPart(p);
+        setView("rows");
+        document.getElementById("closure-rows")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const system = systemOf(c);
 
     return (
         <Stack spacing={2}>
@@ -105,6 +151,11 @@ export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
                     La agencia todavía no subió su archivo. {c.reminder_due ? "Ya está viendo el aviso en su panel." : `El aviso le aparece el ${dateTime(c.reminder_at)}.`} También puedes subirlo tú.
                 </Alert>
             )}
+            {s.rows === undefined && (
+                <Panel sx={geist}>
+                    <ClosureCompare big system={system.value} systemHint={system.hint} reported={c.reported_total} difference={c.difference} verdict={c.gap_verdict} waiting={waitingText(c)} />
+                </Panel>
+            )}
             {processing && <Alert severity="info">Procesando el archivo{current ? ` (${current.name})` : ""}… Con un PDF puede tardar un par de minutos.</Alert>}
             {c.processing_error && (
                 <Alert severity="error">
@@ -115,19 +166,15 @@ export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
 
             {s.rows !== undefined && (
                 <Panel>
-                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2 }}>
-                        <Stat label="Cálculo interno" value={money(c.expected_total)} hint="de las carreras emparejadas" />
-                        <Stat label="Reportado por la agencia" value={money(c.reported_total)} hint={`${s.rows} filas en el archivo`} />
-                        <Stat label="Diferencia" value={signedMoney(c.difference)} color={(c.difference ?? 0) > 0 ? "warning.main" : undefined} />
+                    <Box sx={geist}>
+                        <ClosureCompare big system={c.expected_total} systemHint="de las carreras emparejadas" reported={c.reported_total}
+                            reportedHint={`${s.rows} filas en el archivo · ${s.ok} coinciden`} difference={c.difference} verdict={c.gap_verdict} />
+                        {c.gap.length > 0 && <GapParts parts={c.gap} onPick={pick} />}
+                    </Box>
+                    <Box sx={{ mt: 2.5, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
                         <Stat label="Monto final aprobado" strong value={c.final_approved_total !== null ? money(c.final_approved_total) : "Pendiente"}
                             hint={c.final_approved_total !== null ? (c.manual_total !== null ? `otro monto${c.approved_by ? `, de ${c.approved_by}` : ""}: ${c.manual_reason}` : c.approved_by ? `aprobado por ${c.approved_by}` : "todo cuadró") : `${s.open} ${s.open === 1 ? "caso abierto" : "casos abiertos"}`} />
                     </Box>
-                    <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mt: 2 }}>
-                        <Chip color="success" variant="outlined" label={`${s.ok} coinciden`} />
-                        <Chip color="warning" variant="outlined" label={`${s.discrepancies} con diferencia`} />
-                        <Chip color="error" variant="outlined" label={`${s.unmatched} sin emparejar o dudosas`} />
-                        {!!s.trips_without_row && <Chip variant="outlined" label={`${s.trips_without_row} carreras del sistema que la agencia no cobró`} />}
-                    </Stack>
                     <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
                         Tolerancia: {money(c.tolerance.amount)}{c.tolerance.percent ? ` o ${c.tolerance.percent} %` : ""}.
                         {s.by_method && Object.keys(s.by_method).length > 0 && ` Emparejadas por: ${Object.entries(s.by_method).map(([k, n]) => `${({ order_id: "número de orden", phone: "teléfono", name_date: "nombre y fecha", ai: "IA", manual: "a mano" } as Record<string, string>)[k] ?? k} ${n}`).join(", ")}.`}
@@ -159,14 +206,19 @@ export const ClosureDetailView: React.FC<{ id: number }> = ({ id }) => {
             )}
 
             {data.rows.length > 0 || data.files.length > 0 ? (
-                <Panel sx={{ p: 0, overflow: "hidden" }}>
-                    <Tabs value={view} onChange={(_, v) => setView(v)} variant="scrollable" allowScrollButtonsMobile sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+                <Panel id="closure-rows" sx={{ p: 0, overflow: "hidden", scrollMarginTop: 72 }}>
+                    <Tabs value={view} onChange={(_, v) => { setView(v); setPart(null); }} variant="scrollable" allowScrollButtonsMobile sx={{ px: 1, borderBottom: "1px solid", borderColor: "divider" }}>
                         <Tab value="open" label={`Por revisar (${open.length})`} />
                         <Tab value="cases" label={`Todos los casos (${cases.length})`} />
                         <Tab value="rows" label={`Todas las filas (${data.rows.length})`} />
                         <Tab value="files" label={`Archivo (${data.files.length})`} />
                         <Tab value="history" label="Historial" />
                     </Tabs>
+                    {view === "rows" && part && (
+                        <Typography sx={{ px: 2, pt: 1.5, fontSize: 14 }}>
+                            Mostrando: {part.text}. <TextAction onClick={() => setPart(null)}>Ver todas las filas</TextAction>
+                        </Typography>
+                    )}
                     {(view === "open" || view === "cases" || view === "rows") && (
                         shown.length === 0 ? (
                             <Typography sx={{ p: 2 }} color="text.secondary">{view === "open" ? "No queda nada por revisar." : "Sin filas."}</Typography>

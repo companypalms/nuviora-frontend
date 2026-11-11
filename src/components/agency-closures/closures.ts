@@ -14,10 +14,23 @@ export type ClosureSummary = {
     ai_note?: string | null; warnings?: string[] | null;
 };
 
+/** .136: si la agencia cobra de más, de menos o cuadra (con su tolerancia); null sin los dos montos. */
+export type GapVerdict = "over" | "under" | "ok" | null;
+
+/** .136: una parte de la diferencia ("4 carreras con otro monto: +$8,00"); "not_charged" solo cuenta (amount null). */
+export type GapPart = { key: "amount" | "unmatched" | "duplicate" | "no_expected" | "small" | "not_charged"; text: string; count: number; amount: number | null };
+
+/** .136: el marcador de la semana más reciente de la lista. */
+export type WeekGap = {
+    period_start: string; week: string; agencies: number; with_file: number; system: number; provisional: boolean; reported: number | null; difference: number | null; over: number;
+};
+
 export type Closure = {
     id: number; agency_id: number; agency: string | null; period_start: string; period_end: string; week: string;
     status: ClosureStatus; status_label: string; trips_count: number; expected_total: number | null; reported_total: number | null;
     difference: number | null; final_approved_total: number | null; summary: ClosureSummary | null; processing_error: string | null;
+    // .136: cobra de más / de menos / cuadra, y sin archivo lo que calcula el sistema por sus carreras (provisional)
+    gap_verdict: GapVerdict; provisional: number | null;
     // El otro monto que eligió Fran para el cierre completo, con su motivo (15/10/2026)
     manual_total: number | null; manual_reason: string | null;
     uploaded_at: string | null; processed_at: string | null; paid_at: string | null; file: { name: string; version: number } | null;
@@ -36,6 +49,8 @@ export type ClosureDetail = Closure & {
     // Aprobar el cierre completo (Fran, 15/10/2026): casos abiertos, lo que cobra la agencia por ellos y el total del cierre
     // si se aprueba lo de la agencia
     approve_all: { cases: number; reported: number; total: number };
+    /** .136: de dónde sale la diferencia. */
+    gap: GapPart[];
 };
 
 export type Discrepancy = {
@@ -90,6 +105,16 @@ export const STATUS_COLOR: Record<ClosureStatus, "default" | "warning" | "info" 
 };
 
 export const FIELD_LABEL: Record<string, string> = { orden: "Número de orden", cliente: "Cliente", telefono: "Teléfono", fecha: "Fecha", monto: "Monto cobrado", zona: "Zona / dirección" };
+
+/** .136: lo que dice el cierre mientras no hay los dos montos. */
+export const waitingText = (c: Closure) =>
+    c.processing_error ? "No se pudo procesar su archivo" : c.status === "pendiente_archivo" ? "Todavía no sube su archivo" : c.reported_total === null ? "Procesando su archivo…" : undefined;
+
+/** .136: la parte del sistema: el cálculo interno o, sin archivo, lo que ganó por sus carreras (el provisional, `.135`). */
+export const systemOf = (c: Closure) => ({
+    value: c.expected_total ?? c.provisional,
+    hint: c.expected_total === null && c.provisional !== null ? "por sus carreras (provisional)" : undefined,
+});
 
 /** "+$1,00" / "−$0,50": la diferencia de lo que cobra la agencia contra lo calculado. */
 export const signedMoney = (v: number | null | undefined) => {
