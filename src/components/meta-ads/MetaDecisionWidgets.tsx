@@ -229,12 +229,16 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
         ],
     },
     {
-        title: "Presupuesto y precio", help: "Los mínimos de gasto de los ad sets (CBO) y la opción de bajar el precio. El gasto mínimo de un batch va solo mientras se prueba: cuando ya tiene veredicto en esa ciudad, o pasan los días de abajo, sale la misión de quitarlo.", fields: [
+        title: "Presupuesto y precio", help: "Los mínimos de gasto de los ad sets (CBO) y cuándo bajar el precio. El gasto mínimo de un batch va solo mientras se prueba: cuando ya tiene veredicto en esa ciudad, o pasan los días de abajo, sale la misión de quitarlo. Bajar el precio: solo a un producto Bueno con su CPA real muy debajo del C; después el Historial de cambios dice si con el precio nuevo ganas más dólares por día.", fields: [
             ["startup_min_mult", "Arranque: C × batches nuevos × desde", "veces"], ["startup_max_mult", "…hasta", "veces"],
             ["mins_ok_pct", "Mínimos bien hasta", "% del presupuesto"],
             ["mins_review_pct", "Revisar hasta (más, no)", "% del presupuesto"],
             ["min_spend_days", "Gasto mínimo: un batch sin veredicto ya se probó a los", "días prendido"],
-            ["price_step", "Probar bajar el precio de a", "$"],
+            ["price_room_pct", "Bajar el precio con el CPA real de 14 días debajo del C al menos", "%"],
+            ["price_step_max_pct", "Bajar como mucho por vez", "% del precio"],
+            ["price_cushion", "El C nuevo, encima del CPA real al menos", "veces"],
+            ["price_min_purchases", "Con al menos estas compras de Meta en 14 días", "compras"],
+            ["price_watch_days", "Medir el precio nuevo: días antes y días después", "días"],
         ],
     },
     // .139: la etiqueta de cada producto por su efectividad (Pausar o activar productos) y lo que cambia en los encargos

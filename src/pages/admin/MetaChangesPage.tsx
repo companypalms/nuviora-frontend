@@ -17,7 +17,9 @@ import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens 
 import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
 type Result = "measuring" | "met" | "not_met" | "unknown" | "not_measured";
-type Numbers = { from: string; to: string; days: number; spend: number; purchases: number; cpa: number | null; per_day: number; gain_day: number | null };
+type Numbers = { from: string; to: string; days: number; spend: number; purchases: number; cpa: number | null; per_day: number; gain_day: number | null;
+    /** .140: un cambio de precio se mide con los pedidos del producto (PriceChangeRules). */
+    orders_day?: number; effectiveness?: number | null };
 type Change = {
     id: number; kind: string; kind_label: string; big: boolean; date: string; changed_at: string | null; product_id: number | null; product: string | null;
     city: string | null; campaign: string | null; what: string; mission: { date: string; kind: string; title: string | null; done: string | null } | null;
@@ -50,22 +52,29 @@ const dayLabel = (d: string) => {
 };
 const range = (n: Numbers) => n.days === 1 ? `el ${short(n.from)}` : `del ${short(n.from)} al ${short(n.to)}`;
 
-/** Antes y después, en una tabla chica: gasto, compras, CPA y lo que deja por día. */
-const NumbersTable: React.FC<{ before: Numbers | null; after: Numbers | null }> = ({ before, after }) => {
+/** Antes y después, en una tabla chica: gasto, compras, CPA y lo que deja por día. .140: un precio, con los pedidos del producto. */
+const NumbersTable: React.FC<{ before: Numbers | null; after: Numbers | null; price?: boolean }> = ({ before, after, price = false }) => {
     const t = useTokens();
     const cols = [before && { name: `Antes (${range(before)})`, n: before }, after && { name: `Después (${range(after)})`, n: after }].filter(Boolean) as { name: string; n: Numbers }[];
     if (!cols.length) return null;
-    const rows: { label: string; v: (n: Numbers) => string; color?: (n: Numbers) => string | undefined }[] = [
+    const gain = { label: price ? "Ganancia por día" : "Deja por día", v: (n: Numbers) => n.gain_day === null ? "—" : n.gain_day < 0 ? `−${fmt.money(-n.gain_day)}` : fmt.money(n.gain_day),
+        color: (n: Numbers) => n.gain_day !== null && n.gain_day < 0 ? t.red : undefined };
+    const rows: { label: string; v: (n: Numbers) => string; color?: (n: Numbers) => string | undefined }[] = price ? [
+        { label: "Pedidos por día", v: (n) => fmt.num(n.orders_day ?? 0) },
+        { label: "Efectividad", v: (n) => n.effectiveness == null ? "—" : `${n.effectiveness.toLocaleString("es-VE", { maximumFractionDigits: 1 })} %` },
+        { label: "CPA de Meta", v: (n) => n.cpa === null ? "Sin compras" : fmt.money(n.cpa) },
+        gain,
+    ] : [
         { label: "Gasto", v: (n) => fmt.money(n.spend) },
         { label: "Compras", v: (n) => fmt.num(n.purchases) },
         { label: "CPA", v: (n) => n.cpa === null ? "Sin compras" : fmt.money(n.cpa) },
-        ...(cols.some((c) => c.n.gain_day !== null) ? [{ label: "Deja por día", v: (n: Numbers) => n.gain_day === null ? "—" : n.gain_day < 0 ? `−${fmt.money(-n.gain_day)}` : fmt.money(n.gain_day),
-            color: (n: Numbers) => n.gain_day !== null && n.gain_day < 0 ? t.red : undefined }] : []),
+        ...(cols.some((c) => c.n.gain_day !== null) ? [gain] : []),
     ];
     return (
         <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", mt: 1, fontSize: 13, "& td, & th": { py: 0.5, pr: 1, textAlign: "left", verticalAlign: "top" },
             "& th": { color: t.muted, fontWeight: 500 }, "& tr + tr td": { borderTop: `1px solid ${t.line}` } }}>
-            <thead><tr><th scope="col"><Box component="span" sx={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Número</Box></th>
+            {/* .140: "1px" (en MUI, width: 1 es el 100 %: la página se salía de lado al ver los números) */}
+            <thead><tr><th scope="col"><Box component="span" sx={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0 0 0 0)" }}>Número</Box></th>
                 {cols.map((c) => <th key={c.name} scope="col">{c.name}</th>)}</tr></thead>
             <tbody>
                 {rows.map((r) => (
@@ -103,7 +112,8 @@ const ChangeCard: React.FC<{ c: Change; onNote: (id: number, note: string | null
             </Stack>
             <Typography component="h3" sx={{ fontSize: 16, fontWeight: 600, mt: 0.5, overflowWrap: "anywhere" }}>{c.what}</Typography>
             <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>
-                {[c.product, c.campaign].filter(Boolean).join(" · ")}{c.changed_at ? ` · ${dateTime(c.changed_at)}` : ""}
+                {[c.product, c.campaign].filter(Boolean).join(" · ")}
+                {c.kind === "price" ? ` · desde el ${short(c.date)} (en los pedidos)` : c.changed_at ? ` · ${dateTime(c.changed_at)}` : ""}
             </Typography>
             {c.hypothesis && (
                 <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}><Box component="span" sx={{ fontWeight: 600 }}>Hipótesis: </Box>{c.hypothesis}</Typography>
@@ -142,7 +152,7 @@ const ChangeCard: React.FC<{ c: Change; onNote: (id: number, note: string | null
                     {(c.c !== null || c.be !== null) && (
                         <Typography sx={{ fontSize: 13, color: t.muted }}>Ese día tu C era {fmt.money(c.c)} y tu BE {fmt.money(c.be)}.</Typography>
                     )}
-                    <NumbersTable before={c.before} after={c.after} />
+                    <NumbersTable before={c.before} after={c.after} price={c.kind === "price"} />
                 </Box>
             )}
         </Box>
