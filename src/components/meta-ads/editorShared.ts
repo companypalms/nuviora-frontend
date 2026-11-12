@@ -57,6 +57,8 @@ export type EditorBatch = EditorFields & {
     id: number; code: string | null; product_id?: number; product: string; status: EditorStatus; status_label: string; status_at: string | null; position: number | null;
     kind: string; kind_label: string; angle_code: string | null; angle_name: string | null; concept: string | null; audience: string | null;
     goal?: string | null; improve?: string | null; test_idea?: string | null;
+    /** .139: a igual fecha, lo de los productos Buenos antes que lo de los Regulares; el líder ve por qué (sin números). */
+    product_rank?: number; product_note?: string | null;
     /** .93: de qué trata el ángulo; la hipótesis del encargo (solo le llega al líder). */
     angle_about?: string | null; hypothesis?: string | null;
     product_info?: ProductInfo | null; persona?: PersonaInfo | null; personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[];

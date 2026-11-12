@@ -3,27 +3,61 @@
 // la pantalla que me dijiste"): "Pausar o activar productos" (/meta-ads/productos, en el menú de Meta Ads). Cada producto
 // con su estado y botones grandes (Activo, En pausa, Liquidación, Abandonado); al tocar uno, la ventana dice qué va a
 // pasar (qué encargos quedan en espera o vuelven) y se confirma. Lo mismo se le puede pedir al asistente.
+// .139 (dueño, 2026-11-12: "determinar si un producto es bueno, es regular y vale la pena mantenerlo y seguir renovando
+// creativos, o… si un producto es malo"): cada producto con su etiqueta por su efectividad (Bueno, Regular, Malo o todavía
+// sin datos), del último análisis, y la efectividad de cada ciudad.
 import React, { useCallback, useEffect, useState } from "react";
-import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton, Stack, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Button, ButtonBase, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton, Stack, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { ReportProblemRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { Layout } from "../../components/ui/Layout";
 import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
-import { Dot } from "../../components/ui/designParts";
+import { Dot, TextAction } from "../../components/ui/designParts";
 
 type Task = { id: number; code: string | null; status: string; status_label: string; editor: string | null };
+/** .139: ProductWorthBoard (la etiqueta del último análisis). */
+type Worth = {
+    level: "good" | "regular" | "bad" | "no_data"; label: string; why: string; stop: boolean; early: boolean;
+    cities: { city: string | null; orders: number; delivered: number }[];
+};
 type Product = {
     id: number; name: string; campaigns: number; active_campaigns: number; mode: string; note: string | null;
-    updated_by: string | null; updated_at: string | null; tasks: Task[];
+    updated_by: string | null; updated_at: string | null; tasks: Task[]; worth: Worth | null;
 };
-type Data = { modes: string[]; labels: Record<string, string>; help: Record<string, string>; products: Product[] };
+type Data = { modes: string[]; labels: Record<string, string>; help: Record<string, string>; worth_help: string; products: Product[] };
 
 const ORDER = ["normal", "paused", "liquidation", "abandoned"];
 const stopped = (mode: string) => mode !== "normal";
 const color = (t: Tokens, mode: string) => (mode === "normal" ? t.green : mode === "liquidation" ? t.amber : t.gray);
 const verb: Record<string, string> = { normal: "Reactivar", paused: "Pausar", liquidation: "Poner en liquidación", abandoned: "Abandonar" };
+const worthColor = (t: Tokens, level: Worth["level"]) => ({ good: t.green, regular: t.amber, bad: t.red, no_data: t.gray })[level];
+const pct = (delivered: number, orders: number) => `${orders ? Math.round((1000 * delivered) / orders) / 10 : 0} %`.replace(".", ",");
+
+/** .139: Bueno, Regular, Malo o todavía sin datos (el color es solo la señal; la palabra lo dice), y cada ciudad al tocar. */
+const WorthLine: React.FC<{ w: Worth; mode: string }> = ({ w, mode }) => {
+    const t = useTokens();
+    const [open, setOpen] = useState(false);
+    const many = w.cities.length > 1;
+    return (
+        <Box sx={{ mt: 0.75 }}>
+            <Stack direction="row" spacing={0.75} alignItems="baseline" sx={{ flexWrap: "wrap" }}>
+                <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, fontSize: 13, fontWeight: 600 }}><Dot color={worthColor(t, w.level)} size={8} />{w.label}</Box>
+                <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>{w.why}</Typography>
+            </Stack>
+            {w.stop && mode === "normal" && (
+                <Typography sx={{ fontSize: 13, mt: 0.25 }}>No se le piden encargos nuevos hasta que decidas (la misión está en Tu día en Meta Ads).</Typography>
+            )}
+            {many && <TextAction onClick={() => setOpen((v) => !v)} aria-expanded={open} sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>{open ? "Ocultar las ciudades" : "Ver por ciudad"}</TextAction>}
+            <Collapse in={open} unmountOnExit>
+                <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.25, fontSize: 13, color: t.muted }}>
+                    {w.cities.map((c) => <li key={c.city ?? "-"}>{c.city ?? "Sin ciudad"}: {c.delivered} de {c.orders} entregados ({pct(c.delivered, c.orders)})</li>)}
+                </Box>
+            </Collapse>
+        </Box>
+    );
+};
 
 /** "B0100 (lo tiene Eva) y B0105 (sin asignar)". */
 const tasksText = (tasks: Task[]) => {
@@ -51,6 +85,7 @@ const ProductCard: React.FC<{ p: Product; data: Data; onPick: (mode: string) => 
                 {plural(p.active_campaigns, "campaña activa", "campañas activas")}
                 {p.updated_by ? ` · lo cambió ${p.updated_by}${p.updated_at ? ` (${dateTime(p.updated_at)})` : ""}` : ""}
             </Typography>
+            {p.worth && <WorthLine w={p.worth} mode={p.mode} />}
             {p.note && <Typography sx={{ fontSize: 13, color: t.muted, overflowWrap: "anywhere" }}>Nota: {p.note}</Typography>}
             {p.tasks.length > 0 && (
                 <Typography sx={{ fontSize: 13, mt: 0.5, color: stopped(p.mode) ? t.muted : t.ink, overflowWrap: "anywhere" }}>
@@ -118,6 +153,11 @@ export const ProductStatesPage: React.FC = () => {
                             </React.Fragment>
                         ))}
                     </Box>
+                )}
+                {data?.worth_help && (
+                    <Typography sx={{ fontSize: 13, color: t.muted, mt: 1.5 }}>
+                        <Box component="span" sx={{ fontWeight: 600, color: t.ink }}>Bueno, Regular o Malo: </Box>{data.worth_help}
+                    </Typography>
                 )}
 
                 <Box sx={{ mt: 2.5 }}>

@@ -62,7 +62,11 @@ const dueOf = (b: EditorBatch, corrections: number) => ((b.returned || b.status 
 /** Lo devuelto primero, después lo atrasado, por fecha y por el orden de la cola. */
 const byUrgency = (corrections: number) => (a: EditorBatch, b: EditorBatch) =>
     Number(!!b.returned) - Number(!!a.returned) || Number(b.overdue) - Number(a.overdue)
-    || (dueOf(a, corrections) ?? "9").localeCompare(dueOf(b, corrections) ?? "9") || (a.position ?? 1e9) - (b.position ?? 1e9) || a.id - b.id;
+    || (dueOf(a, corrections) ?? "9").localeCompare(dueOf(b, corrections) ?? "9")
+    // .139: a igual fecha, lo de los productos Buenos primero y lo de los Regulares después
+    || (a.product_rank ?? 1) - (b.product_rank ?? 1) || (a.position ?? 1e9) - (b.position ?? 1e9) || a.id - b.id;
+/** .139: "Va después: producto regular", solo para el líder. */
+const noteOf = (b: EditorBatch) => (b.product_note ? ` · ${b.product_note}` : "");
 const signal = (t: Tokens, level: string) => (level === "late" ? t.red : level === "today" ? t.amber : t.gray);
 const angleOf = (b: EditorBatch) => b.angle_name ?? b.angle_code;
 const piecesText = (b: EditorBatch) => plural(b.pieces.length, "pieza", "piezas");
@@ -375,7 +379,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 {lists.toAssign.length > 0 && (
                     <Section dot={t.gray} name="Sin asignar" hint="lo más urgente arriba">
                         {lists.toAssign.map((b) => (
-                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${whatOf(b)} · ${when(b).text}`}
+                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${whatOf(b)} · ${when(b).text}${noteOf(b)}`}
                                 action={<AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
                         ))}
                     </Section>
@@ -384,7 +388,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     <Section dot={t.ink} name="En curso" hint="asignados o en producción">
                         {lists.working.map((b) => (
                             <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
-                                sub={`${whatOf(b)} · lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}`}
+                                sub={`${whatOf(b)} · lo hace ${b.editor ?? "—"}${b.status === "approved" ? " (sin empezar)" : ""}${b.returned ? " · corrigiendo" : ""} · ${when(b).text}${noteOf(b)}`}
                                 extra={b.can.assign ? <AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={b.editor_id} url={`/editor/queue/${b.id}/editor`} allowNone={b.status === "approved"} onDone={() => changed()} /> : undefined} />
                         ))}
                     </Section>

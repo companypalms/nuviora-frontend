@@ -237,6 +237,15 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["price_step", "Probar bajar el precio de a", "$"],
         ],
     },
+    // .139: la etiqueta de cada producto por su efectividad (Pausar o activar productos) y lo que cambia en los encargos
+    {
+        title: "Producto bueno, regular o malo", help: "Solo por su efectividad, con los pedidos que ya tuvieron tiempo de entregarse y sin los que esperaron stock. Un Malo no recibe encargos nuevos hasta que decidas (misión en Frenar pérdidas); un Regular va después de los Buenos en las listas de los editores.", fields: [
+            ["worth_good_pct", "Bueno desde", "% de efectividad"], ["worth_bad_pct", "Malo debajo de", "% de efectividad"],
+            ["worth_early_orders", "Primera lectura con", "pedidos"], ["worth_early_bad_pct", "En la primera lectura, Malo solo debajo de", "%"],
+            ["worth_full_orders", "Lectura completa con", "pedidos"], ["worth_min_days", "Productos grandes: al menos los últimos", "días"],
+            ["worth_max_days", "Pedidos de como mucho", "días"], ["worth_rescue_gain", "Un Malo queda Regular si dejó en 4 semanas", "$"],
+        ],
+    },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
     {
         title: "Cola y banca", help: "Un batch a la vez por producto: con uno en la banca o haciéndose no se pide otro; cuando se lanza, se pide el siguiente.", fields: [
