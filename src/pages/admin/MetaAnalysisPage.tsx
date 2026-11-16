@@ -253,7 +253,7 @@ const LastTime: React.FC<{ last: NonNullable<UrgentItem["last"]> }> = ({ last })
 };
 
 /** Una misión de la lista: la casilla (se puede hacer en cualquier orden), qué y dónde; los pasos y el porqué, plegados. */
-const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, onMark }) => {
+const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["status"] | null, note?: string) => void; onReload?: () => void }> = ({ item, mark, onMark, onReload }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
     const [dialog, setDialog] = useState(false);
@@ -293,7 +293,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                 <Collapse in={open && !done && !disagree} unmountOnExit>
                     {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
                     {item.copy ? <CopyParams copy={item.copy} /> : null}
-                    {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
+                    {item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
                     {item.last ? <LastTime last={item.last} /> : null}
                     <WhyBox item={item}>
                         {!item.no_disagree && <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>}
@@ -306,7 +306,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
 };
 
 /** La misión de ahora, en grande: una sola cosa, con "Hecho" y "No estoy de acuerdo". La siguiente entra sola. */
-const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: number; onMark: (status: Mark["status"] | null, note?: string) => void }> = ({ item, mark, n, total, onMark }) => {
+const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: number; onMark: (status: Mark["status"] | null, note?: string) => void; onReload?: () => void }> = ({ item, mark, n, total, onMark, onReload }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
     const [dialog, setDialog] = useState(false);
@@ -321,7 +321,7 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
             <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: whereOf(item) ? 0.25 : 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
             {item.steps?.length ? <Steps steps={item.steps} /> : null}
             {item.copy ? <CopyParams copy={item.copy} /> : null}
-            {item.batches?.length ? <BatchVideos codes={item.batches} /> : null}
+            {item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
             {item.last ? <LastTime last={item.last} /> : null}
             {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
             {!oldRule(item) && <>
@@ -773,7 +773,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                     </Box>
                                 ) : current && (
                                     <MissionCard key={current.key} item={current} mark={marks[current.key]} n={resolved + 1} total={tasks.length}
-                                        onMark={(st, n) => mark(current.key, st, n)} />
+                                        onMark={(st, n) => mark(current.key, st, n)} onReload={load} />
                                 )}
                             </>}
 
@@ -785,7 +785,7 @@ export const MetaAnalysisPage: React.FC = () => {
                                 const items = tasks.filter((i) => groupOf(i) === g.key && i.key !== current?.key);
                                 return items.length === 0 ? null : (
                                     <Section key={g.key} dot={g.color(t)} name={g.name} hint={g.hint} mt={1.5}>
-                                        {items.map((i) => <TaskRow key={i.key} item={i} mark={marks[i.key]} onMark={(st, n) => mark(i.key, st, n)} />)}
+                                        {items.map((i) => <TaskRow key={i.key} item={i} mark={marks[i.key]} onMark={(st, n) => mark(i.key, st, n)} onReload={load} />)}
                                     </Section>
                                 );
                             })}

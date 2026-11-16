@@ -130,6 +130,8 @@ export const ReviewBrief: React.FC<{ c: ReviewContext; detail?: React.ReactNode 
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
     const [open, setOpen] = useState(false);
     const rows = ([
+        // .148: lo devolvió el dueño desde la banca: lo primero que hay que comprobar
+        ["Lo que pidió el dueño (corregir)", c.ownerNote],
         ["Qué había que hacer", c.task],
         ["La hipótesis", c.hypothesis],
         ["Qué estamos probando", c.testIdea],

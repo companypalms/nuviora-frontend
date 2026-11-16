@@ -19,6 +19,8 @@ export type Delivery = {
 export type EditorFields = {
     editor_id: number | null; editor: string | null; assigned_at: string | null; started_at: string | null; delivered_at: string | null; overdue: boolean;
     returned: { version: string; comment: string | null; by: string | null } | null; deliveries: Delivery[];
+    /** .148: lo que devolvió el dueño desde la banca (su nota, las piezas que están mal y quién lo había hecho), hasta que vuelva a la banca. */
+    sent_back?: { note: string; pieces: string[]; at: string; by: string | null; editor_id: number | null; editor: string | null } | null;
     can: { assign: boolean; start: boolean; deliver: boolean; review: boolean }; review_by_owner: boolean;
     /** .93: el ganador que se itera (para compararlo al revisar y al entregar). */
     iteration?: Iteration | null;
@@ -101,6 +103,8 @@ export type ReviewContext = {
     hypothesis?: string | null; testIdea?: string | null; angle?: string | null; angleAbout?: string | null;
     goal?: string | null; keep?: string | null; improve?: string | null; iteration?: Iteration | null;
     asked: Record<number, { change: string | null; hypothesis?: string | null; test_label?: string | null }>;
+    /** .148: lo que devolvió el dueño desde la banca (para comprobar que se corrigió). */
+    ownerNote?: string | null;
 };
 
 type ContextSource = {
@@ -108,6 +112,7 @@ type ContextSource = {
     hypothesis?: string | null; test_idea?: string | null; angle_code: string | null; angle_name: string | null; angle_about?: string | null;
     goal?: string | null; keep: string | null; improve?: string | null; iteration?: Iteration | null;
     pieces: { id?: number; change: string | null; hypothesis?: string | null; test_label?: string | null }[];
+    sent_back?: { note: string; pieces: string[] } | null;
 };
 
 /** .93: el contexto de "Revisar" a partir de un encargo (el del líder o el de Cola y banca del dueño). */
@@ -116,6 +121,8 @@ export const reviewContext = (b: ContextSource): ReviewContext => ({
     hypothesis: b.hypothesis, testIdea: b.test_idea, angle: [b.angle_code, b.angle_name].filter(Boolean).join(" ") || null, angleAbout: b.angle_about,
     goal: b.goal, keep: b.keep, improve: b.improve, iteration: b.iteration ?? null,
     asked: Object.fromEntries(b.pieces.filter((p) => p.id).map((p) => [p.id as number, { change: p.change, hypothesis: p.hypothesis, test_label: p.test_label }])),
+    ownerNote: b.sent_back ? `${b.sent_back.note}${b.sent_back.pieces.length ? `
+Piezas a corregir: ${b.sent_back.pieces.join(", ")}.` : ""}` : null,
 });
 
 /**

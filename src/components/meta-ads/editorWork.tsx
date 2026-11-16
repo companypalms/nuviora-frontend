@@ -63,12 +63,14 @@ export const CopyBrief: React.FC<{ text: string; label?: string; asLink?: boolea
  * él confirma"): una ventana con lo que tiene cada editor ("2 encargos, 1 atrasado"), el más libre marcado como
  * "Sugerido", y la referencia de la que conviene partir (opcional; el editor la ve y ya viene elegida al entregar).
  */
-export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false, code, productId, angleCode, suggestedRef, task, referencesUrl = "/editor/references" }: {
+export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, primary = false, asLink = false, code, productId, angleCode, suggestedRef, task, referencesUrl = "/editor/references", madeBy = null }: {
     editors: EditorOption[]; current: number | null; url: string; allowNone: boolean; onDone: (b: B) => void; primary?: boolean; asLink?: boolean;
     /** .94: el encargo (para el título y para ofrecer primero las referencias de su producto y ángulo). */
     code?: string | null; productId?: number; angleCode?: string | null; suggestedRef?: number | null; referencesUrl?: string;
     /** .99: qué hay que hacer (para saber a quién dárselo). */
     task?: BatchTask | null;
+    /** .148: lo devolvió el dueño: quien lo había hecho viene elegido (para que lo corrija el mismo, si el líder quiere). */
+    madeBy?: number | null;
 }) => {
     const t = useTokens();
     const phone = useMediaQuery(useTheme().breakpoints.down("sm"));
@@ -80,7 +82,7 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, pri
     const suggested = editors.find((e) => e.suggested)?.id ?? null;
 
     const start = () => {
-        setPick(current ?? suggested ?? editors[0]?.id ?? null);
+        setPick(current ?? (madeBy !== null && editors.some((e) => e.id === madeBy) ? madeBy : null) ?? suggested ?? editors[0]?.id ?? null);
         setRef(suggestedRef ?? "");
         setOpen(true);
         api<ReferenceLibraryData>(`${referencesUrl}${productId ? `?product_id=${productId}` : ""}`).then(setLib).catch(() => setLib(null));
@@ -138,7 +140,7 @@ export const AssignButton = <B,>({ editors, current, url, allowNone, onDone, pri
                                         gap: 1.25, "&.Mui-focusVisible": { outline: `2px solid ${t.ink}`, outlineOffset: 2 } }}>
                                     <Dot color={on ? t.ink : t.gray} size={10} />
                                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Typography sx={{ fontSize: 15, fontWeight: 500 }}>{e.name}{e.leader ? " (líder)" : ""}{e.id === current ? " · ahora" : ""}</Typography>
+                                        <Typography sx={{ fontSize: 15, fontWeight: 500 }}>{e.name}{e.leader ? " (líder)" : ""}{e.id === current ? " · ahora" : ""}{e.id === madeBy && e.id !== current ? " · lo hizo" : ""}</Typography>
                                         {load(e) && <Typography sx={{ fontSize: 13, color: e.late ? t.red : t.muted }}>{load(e)}</Typography>}
                                     </Box>
                                     {e.suggested && <Typography sx={{ fontSize: 12, fontWeight: 600, color: t.greenInk, bgcolor: t.greenSoft, px: 1, py: 0.25, borderRadius: "999px" }}>Sugerido</Typography>}

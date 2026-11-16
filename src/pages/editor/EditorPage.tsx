@@ -249,7 +249,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const when = (b: EditorBatch) => whenLabel(dueOf(b, corrections), today);
     const reviewable = lists.toReview.filter((b) => b.can.review);
     // .94: para asignar: el encargo (título y referencias de su producto) y la referencia ya sugerida
-    const assignOf = (b: EditorBatch) => ({ code: b.code, productId: b.product_id, angleCode: b.angle_code, suggestedRef: b.suggested_reference?.id ?? null, task: b.task });
+    const assignOf = (b: EditorBatch) => ({ code: b.code, productId: b.product_id, angleCode: b.angle_code, suggestedRef: b.suggested_reference?.id ?? null, task: b.task,
+        madeBy: b.sent_back?.editor_id ?? null }); // .148: lo devuelto por el dueño viene con el que lo hizo elegido
     // .93: lo que queda por revisar después del que está abierto
     const after = reviewable.filter((b) => b.id !== reviewId);
     const late = (list: EditorBatch[]) => list.filter((b) => when(b).level === "late").length;
@@ -351,11 +352,15 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         <Button variant="contained" disableElevation startIcon={<RateReviewRounded />} onClick={() => setReviewId(nextReview.id)}
                             sx={{ ...inkSx(t), ...tapSx, mt: 2, width: { xs: "100%", sm: "auto" } }}>Revisar {nextReview.code}</Button>
                     </>)
-                    : nextAssign ? missionFrame(`Sin asignar · ${when(nextAssign).text}`, signal(t, when(nextAssign).level), `${nextAssign.product}${angleOf(nextAssign) ? ` · ${angleOf(nextAssign)}` : ""}`,
-                        `Asigna ${nextAssign.code}: ${whatOf(nextAssign)}`, <>
+                    : nextAssign ? missionFrame(`${nextAssign.sent_back ? "Te lo devolvió el dueño" : "Sin asignar"} · ${when(nextAssign).text}`, signal(t, when(nextAssign).level), `${nextAssign.product}${angleOf(nextAssign) ? ` · ${angleOf(nextAssign)}` : ""}`,
+                        nextAssign.sent_back ? `Asigna ${nextAssign.code} para corregirlo` : `Asigna ${nextAssign.code}: ${whatOf(nextAssign)}`, <>
+                            {/* .148: lo devolvió el dueño desde la banca: su nota y las piezas a corregir */}
+                            <Returned b={nextAssign} />
                             <TaskDetail b={nextAssign} />
                             {nextAssign.need && <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>Por qué hace falta: {nextAssign.need}</Typography>}
-                            <NumberedSteps label="Cómo asignar" steps={["Toca «Asignar» y elige quién lo hace (puedes ser tú).", "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
+                            <NumberedSteps label="Cómo asignar" steps={nextAssign.sent_back
+                                ? [`Toca «Asignar»: viene elegido ${nextAssign.sent_back.editor ?? "el que lo hizo"}; puedes dárselo a otro (o a ti).`, "Le llega como «Te lo devolvieron», con la nota del dueño y las piezas a corregir."]
+                                : ["Toca «Asignar» y elige quién lo hace (puedes ser tú).", "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
                             <Box sx={{ mt: 2 }}><AssignButton<EditorBatch> primary {...assignOf(nextAssign)} editors={data.editors} current={null} url={`/editor/queue/${nextAssign.id}/editor`} allowNone onDone={() => changed(`${nextAssign.code} asignado.`)} /></Box>
                         </>)
                     : empty("Todo en orden: nada por revisar ni asignar", "Cuando alguien entregue o llegue un encargo nuevo, aparece aquí.")}
@@ -366,7 +371,7 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         <Typography sx={{ fontSize: 14, color: t.muted }}>Nada por revisar: cuando un editor entregue, aparece aquí.</Typography>
                     ) : lists.toReview.map((b) => (
                         <BatchRow key={b.id} b={b} dot={t.amber} open={openId === b.id} onToggle={() => toggle(b.id)} onOpen={b.can.review ? () => setReviewId(b.id) : undefined}
-                            sub={b.can.review ? `Lo entregó ${b.deliveries.find((d) => d.review === "pending")?.editor ?? b.editor ?? "el editor"} · ${when(b).text}` : "Es tu entrega: la revisa el dueño"}
+                            sub={b.can.review ? `Lo entregó ${b.deliveries.find((d) => d.review === "pending")?.editor ?? b.editor ?? "el editor"}${b.sent_back ? " · lo devolvió el dueño" : ""} · ${when(b).text}` : "Es tu entrega: la revisa el dueño"}
                             action={b.can.review ? <RowButton icon={<RateReviewRounded />} onClick={() => setReviewId(b.id)}>Revisar</RowButton> : undefined} />
                     ))}
                 </Section>
@@ -379,7 +384,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 {lists.toAssign.length > 0 && (
                     <Section dot={t.gray} name="Sin asignar" hint="lo más urgente arriba">
                         {lists.toAssign.map((b) => (
-                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)} sub={`${whatOf(b)} · ${when(b).text}${noteOf(b)}`}
+                            <BatchRow key={b.id} b={b} dot={signal(t, when(b).level)} open={openId === b.id} onToggle={() => toggle(b.id)}
+                                sub={`${b.sent_back ? "Te lo devolvió el dueño · " : ""}${whatOf(b)} · ${when(b).text}${noteOf(b)}`}
                                 action={<AssignButton<EditorBatch> asLink {...assignOf(b)} editors={data.editors} current={null} url={`/editor/queue/${b.id}/editor`} allowNone onDone={() => changed(`${b.code} asignado.`)} />} />
                         ))}
                     </Section>
