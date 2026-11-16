@@ -359,7 +359,7 @@ const BatchCard: React.FC<{
                     {b.iteration.file.download_url && <> · <a href={b.iteration.file.download_url}>bajar «{b.iteration.file.name}»</a></>}
                 </Typography>
             ) : b.iteration?.video_note && (
-                <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25, overflowWrap: "anywhere" }}>{b.iteration.video_note}</Typography>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25, overflowWrap: "anywhere", whiteSpace: "pre-line" }}>{b.iteration.video_note}</Typography>
             )}
             {b.need && ["approved", "production", "review"].includes(b.status) && (
                 <Typography variant="body2" sx={{ mt: 0.25, overflowWrap: "anywhere" }}><b>Por qué:</b> {b.need}</Typography>

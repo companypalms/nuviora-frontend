@@ -86,7 +86,7 @@ export type ReferenceBrief = { id: number; code: string; type_label: string | nu
 /**
  * .93: el ganador que se itera (EditorWork::iteration): su video si está en el sistema; si no, su miniatura y sus textos.
  * .104: si su video no está en el sistema (es de antes), video_note dice su nombre completo y su ángulo para buscarlo en
- * el Drive antiguo.
+ * el Drive antiguo. .150: y dónde está en Meta (anuncio, conjunto de anuncios y ciudad), un lugar por línea.
  */
 export type Iteration = {
     code: string | null; angle?: string | null; file: StoredFile | null; video_note?: string | null; thumbnail: string | null; texts: string[];

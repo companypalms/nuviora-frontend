@@ -103,10 +103,11 @@ export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean; hi
                             {b.reference_script?.text && <Typography sx={{ fontSize: 13, color: t.muted, whiteSpace: "pre-line", overflowWrap: "anywhere" }}><b>Lo que dice su video:</b> {b.reference_script.text}</Typography>}
                         </Box>
                     </Stack>
-                    {/* .98: el video del ganador, si se entregó por el sistema. .104: si no, dónde buscarlo (el Drive antiguo) */}
+                    {/* .98: el video del ganador, si se entregó por el sistema. .104: si no, dónde buscarlo (el Drive antiguo).
+                        .150: con dónde está en Meta, un lugar por línea */}
                     {b.iteration?.file && <Box sx={{ mt: 1 }}><FileView file={b.iteration.file} height={240} /></Box>}
                     {!b.iteration?.file && b.iteration?.video_note && (
-                        <Typography sx={{ fontSize: 13, color: t.muted, mt: 1, overflowWrap: "anywhere" }}>{b.iteration.video_note}</Typography>
+                        <Typography sx={{ fontSize: 13, color: t.muted, mt: 1, overflowWrap: "anywhere", whiteSpace: "pre-line" }}>{b.iteration.video_note}</Typography>
                     )}
                 </Box>
             )}
