@@ -7,6 +7,7 @@ import { CourierShipmentSection } from '../../components/orders/CourierShipmentS
 import { CourierBox } from '../../components/orders/CourierBox';
 import MapIcon from '@mui/icons-material/Map';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import { canRelocate } from '../../common/relocate';
 
 interface LiteOrderHeaderProps {
     order: any;
@@ -101,8 +102,8 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
                 <InfoRow
                     label="Ubicación (Ciudad)"
                     action={
-                        ['Admin', 'Gerente'].includes(user.role?.description || '') && onEditLogistics ? (
-                            <Tooltip title="Editar Ciudad">
+                        canRelocate(user, order.status?.description) && onEditLogistics ? (
+                            <Tooltip title="Cambiar ciudad o agencia">
                                 <IconButton size="small" onClick={onEditLogistics} sx={{ p: 0 }}>
                                     <MapIcon fontSize="small" />
                                 </IconButton>
@@ -113,6 +114,13 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
                     <Typography variant="body1" fontWeight="bold">
                         {order.city?.name || order.client?.city || 'No especificada'}
                     </Typography>
+                    {/* .149: si el pedido está en otra ciudad que la que escribió el cliente, se ve */}
+                    {order.city?.name && (order.client?.province || order.client?.city)
+                        && ![order.client?.province, order.client?.city].some((n: string | undefined) => n?.trim().toLowerCase() === order.city.name.toLowerCase()) && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                            El cliente escribió: {order.client?.province || order.client?.city}
+                        </Typography>
+                    )}
                 </InfoRow>
             </Grid>
 

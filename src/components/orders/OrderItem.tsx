@@ -23,7 +23,6 @@ import DenseMenu from "../ui/content/DenseMenu";
 import { AssignAgentDialog } from "./AssignAgentDialog";
 import { AssignDelivererDialog } from "./AssignDelivererDialog";
 import { PostponeOrderDialog } from "./PostponeOrderDialog";
-import { AssignAgencyDialog } from "./AssignAgencyDialog";
 import { NoveltyDialog } from "./NoveltyDialog";
 import { ResolveNovedadDialog } from "./ResolveNovedadDialog";
 import { MarkDeliveredDialog } from "./MarkDeliveredDialog";
@@ -95,8 +94,8 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
         }
 
         if (status === ORDER_STATUS.ASIGNAR_AGENCIA && (!order.agency || !order.agency.id)) {
-            // If agency is not assigned, open the assign agency dialog
-            setActiveModal('assign_agency', order);
+            // Sin agencia: se elige la ciudad y la agencia y después pasa a "Asignar a agencia" (.149)
+            setActiveModal('assign_agency', { ...order, sendToAgency: true });
             return;
         }
 
@@ -167,7 +166,7 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                 // 🔹 Fallback: Si el backend pide asignar agencia manualmente (aunque el front pensara que ya tenía)
                 if (errorData.require_manual_agency) {
                     toast.info(errorData.message);
-                    setActiveModal('assign_agency', order); // Changed from setOpenAssignAgency(true)
+                    setActiveModal('assign_agency', { ...order, sendToAgency: true });
                     return;
                 }
 

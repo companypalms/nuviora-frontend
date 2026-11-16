@@ -68,11 +68,10 @@ import { AssignAgentDialog } from "../../components/orders/AssignAgentDialog";
 import { LeaderMoveOrderDialog } from "../../components/orders/LeaderMoveOrderDialog";
 import { leaderCanMove } from "../../common/leaderMove";
 import AssignmentIndRounded from "@mui/icons-material/AssignmentIndRounded";
-import { AssignAgencyDialog } from "../../components/orders/AssignAgencyDialog";
 import { MarkDeliveredDialog } from "../../components/orders/MarkDeliveredDialog";
 import { ReportNovedadDialog } from "../../components/orders/ReportNovedadDialog";
 import { ResolveNovedadDialog } from "../../components/orders/ResolveNovedadDialog";
-import { LogisticsDialog } from "../../components/orders/LogisticsDialog";
+import { RelocateDialog } from "../../components/orders/RelocateDialog";
 import { orderNo } from "../../lib/functions";
 
 interface LiteOrderDialogProps {
@@ -142,7 +141,6 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
     const [openRates, setOpenRates] = useState(false);
     const [openAssign, setOpenAssign] = useState(false);
     const [openLeaderMove, setOpenLeaderMove] = useState(false);
-    const [openAssignAgency, setOpenAssignAgency] = useState(false);
     const [openAssignDeliverer, setOpenAssignDeliverer] = useState(false);
     const [openLogistics, setOpenLogistics] = useState(false);
 
@@ -343,8 +341,8 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
                         variant="outlined"
                         sx={{ mb: 2, borderRadius: 2, maxWidth: '1000px', margin: '0 auto 16px auto' }}
                         action={
-                            <ButtonCustom size="small" color="success" onClick={() => setOpenAssignAgency(true)}>
-                                Reasignar agencia
+                            <ButtonCustom size="small" color="success" onClick={() => setOpenLogistics(true)}>
+                                Cambiar ciudad o agencia
                             </ButtonCustom>
                         }
                     >
@@ -673,9 +671,8 @@ export const LiteOrderDialog: FC<LiteOrderDialogProps> = ({ id, open, setOpen, o
             <ResolveNovedadDialog open={openResolveNovedad} onClose={() => setOpenResolveNovedad(false)} onConfirm={(resolution) => { if (pendingStatus) changeStatus(pendingStatus.description, { novedad_resolution: resolution }); }} />
             <AssignAgentDialog open={openAssign} onClose={() => setOpenAssign(false)} orderId={order.id} />
             {!!user.leader_group && <LeaderMoveOrderDialog open={openLeaderMove} onClose={() => setOpenLeaderMove(false)} order={{ id: order.id, name: order.name, agent_id: order.agent_id ?? order.agent?.id }} />}
-            <AssignAgencyDialog open={openAssignAgency} onClose={() => setOpenAssignAgency(false)} orderId={order.id} stockElsewhere={order.stock_elsewhere} />
             <AssignDelivererDialog open={openAssignDeliverer} onClose={() => setOpenAssignDeliverer(false)} orderId={order.id} />
-            <LogisticsDialog open={openLogistics} onClose={() => setOpenLogistics(false)} order={order} />
+            <RelocateDialog open={openLogistics} onClose={() => setOpenLogistics(false)} orderId={order.id} orderName={order.name} onDone={refreshOrder} />
             <DailyRatesDialog open={openRates} onClose={() => setOpenRates(false)} />
 
             {/* Upsell Dialog */}

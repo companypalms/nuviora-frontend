@@ -11,6 +11,7 @@ import MapIcon from '@mui/icons-material/Map';
 import { PhoneActionMenu } from './PhoneActionMenu';
 import { CourierShipmentSection } from './CourierShipmentSection';
 import { CourierBox } from './CourierBox';
+import { canRelocate } from '../../common/relocate';
 
 interface OrderHeaderProps {
     order: any;
@@ -108,10 +109,17 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                                 <Typography variant="body1" fontWeight="bold">
                                     {order.city?.name || order.client?.city || 'No especificada'}
                                 </Typography>
+                                {/* .149: si el pedido está en otra ciudad que la que escribió el cliente, se ve */}
+                                {order.city?.name && (order.client?.province || order.client?.city)
+                                    && ![order.client?.province, order.client?.city].some((n: string | undefined) => n?.trim().toLowerCase() === order.city.name.toLowerCase()) && (
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                        El cliente escribió: {order.client?.province || order.client?.city}
+                                    </Typography>
+                                )}
                             </Box>
                         </Box>
-                        {['Admin', 'Gerente'].includes(user.role?.description || '') && onEditLogistics && (
-                            <Tooltip title="Editar Ciudad">
+                        {canRelocate(user, order.status?.description) && onEditLogistics && (
+                            <Tooltip title="Cambiar ciudad o agencia">
                                 <IconButton size="small" onClick={onEditLogistics} sx={{ color: user.color }}>
                                     <MapIcon fontSize="small" />
                                 </IconButton>
@@ -169,8 +177,8 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                                 </Typography>
                             </Box>
                         </Box>
-                        {['Admin', 'Gerente'].includes(user.role?.description || '') && onEditLogistics && (
-                            <Tooltip title="Editar Logística">
+                        {canRelocate(user, order.status?.description) && onEditLogistics && (
+                            <Tooltip title="Cambiar ciudad o agencia">
                                 <IconButton size="small" onClick={onEditLogistics} sx={{ color: user.color }}>
                                     <StorefrontIcon fontSize="small" />
                                 </IconButton>

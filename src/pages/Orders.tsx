@@ -19,7 +19,7 @@ import { DailyRatesDialog } from "../components/orders/DailyRatesDialog";
 import { AssignAgentDialog } from "../components/orders/AssignAgentDialog";
 import { AssignDelivererDialog } from "../components/orders/AssignDelivererDialog";
 import { PostponeOrderDialog } from "../components/orders/PostponeOrderDialog";
-import { AssignAgencyDialog } from "../components/orders/AssignAgencyDialog";
+import { RelocateDialog } from "../components/orders/RelocateDialog";
 import { NoveltyDialog } from "../components/orders/NoveltyDialog";
 import { ResolveNovedadDialog } from "../components/orders/ResolveNovedadDialog";
 import { MarkDeliveredDialog } from "../components/orders/MarkDeliveredDialog";
@@ -305,12 +305,14 @@ export const Orders = () => {
                     targetStatus={activeModal.data.targetStatus}
                 />
             )}
+            {/* .149: la misma ventana de "Cambiar ciudad o agencia" (antes salían todas las agencias de todas las ciudades) */}
             {activeModal.type === 'assign_agency' && activeModal.data && (
-                <AssignAgencyDialog
+                <RelocateDialog
                     open={true}
                     onClose={() => setActiveModal(null)}
                     orderId={activeModal.data.id}
-                    stockElsewhere={activeModal.data.stock_elsewhere}
+                    orderName={activeModal.data.name}
+                    sendToAgency={!!activeModal.data.sendToAgency}
                 />
             )}
             {activeModal.type === 'novelty' && activeModal.data && (

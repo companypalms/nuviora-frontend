@@ -13,7 +13,6 @@ import { AssignDelivererDialog } from "./AssignDelivererDialog";
 import { AssignAgentDialog } from "./AssignAgentDialog";
 import { LeaderMoveOrderDialog } from "./LeaderMoveOrderDialog";
 import { leaderCanMove } from "../../common/leaderMove";
-import { AssignAgencyDialog } from "./AssignAgencyDialog";
 import { OrderPaymentSection } from "./OrderPaymentSection";
 import { OrderChangeSection } from "./OrderChangeSection";
 import { OrderTimer } from "./OrderTimer";
@@ -61,7 +60,8 @@ import { request } from "../../common/request";
 import { MarkDeliveredDialog } from "./MarkDeliveredDialog";
 import { ReportNovedadDialog } from "./ReportNovedadDialog";
 import { ResolveNovedadDialog } from "./ResolveNovedadDialog";
-import { LogisticsDialog } from "./LogisticsDialog";
+import { RelocateDialog } from "./RelocateDialog";
+import { canRelocate } from "../../common/relocate";
 import DenseMenu from "../ui/content/DenseMenu";
 import { toast } from "react-toastify";
 import { DailyRatesDialog } from "./DailyRatesDialog";
@@ -177,7 +177,6 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
     const [openRates, setOpenRates] = useState(false);
     const [openAssign, setOpenAssign] = useState(false);
     const [openLeaderMove, setOpenLeaderMove] = useState(false);
-    const [openAssignAgency, setOpenAssignAgency] = useState(false);
     const [openAssignDeliverer, setOpenAssignDeliverer] = useState(false);
     const [openLogistics, setOpenLogistics] = useState(false);
     const [showUpsellConfirm, setShowUpsellConfirm] = useState(false);
@@ -406,7 +405,8 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                                 <Box sx={{ display: { xs: 'none', md: 'block' } }}>
                                     <Typography variant="caption" color="text.secondary" display="block">Provincia / Ciudad</Typography>
                                     <Typography variant="body1" fontWeight="bold" sx={{ color: 'white' }}>
-                                        {order.client?.province || 'No esp.'} / {order.client?.city || 'No esp.'}
+                                        {/* .149: la ciudad del pedido; antes salía lo que escribió el cliente aunque el pedido estuviera en otra */}
+                                        {order.city?.name ?? `${order.client?.province || 'No esp.'} / ${order.client?.city || 'No esp.'}`}
                                     </Typography>
                                 </Box>
 
@@ -620,8 +620,8 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                                     ))}
                                 </Box>
                                 <Box sx={{ pl: { sm: 5 } }}>
-                                    <ButtonCustom size="small" color="success" onClick={() => setOpenAssignAgency(true)}>
-                                        Reasignar agencia
+                                    <ButtonCustom size="small" color="success" onClick={() => setOpenLogistics(true)}>
+                                        Cambiar ciudad o agencia
                                     </ButtonCustom>
                                 </Box>
                             </Paper>
@@ -1002,20 +1002,19 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                     elevation={4}
                     slotProps={{ paper: { sx: { borderRadius: 3, minWidth: 200, mt: 1 } } }}
                 >
+                    {/* .149: la ciudad y la agencia en una sola ventana (antes "Gestión Logística" y "Asignar Agencia"); también la líder */}
+                    {canRelocate(user, order.status?.description) && (
+                        <MenuItem onClick={() => { handleMenuClose(); setOpenLogistics(true); }}>
+                            <ListItemIcon><ApartmentRounded fontSize="small" /></ListItemIcon>
+                            <ListItemText>Cambiar ciudad o agencia</ListItemText>
+                        </MenuItem>
+                    )}
                     {['Admin', 'Gerente'].includes(user.role?.description || '') && (
                         <>
-                            <MenuItem onClick={() => { handleMenuClose(); setOpenLogistics(true); }}>
-                                <ListItemIcon><LocalShippingRounded fontSize="small" /></ListItemIcon>
-                                <ListItemText>Gestión Logística</ListItemText>
-                            </MenuItem>
                             <Divider />
                             <MenuItem onClick={() => { handleMenuClose(); setOpenAssign(true); }}>
                                 <ListItemIcon><AssignmentIndRounded fontSize="small" /></ListItemIcon>
                                 <ListItemText>Reasignar Vendedor</ListItemText>
-                            </MenuItem>
-                            <MenuItem onClick={() => { handleMenuClose(); setOpenAssignAgency(true); }}>
-                                <ListItemIcon><ApartmentRounded fontSize="small" /></ListItemIcon>
-                                <ListItemText>Asignar Agencia</ListItemText>
                             </MenuItem>
                             <MenuItem onClick={() => { handleMenuClose(); setOpenAssignDeliverer(true); }}>
                                 <ListItemIcon><LocalShippingRounded fontSize="small" /></ListItemIcon>
@@ -1078,9 +1077,8 @@ export const OrderDialog: FC<OrderDialogProps> = ({ id, open, setOpen }) => {
                 <ResolveNovedadDialog open={openResolveNovedad} onClose={() => setOpenResolveNovedad(false)} onConfirm={(resolution) => { if (pendingStatus) changeStatus(pendingStatus.description, { novedad_resolution: resolution }); }} />
                 <AssignAgentDialog open={openAssign} onClose={() => setOpenAssign(false)} orderId={order.id} />
                 {!!user.leader_group && <LeaderMoveOrderDialog open={openLeaderMove} onClose={() => setOpenLeaderMove(false)} order={{ id: order.id, name: order.name, agent_id: order.agent_id ?? order.agent?.id }} />}
-                <AssignAgencyDialog open={openAssignAgency} onClose={() => setOpenAssignAgency(false)} orderId={order.id} stockElsewhere={order.stock_elsewhere} />
                 <AssignDelivererDialog open={openAssignDeliverer} onClose={() => setOpenAssignDeliverer(false)} orderId={order.id} />
-                <LogisticsDialog open={openLogistics} onClose={() => setOpenLogistics(false)} order={order} />
+                <RelocateDialog open={openLogistics} onClose={() => setOpenLogistics(false)} orderId={order.id} orderName={order.name} onDone={refreshOrder} />
                 <DailyRatesDialog open={openRates} onClose={() => setOpenRates(false)} />
 
                 {/* CONFIRMAR CAMBIO (la devolución es un reembolso: RefundDialog) */}
