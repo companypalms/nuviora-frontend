@@ -43,6 +43,7 @@ import { MetaChangesPage } from './pages/admin/MetaChangesPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { BankPage } from './pages/editor/BankPage';
 import { ProductStatesPage } from './pages/admin/ProductStatesPage';
+import { ProductQueuePage } from './pages/admin/ProductQueuePage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { ReferencesPage } from './pages/editor/ReferencesPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
@@ -174,6 +175,7 @@ function App() {
           <Route path="/meta-ads/referencias" element={<RequireRole allowedRoles={['Admin']}><ReferencesPage owner /></RequireRole>} />
           {/* .99: pausar, poner en liquidación, abandonar o reactivar un producto */}
           <Route path="/meta-ads/productos" element={<RequireRole allowedRoles={['Admin']}><ProductStatesPage /></RequireRole>} />
+          <Route path="/meta-ads/por-montar" element={<RequireRole allowedRoles={['Admin']}><ProductQueuePage /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
           <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
           {/* .131: cada cambio en Meta con su hipótesis y si se cumplió */}

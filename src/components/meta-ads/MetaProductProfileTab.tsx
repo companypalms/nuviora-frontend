@@ -7,11 +7,11 @@
 // primeros ángulos; con 2 ángulos, 2 del más fuerte y 1 del otro; con 1, 2 batches) y "Iterar lo que funciona".
 // .90: las fotos del producto (las ven los editores) y su documento de estrategia (solo el dueño), subidos al sistema.
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, IconButton, LinearProgress, Link, MenuItem, Paper, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import {
     AddRounded, ArrowDownwardRounded, ArrowUpwardRounded, AutoAwesomeRounded, DeleteOutlineRounded, SaveRounded, UploadFileRounded,
 } from "@mui/icons-material";
-import { useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { api, dateTime } from "./metaAds";
 import { TestingBox, TestingSummary } from "./productProfile";
@@ -31,11 +31,13 @@ type Data = {
     testing?: TestingSummary | null; tested_angles?: string[];
     /** .100: el aviso si ya vende (el testeo pide hasta 3 batches juntos) */
     selling_warning?: string | null;
+    /** .154: su lugar en la cola de productos por montar */
+    queue_position?: number | null;
     /** .90 */
     files?: ProductFilesData;
 };
 type ProductFilesData = { on: boolean; photos: StoredFile[]; strategy: StoredFile[] };
-type Phase = "testing" | "iterate";
+type Phase = "queued" | "testing" | "iterate";
 type Angle = { key: string; code: string; name: string; hypothesis: string; persona: string };
 
 const FIELDS: { key: FieldKey; label: string; placeholder: string; rows: number; max: number }[] = [
@@ -252,13 +254,19 @@ export const MetaProductProfileTab: React.FC = () => {
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">Fase</Typography>
                         <TextField select size="small" value={phase} onChange={(e) => { setPhaseState(e.target.value as Phase); setDirty(true); }} sx={{ mt: 1, minWidth: { sm: 260 }, width: { xs: "100%", sm: "auto" } }}
-                            helperText={phase !== "testing"
+                            helperText={phase === "queued"
+                                ? (data.phase === "queued"
+                                    ? <>Lugar {data.queue_position ?? "—"} de tu cola: sale solo al editor líder cuando el equipo tenga chance. <Link component={RouterLink} to="/meta-ads/por-montar">Ver Productos por montar</Link></>
+                                    : "Al guardar entra al final de tu cola de productos por montar: sale solo al editor líder cuando el equipo tenga chance, uno a la vez.")
+                                : phase !== "testing"
                                 ? "Las reglas piden iteraciones de lo que gana y no piden más de los ángulos que perdieron en un testeo."
                                 : data.phase === "testing" ? "Abajo, en qué va el testeo."
-                                    : "Al guardar empieza el testeo: " + testingText(untested)
+                                    : "Al guardar empieza el testeo ya, sin esperar la cola: " + testingText(untested)
                                         + ((data.tested_angles ?? []).length ? " (los ángulos que ya se probaron no se repiten)" : "")
                                         + (untested.length ? ". Los que ya están en la banca cuentan." : ".")}>
-                            <MenuItem value="testing">En testeo (producto nuevo)</MenuItem>
+                            {/* .154: un producto nuevo va a la cola; "En testeo" lo empieza ya */}
+                            <MenuItem value="queued">En cola (producto nuevo)</MenuItem>
+                            <MenuItem value="testing">En testeo (empieza ya)</MenuItem>
                             <MenuItem value="iterate">Iterar lo que funciona</MenuItem>
                         </TextField>
                         {/* .100: un producto que ya vende normalmente va en "Iterar lo que funciona" */}

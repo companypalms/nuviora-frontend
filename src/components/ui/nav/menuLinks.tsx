@@ -20,6 +20,7 @@ import {
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
     VideoLibraryRounded, EmojiEventsRounded, WebRounded, SummarizeRounded, ArchiveRounded, PauseCircleRounded,
+    PlaylistAddRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -102,6 +103,8 @@ export const MENU_LINKS: NavLink[] = [
     // .131: cada cambio en Meta con su hipótesis y si se cumplió
     { section: "reportes", text: "Historial de cambios", icon: <HistoryRounded />, link: "/meta-ads/cambios", roles: ["Admin"], keywords: "meta ads cambios hipotesis se cumplio subir bajar presupuesto pausar apagar anuncios batch gasto minimo aprender" },
     { section: "reportes", text: "Cola y banca de creativos", icon: <InsightsRounded />, link: "/meta-ads/cola", roles: ["Admin"], keywords: "meta ads cola produccion banca batches encargos editores creativos numeros" },
+    // .154: la cola de productos nuevos que salen solos al editor líder cuando el equipo tiene chance
+    { section: "reportes", text: "Productos por montar", icon: <PlaylistAddRounded />, link: "/meta-ads/por-montar", roles: ["Admin"], keywords: "productos nuevos cola banca por montar lanzar testeo estrategia editor lider siguiente orden" },
     // .99: pausar, liquidar, abandonar o reactivar un producto (también se le pide al asistente)
     { section: "reportes", text: "Pausar o activar productos", icon: <PauseCircleRounded />, link: "/meta-ads/productos", roles: ["Admin"], keywords: "pausa pausar sin stock agotado proveedor liquidacion abandonar reactivar activar modo producto encargos editores" },
     { section: "reportes", text: "Referencias de creativos", icon: <CollectionsBookmarkRoundedIcon />, link: "/meta-ads/referencias", roles: ["Admin"], keywords: "biblioteca de anuncios referencias ganadoras editores videos probados ref" },

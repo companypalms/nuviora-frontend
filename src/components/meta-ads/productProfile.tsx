@@ -19,7 +19,7 @@ const PERSONA_LABELS: [keyof PersonaInfo, string][] = [["who", "Quién es"], ["p
 
 /** .65: en qué va el testeo de un producto (o cómo terminó), como lo arma TestingPhase::summary. */
 export type TestingSummary = {
-    phase: "testing" | "iterate"; phase_label: string; round: number; text: string; can_next: boolean; level: "info" | "warning" | "success";
+    phase: "queued" | "testing" | "iterate"; phase_label: string; round: number; text: string; can_next: boolean; level: "info" | "warning" | "success";
     slots: { angle: string; name: string | null; persona: string | null; code: string | null; label: string }[];
 };
 

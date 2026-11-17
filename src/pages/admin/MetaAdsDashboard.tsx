@@ -204,6 +204,7 @@ export const MetaAdsDashboard: React.FC = () => {
                         {/* .134: el historial de cambios, junto a las demás pantallas de Meta (también está en el menú) */}
                         <Button size="small" variant="outlined" startIcon={<HistoryRounded />} component={RouterLink} to="/meta-ads/cambios">Historial de cambios</Button>
                         <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/cola">Cola y banca</Button>
+                        <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/por-montar">Productos por montar</Button>
                         <Button size="small" variant="outlined" component={RouterLink} to="/meta-ads/landings">Landings</Button>
                         <Button size="small" startIcon={<SettingsRounded />} component={RouterLink} to="/admin/meta-ads">Configuración</Button>
                     </Stack>
