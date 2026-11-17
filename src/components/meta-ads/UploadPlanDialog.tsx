@@ -1,7 +1,7 @@
 // src/components/meta-ads/UploadPlanDialog.tsx
 // .57 (2026-10-31): "Subir a Meta" de un batch en banca, en simulacro. Muestra exactamente lo que se va a crear (la
 // campaña, el ad set que se copia, el nombre, un anuncio por pieza con su archivo de Drive, los textos y los parámetros de
-// URL) y lo que lo impide. No escribe nada en Meta: subirlo de verdad llega en la .58.
+// URL) y lo que lo impide. No escribe nada en Meta. .155: subirlo de verdad es "Aprobar y subir", en la misión de lanzarlo.
 import React, { useEffect, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from "@mui/material";
 import { CheckCircleRounded, ErrorOutlineRounded } from "@mui/icons-material";
@@ -43,7 +43,7 @@ export const UploadPlanDialog: React.FC<{ batchId: number; code: string | null; 
             <DialogTitle>Subir {code ?? "el batch"} a Meta · simulacro</DialogTitle>
             <DialogContent>
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    Esto es un <b>simulacro</b>: muestra lo que se va a crear, sin tocar Meta. Subirlo de verdad llega en la próxima versión.
+                    Esto es un <b>simulacro</b>: muestra lo que se va a crear, sin tocar Meta. Para subirlo de verdad, usa <b>Aprobar y subir</b> en la misión de lanzarlo (Análisis del día).
                 </Alert>
                 {error && <Alert severity="error">{error}</Alert>}
                 {!plan && !error && <Stack alignItems="center" sx={{ py: 4 }}><CircularProgress size={28} /></Stack>}

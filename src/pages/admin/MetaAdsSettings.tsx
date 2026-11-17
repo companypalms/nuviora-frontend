@@ -37,7 +37,7 @@ export const MetaAdsSettings: React.FC<{ isEmbedded?: boolean }> = ({ isEmbedded
     return (
         <PageLayout isEmbedded={isEmbedded}>
             <Box sx={{ p: { xs: 1, sm: 2 }, maxWidth: 1100, mx: "auto" }}>
-                <DescripcionDeVista title="Meta Ads" description="Conexiones con Meta, cuentas que se sincronizan, campañas por clasificar, objetivos y reglas. Solo lectura: nada de esto modifica Meta Ads." />
+                <DescripcionDeVista title="Meta Ads" description="Conexiones con Meta, cuentas que se sincronizan, campañas por clasificar, objetivos y reglas. Todo esto solo lee Meta Ads; lo único que crea algo es «Subir a Meta» (en Conexiones), si lo prendes." />
                 <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
                     <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads">Ver métricas</Button>
                 </Box>

@@ -30,6 +30,8 @@ export type MetaConnection = {
     meta_user_name: string | null;
     scopes: string[] | null;
     extra_scopes: string[];
+    /** .155: si su token puede crear anuncios (ads_management); null si Meta no dijo sus permisos. */
+    can_upload: boolean | null;
     status: "pending" | "ok" | "error";
     last_success_at: string | null;
     last_error_kind: string | null;

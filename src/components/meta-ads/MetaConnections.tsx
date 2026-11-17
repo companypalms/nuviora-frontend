@@ -4,6 +4,7 @@
 // - el token se pega una vez y nunca vuelve a la pantalla (§4); Fran, en el audio: "que yo ponga el token, ponga la
 //   ID… y vincule el nuevo BM";
 // - cada cuenta se activa o desactiva sin el programador (§5); "Sincronizar ahora" (§56).
+// - .155: el interruptor "Subir a Meta" ("Aprobar y subir" en las misiones) y si el token de cada conexión puede crear anuncios.
 import React, { useCallback, useEffect, useState } from "react";
 import {
     Alert, Box, Button, Chip, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, Paper,
@@ -197,6 +198,7 @@ const ConnectionCard: React.FC<{ c: MetaConnection; onEdit: () => void; onLogs: 
                         <Typography variant="h6" component="h3" fontWeight="bold">{c.name}</Typography>
                         <Chip size="small" color={status.color} label={`${status.dot} ${status.label}`} />
                         {c.syncing && <Chip size="small" icon={<SyncRounded />} label="Sincronizando…" />}
+                        {c.can_upload !== null && <Chip size="small" variant="outlined" label={c.can_upload ? "Puede subir anuncios" : "Solo lee"} />}
                     </Stack>
                     <Typography variant="body2" color="text.secondary">
                         Última sincronización correcta: {dateTime(c.last_success_at)} · Cuentas: {c.active_accounts} de {c.accounts.length}
@@ -223,7 +225,7 @@ const ConnectionCard: React.FC<{ c: MetaConnection; onEdit: () => void; onLogs: 
             )}
             {c.extra_scopes.length > 0 && (
                 <Alert severity="info" sx={{ mt: 1.5 }}>
-                    El token también tiene {c.extra_scopes.join(", ")}. El sistema solo lee; para esta integración alcanza con ads_read.
+                    El token también tiene {c.extra_scopes.join(", ")}. Para leer alcanza con ads_read, y para «Aprobar y subir», ads_management.
                 </Alert>
             )}
 
@@ -245,11 +247,14 @@ export const MetaConnections: React.FC = () => {
     const [connections, setConnections] = useState<MetaConnection[] | null>(null);
     const [dialog, setDialog] = useState<{ open: boolean; editing: MetaConnection | null }>({ open: false, editing: null });
     const [logsOf, setLogsOf] = useState<MetaConnection | null>(null);
+    const [uploadOn, setUploadOn] = useState(false);
+    const [switching, setSwitching] = useState(false);
 
     const load = useCallback(async () => {
         try {
-            const r = await api<{ connections: MetaConnection[] }>("/meta/connections");
+            const r = await api<{ connections: MetaConnection[]; upload_on?: boolean }>("/meta/connections");
             setConnections(r.connections);
+            setUploadOn(!!r.upload_on);
         } catch (e) {
             toast.error((e as Error).message);
             setConnections((c) => c ?? []);
@@ -266,16 +271,48 @@ export const MetaConnections: React.FC = () => {
         return () => clearInterval(t);
     }, [busy, load]);
 
+    // .155: prender o apagar "Subir a Meta"
+    const switchUpload = async (on: boolean) => {
+        setSwitching(true);
+        try {
+            const r = await api<{ on: boolean }>("/meta/uploads/settings", "PUT", { enabled: on });
+            setUploadOn(r.on);
+            toast.success(r.on ? "«Subir a Meta» prendido: «Aprobar y subir» ya sale en tus misiones" : "«Subir a Meta» apagado: el sistema no crea nada en Meta");
+        } catch (e) {
+            toast.error((e as Error).message);
+        } finally {
+            setSwitching(false);
+        }
+    };
+
     if (connections === null) return <Typography sx={{ p: 2 }}>Cargando…</Typography>;
+    const anyCanUpload = connections.some((c) => c.can_upload !== false);
 
     return (
         <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
                 <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
-                    Cada conexión es un Business Manager o un System User de Meta. Se sincroniza sola cada 30 minutos; nunca modifica nada en Meta.
+                    Cada conexión es un Business Manager o un System User de Meta. Se sincroniza sola cada 30 minutos y eso solo lee: lo único que crea algo en Meta es «Aprobar y subir», si lo prendes aquí abajo.
                 </Typography>
                 <Button variant="contained" startIcon={<AddRounded />} onClick={() => setDialog({ open: true, editing: null })}>Agregar conexión</Button>
             </Stack>
+            <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
+                <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                    <Switch checked={uploadOn} disabled={switching} onChange={(e) => switchUpload(e.target.checked)} slotProps={{ input: { "aria-label": "Subir a Meta" } }} />
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography fontWeight="bold">Subir a Meta {uploadOn ? "· prendido" : "· apagado"}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: "anywhere" }}>
+                            Prendido, las misiones que lanzan batches de la banca traen «Aprobar y subir»: el sistema crea el ad set y sus anuncios en la campaña. Solo crea:
+                            nunca borra nada ni cambia el presupuesto de una campaña. Tus primeras 5 subidas quedan en pausa para que las revises y las prendas tú.
+                        </Typography>
+                        {!anyCanUpload && connections.length > 0 && (
+                            <Alert severity="warning" sx={{ mt: 1 }}>
+                                Ninguna conexión tiene todavía el permiso para crear anuncios (ads_management). Sigue la guía del permiso y pega el token nuevo con «Editar».
+                            </Alert>
+                        )}
+                    </Box>
+                </Stack>
+            </Paper>
             {connections.length === 0 && (
                 <Paper elevation={0} sx={{ borderRadius: 3, border: "1px dashed", borderColor: "divider", p: 3, textAlign: "center" }}>
                     <Typography>Todavía no hay conexiones. Agrega la primera con el token del System User de un BM.</Typography>

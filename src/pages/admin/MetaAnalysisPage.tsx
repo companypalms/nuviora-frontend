@@ -14,7 +14,8 @@
 // .84: si "Volver a analizar" se queda sin respuesta (el servidor cortó la espera, pero el análisis sigue), la pantalla no
 // muestra un error: dice "Sigue analizando…" y revisa sola hasta que aparece el análisis nuevo.
 // .85: si el de hoy todavía no está, lo dice y ofrece "Analizar hoy" (antes "Ver el de hoy" volvía al de ayer).
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+// .155: las misiones que lanzan batches de la banca traen "Aprobar y subir" (AutoUpload): el sistema los sube solo a Meta.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Box, Button, ButtonBase, Checkbox, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, Link, MenuItem, Skeleton,
     Stack, TextField, Tooltip, Typography,
@@ -33,6 +34,8 @@ import { appear, cardSx, geist, inkSx, plural, tapSx, Tokens, useTokens } from "
 import { NewProductCard, NewProductView } from "../../components/meta-ads/NewProductCard";
 import { Dot, Section, TextAction } from "../../components/ui/designParts";
 import { BatchVideos } from "../../components/meta-ads/batchVideos";
+import { AutoUpload } from "../../components/meta-ads/AutoUpload";
+import { UploadRow, UploadsContext, UploadTarget, uploadsOpen, useAutoUploaded } from "../../components/meta-ads/autoUploadState";
 
 type Tone = "default" | "info" | "success" | "warning" | "error";
 type Group = "frenar" | "arreglar" | "crecer" | "aviso";
@@ -46,6 +49,8 @@ type UrgentItem = {
     batches?: string[];
     /** .124: los parámetros de URL de los anuncios nuevos, para copiarlos ahí mismo. */
     copy?: { label: string; text: string } | null;
+    /** .155: lo que "Aprobar y subir" sube solo (cada batch de la banca en su campaña). */
+    upload?: UploadTarget[];
     /** Cuánto presupuesto por día mueve: lo que se baja o se pausa (cut) y lo que se sube (add). */
     money?: { cut: number | null; add: number | null } | null;
     /** .118: no se puede descartar (no_disagree) o se marca sola (no_done). */
@@ -93,7 +98,7 @@ type Analysis = {
 };
 type Sent = { code: string | null; status: string; status_label: string; editor: string | null };
 type Turn = { pick: number; open: string[]; full: boolean };
-type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number; new_product?: NewProductView | null };
+type Data = { analysis: Analysis | null; dates: { date: string; versions: number }[]; runs_left: number; queue_pending?: number; new_product?: NewProductView | null; upload_on?: boolean };
 
 /** Los grupos, en el orden en que se hacen, con su porqué. */
 
@@ -259,6 +264,7 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
     const [dialog, setDialog] = useState(false);
     const done = mark?.status === "done";
     const disagree = mark?.status === "disagree";
+    const auto = useAutoUploaded(item.key); // .155: ya lo subió el sistema: los pasos a mano sobran
     const box = { width: 22, height: 22, borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center" } as const;
     return (
         <Box sx={{ ...cardSx(t), display: "flex", gap: 1.5, alignItems: "flex-start", p: "12px 14px", mb: 0.75 }}>
@@ -290,10 +296,11 @@ const TaskRow: React.FC<{ item: UrgentItem; mark?: Mark; onMark: (status: Mark["
                         {item.batches?.length ? `${whereOf(item) ? " · " : ""}${andList(item.batches)} ${item.batches.length === 1 ? "pasa" : "pasan"} a En test en cuanto Meta lo muestre (hasta 30 minutos)` : null}
                     </Typography>
                 )}
+                {!disagree && <AutoUpload itemKey={item.key} targets={item.upload} done={done} />}
                 <Collapse in={open && !done && !disagree} unmountOnExit>
-                    {item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
-                    {item.copy ? <CopyParams copy={item.copy} /> : null}
-                    {item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
+                    {!auto && item.steps?.length ? <Steps steps={item.steps} size={14} /> : null}
+                    {!auto && item.copy ? <CopyParams copy={item.copy} /> : null}
+                    {!auto && item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
                     {item.last ? <LastTime last={item.last} /> : null}
                     <WhyBox item={item}>
                         {!item.no_disagree && <TextAction onClick={() => setDialog(true)} sx={{ mt: 1, fontSize: 13, color: t.muted }}>No estoy de acuerdo</TextAction>}
@@ -311,6 +318,7 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
     const [open, setOpen] = useState(false);
     const [dialog, setDialog] = useState(false);
     const g = GROUPS.find((x) => x.key === groupOf(item)) ?? GROUPS[0];
+    const auto = useAutoUploaded(item.key); // .155: ya lo subió el sistema: los pasos a mano sobran
     return (
         <Box component="section" aria-label="Misión de ahora" sx={{ ...cardSx(t), p: "16px 18px", mt: 2, borderColor: t.ink, ...appear }}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -319,9 +327,10 @@ const MissionCard: React.FC<{ item: UrgentItem; mark?: Mark; n: number; total: n
             </Stack>
             {whereOf(item) && <Typography sx={{ fontSize: 14, fontWeight: 500, color: t.muted, mt: 1.25 }}>{whereOf(item)}</Typography>}
             <Typography component="h2" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.3, mt: whereOf(item) ? 0.25 : 1, overflowWrap: "anywhere" }}>{titleOf(item)}</Typography>
-            {item.steps?.length ? <Steps steps={item.steps} /> : null}
-            {item.copy ? <CopyParams copy={item.copy} /> : null}
-            {item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
+            <AutoUpload itemKey={item.key} targets={item.upload} />
+            {!auto && item.steps?.length ? <Steps steps={item.steps} /> : null}
+            {!auto && item.copy ? <CopyParams copy={item.copy} /> : null}
+            {!auto && item.batches?.length ? <BatchVideos codes={item.batches} onSentBack={onReload} /> : null}
             {item.last ? <LastTime last={item.last} /> : null}
             {oldRule(item) && <Typography sx={{ fontSize: 14, mt: 1, overflowWrap: "anywhere" }}>{oldRule(item)}</Typography>}
             {!oldRule(item) && <>
@@ -546,6 +555,28 @@ export const MetaAnalysisPage: React.FC = () => {
         api<Data>(`/meta/analysis${q.toString() ? `?${q}` : ""}`).then(setData).catch((e) => setError((e as Error).message));
     }, [date, version]);
     useEffect(() => { if (isValid) load(); }, [isValid, load]);
+
+    // .155: las subidas a Meta de este análisis; mientras alguna trabaja, se revisa cada 5 segundos
+    const [uploads, setUploads] = useState<UploadRow[]>([]);
+    const analysisId = data?.analysis?.id ?? null;
+    const loadUploads = useCallback(() => {
+        if (analysisId === null) return;
+        api<{ uploads: UploadRow[] }>(`/meta/uploads?analysis_id=${analysisId}`).then((r) => setUploads(r.uploads)).catch(() => undefined);
+    }, [analysisId]);
+    useEffect(() => { loadUploads(); }, [loadUploads]);
+    const working = uploadsOpen(uploads);
+    useEffect(() => {
+        if (!working) return;
+        const id = setInterval(loadUploads, 5000);
+        return () => clearInterval(id);
+    }, [working, loadUploads]);
+    // Al terminar, la misión pudo marcarse sola: se vuelve a pedir el análisis
+    const wasWorking = useRef(false);
+    useEffect(() => {
+        if (wasWorking.current && !working) load();
+        wasWorking.current = working;
+    }, [working, load]);
+    const uploadsCtx = useMemo(() => ({ on: !!data?.upload_on, analysisId, uploads, refresh: loadUploads }), [data?.upload_on, analysisId, uploads, loadUploads]);
     // Si tarda, decirlo (nunca una pantalla quieta sin explicación)
     useEffect(() => {
         if (data || error) return;
@@ -665,6 +696,7 @@ export const MetaAnalysisPage: React.FC = () => {
     const ink = inkSx(t);
 
     return (
+        <UploadsContext.Provider value={uploadsCtx}>
         <Layout>
             <Box sx={{ ...geist, color: t.ink, maxWidth: 640, mx: "auto", px: { xs: 0, sm: 1 }, pb: 6 }}>
                 {loadingSession || !isValid || (!data && !error) ? (
@@ -896,5 +928,6 @@ export const MetaAnalysisPage: React.FC = () => {
                 )}
             </Box>
         </Layout>
+        </UploadsContext.Provider>
     );
 };
