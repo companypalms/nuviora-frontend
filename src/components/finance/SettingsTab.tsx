@@ -7,7 +7,7 @@ import { Button, InputAdornment, MenuItem, Stack, Table, TableBody, TableCell, T
 import { toast } from "react-toastify";
 import { Panel, PanelHeader } from "../ui/surface/Panel";
 import { DeliverersCostPanel } from "./DeliverersCostPanel";
-import { FinanceSettings, api, errorMessage, money, num } from "./finance";
+import { FinanceSettings, api, day, errorMessage, money, num } from "./finance";
 
 type Product = FinanceSettings["products"][number];
 
@@ -42,14 +42,15 @@ const MarginRow: React.FC<{ p: Product; types: FinanceSettings["target_types"] }
 
 export const SettingsTab: React.FC = () => {
     const [data, setData] = useState<FinanceSettings | null>(null);
-    const [form, setForm] = useState({ lag: "", window: "", longWindow: "", fixedMin: "", cityMin: "", sinStockHours: "", order: "", upsell: "", deliverer: "", wearMode: "percent", wearValue: "", reason: "" });
+    const [form, setForm] = useState({ lag: "", window: "", longWindow: "", fixedMin: "", cityMin: "", sinStockHours: "", order: "", upsell: "", deliverer: "", editorReserve: "", editorPct: "", wearMode: "percent", wearValue: "", reason: "" });
     const [saving, setSaving] = useState(false);
     const load = useCallback(() => {
         api<FinanceSettings>("/finance/settings").then((d) => {
             setData(d);
             setForm({ lag: String(d.maturity_lag_days), window: String(d.analysis_window_days), longWindow: String(d.analysis_long_window_days),
                 fixedMin: String(d.fixed_cost_min_pct), cityMin: String(d.cpa_city_min_purchases), sinStockHours: String(d.cpa_sin_stock_hours), order: String(d.commissions.order),
-                upsell: String(d.commissions.upsell_unit), deliverer: String(d.commissions.deliverer), wearMode: d.vehicle_wear.mode,
+                upsell: String(d.commissions.upsell_unit), deliverer: String(d.commissions.deliverer), editorReserve: String(d.editor_leader_commission.reserve_pct),
+                editorPct: String(d.editor_leader_commission.pct), wearMode: d.vehicle_wear.mode,
                 wearValue: String(d.vehicle_wear.value), reason: "" });
         }).catch((e) => toast.error(errorMessage(e)));
     }, []);
@@ -62,6 +63,7 @@ export const SettingsTab: React.FC = () => {
                 maturity_lag_days: Number(form.lag), analysis_window_days: Number(form.window), analysis_long_window_days: Number(form.longWindow),
                 fixed_cost_min_pct: num(form.fixedMin), cpa_city_min_purchases: Number(form.cityMin), cpa_sin_stock_hours: num(form.sinStockHours), commission_order: num(form.order),
                 commission_upsell_unit: num(form.upsell), commission_deliverer: num(form.deliverer),
+                editor_reserve_pct: num(form.editorReserve), editor_pct: num(form.editorPct),
                 vehicle_wear_mode: form.wearMode, vehicle_wear_value: num(form.wearValue), reason: form.reason || null,
             });
             toast.success(res.message);
@@ -98,6 +100,19 @@ export const SettingsTab: React.FC = () => {
                     <TextField size="small" label="Motivo del cambio (opcional)" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} sx={{ maxWidth: 460 }} />
                     <Typography variant="caption" color="text.secondary">Las comisiones nuevas valen para las órdenes que se entreguen desde ahora; las ya pagadas no cambian.</Typography>
                 </Stack>
+            </Panel>
+            {/* .153: la comisión del líder de editores, por los productos de su grupo (Inventario › Editar producto) */}
+            <Panel>
+                <PanelHeader title="Comisión del líder de editores"
+                    subtitle={`La ganancia neta de los productos de su grupo en la quincena (la de Reportes del negocio), menos el descuento, por la comisión. Se paga el 15 y el último día; cuenta desde el ${day(data.editor_leader_commission.since)}.`}
+                    action={<Button variant="contained" onClick={save} disabled={saving}>Guardar</Button>} />
+                <Stack direction={{ xs: "column", sm: "row" }} gap={2}>
+                    {field("editorReserve", "Descuento antes de la comisión", "%", "Para gastos que no están cargados y márgenes de error")}
+                    {field("editorPct", "Comisión", "%", "De lo que queda después del descuento")}
+                </Stack>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    Un cambio vale para la quincena que está corriendo; las que ya se congelaron (el día de pago) no cambian. Él solo ve su comisión.
+                </Typography>
             </Panel>
             <Panel>
                 <PanelHeader title="Desgaste del vehículo" subtitle="Se suma a cada viaje de traslado, junto con la mano de obra, el combustible y otros."

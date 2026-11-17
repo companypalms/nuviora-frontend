@@ -321,6 +321,8 @@ export type FinanceSettings = {
     maturity_lag_days: number; analysis_window_days: number; analysis_long_window_days: number;
     fixed_cost_min_pct: number; cpa_city_min_purchases: number; cpa_sin_stock_hours: number;
     commissions: { order: number; upsell_unit: number; deliverer: number };
+    /** .153: la comisión del líder de editores (el descuento antes de la comisión y el %) */
+    editor_leader_commission: { reserve_pct: number; pct: number; since: string };
     vehicle_wear: WearRule;
     wear_modes: Record<WearMode, string>;
     target_types: Record<"sales" | "cost", string>;

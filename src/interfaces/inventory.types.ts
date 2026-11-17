@@ -99,6 +99,7 @@ export interface IProduct {
     image?: string;
     stock?: number;
     variants?: IProductVariant[];        // Tallas y variantes del producto (tarea 4)
+    editor_leader_id?: number | null;    // .153: el grupo de editores (su líder)
     created_at?: string;
     updated_at?: string;
 }

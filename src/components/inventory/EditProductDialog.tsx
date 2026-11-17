@@ -8,7 +8,8 @@ import {
     Box,
     Typography,
     Grid,
-    CircularProgress
+    CircularProgress,
+    MenuItem
 } from '@mui/material';
 import { ButtonCustom } from '../custom';
 import { IProduct } from '../../interfaces/inventory.types';
@@ -32,6 +33,10 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     product
 }) => {
     const role = useUserStore((s) => s.user.role?.description) ?? '';
+    // .153: el grupo de editores de cada producto (su líder) lo elige solo el dueño
+    const canGroup = ['Admin', 'Master'].includes(role);
+    const [leaders, setLeaders] = useState<{ id: number; name: string }[]>([]);
+    const [leaderId, setLeaderId] = useState<number | ''>('');
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
@@ -48,8 +53,16 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 sku: product.sku || '',
                 price: product.price || 0
             });
+            setLeaderId(product.editor_leader_id ?? '');
         }
     }, [open, product]);
+
+    useEffect(() => {
+        if (!open || !canGroup) return;
+        request('/products/editor-leaders', 'GET').then(async ({ status, response }: IResponse) => {
+            if (status === 200) setLeaders((await response.json()).leaders ?? []);
+        }).catch(() => setLeaders([]));
+    }, [open, canGroup]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,7 +73,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             const { status, response }: IResponse = await request(
                 `/inventory/products/${product.id}`,
                 'PUT',
-                JSON.stringify(formData)
+                JSON.stringify(canGroup ? { ...formData, editor_leader_id: leaderId === '' ? null : leaderId } : formData)
             );
 
             if (status === 200) {
@@ -131,6 +144,20 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                                 </Typography>
                             </Grid>
                         </Grid>
+                        {canGroup && (
+                            <TextField
+                                select
+                                fullWidth
+                                size="small"
+                                label="Grupo de editores"
+                                value={leaderId}
+                                onChange={(e) => setLeaderId(e.target.value === '' ? '' : Number(e.target.value))}
+                                helperText="La comisión del líder sale de la ganancia de los productos de su grupo. Un producto es de un solo grupo."
+                            >
+                                <MenuItem value="">Ningún grupo</MenuItem>
+                                {leaders.map((l) => <MenuItem key={l.id} value={l.id}>Grupo de {l.name}</MenuItem>)}
+                            </TextField>
+                        )}
                         {/* .106: el PDF al entregar se guarda solo (no con "Guardar Cambios") */}
                         {product && ['Admin', 'Master'].includes(role) && <DeliveryPdfSection productId={product.id} />}
                     </Box>

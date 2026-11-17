@@ -25,6 +25,7 @@ import { AssignButton, CopyBrief, DeliverDialog, DeliveriesList, ReviewDialog } 
 import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChanged, reviewContext, saysPerPiece, todayVe, whenLabel } from "../../components/meta-ads/editorShared";
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
+import { CommissionBar } from "../../components/meta-ads/commissionBar";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
@@ -314,6 +315,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
         return frame(
             <>
                 {header("Encargos del equipo", "Lo más urgente primero")}
+                {/* .153: su comisión de la quincena (solo el líder) */}
+                <CommissionBar />
                 {lists.todo.length > 0 && (
                     <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
                         Tú también tienes {plural(lists.todo.length, "encargo por entregar", "encargos por entregar")} · <Link component={RouterLink} to="/editor" sx={{ color: t.ink }}>Ir a Mis encargos</Link>
