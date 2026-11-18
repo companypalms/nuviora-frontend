@@ -15,7 +15,7 @@ export const atLeast = async <T>(ms: number, promise: Promise<T>): Promise<T> =>
     return result;
 };
 
-export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string; hours: string };
+export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string; hours: string; policies: string };
 
 /** .161 un cliente "Por contactar": lo que el chat no supo responder y el WhatsApp que dejó. */
 export type Callback = { id: number; product: string; question: string; phone: string; wa: string; test: boolean; at: string | null };
@@ -28,7 +28,10 @@ export type ChatKnowledge = {
 
 export type LastExam = { ok: number; total: number; at: string | null };
 
-export type StoreChatProduct = { id: number; name: string; price_bs: number | null; enabled: boolean; last_exam: LastExam | null };
+/** .162: por qué no hay precio en Bs (o si la tasa está vieja): no_price, no_rate, old_rate o null. */
+export type PriceIssue = "no_price" | "no_rate" | "old_rate" | null;
+
+export type StoreChatProduct = { id: number; name: string; price_bs: number | null; price_issue: PriceIssue; enabled: boolean; last_exam: LastExam | null };
 
 export type ExamQuestion = { id: number; group: string; question: string; expect: string };
 

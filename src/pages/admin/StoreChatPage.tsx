@@ -17,10 +17,18 @@ import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/design
 import { ExamSection } from "../../components/store-chat/ExamSection";
 import { ChatKnowledgeSection } from "../../components/store-chat/ChatKnowledge";
 import { TypingBubble } from "../../components/store-chat/TypingBubble";
-import { atLeast, Callback, ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
+import { atLeast, Callback, ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatProduct, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
 
 const bs = (n: number) => `${n.toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
 const fichaLink = (id: number) => `/admin/integraciones?seccion=meta&tab=profile&producto=${id}`;
+
+/** .162: el precio de hoy de un producto, o por qué no hay. */
+const priceText = (p: StoreChatProduct) => ({
+    no_price: " · sin precio en el sistema: el chat no puede darlo",
+    no_rate: " · sin tasa Binance: el chat no puede dar el precio",
+    old_rate: p.price_bs !== null ? ` · hoy ${bs(p.price_bs)} (con la última tasa, que está vieja)` : "",
+    none: p.price_bs !== null ? ` · hoy ${bs(p.price_bs)}` : "",
+}[p.price_issue ?? "none"]);
 const newVisitor = () => `prueba-${Math.random().toString(36).slice(2, 12)}`;
 
 /** Lo que pasó con una respuesta, en palabras: solo se muestra si no fue una respuesta normal. */
@@ -174,7 +182,7 @@ const SettingsCard: React.FC<{ data: Data; t: Tokens; onSaved: (d: Settings) => 
             <Stack sx={{ mt: 0.5 }}>
                 {data.products.map((p) => (
                     <FormControlLabel key={p.id} sx={{ m: 0, minHeight: 44 }} control={<Checkbox checked={form.product_ids.includes(p.id)} onChange={() => toggle(p.id)} />}
-                        label={<Box component="span" sx={{ fontSize: 14 }}>{p.name}<Box component="span" sx={{ color: t.muted }}>{p.price_bs !== null ? ` · hoy ${bs(p.price_bs)}` : " · sin precio en Bs hoy"}</Box></Box>} />
+                        label={<Box component="span" sx={{ fontSize: 14 }}>{p.name}<Box component="span" sx={{ color: t.muted }}>{priceText(p)}</Box></Box>} />
                 ))}
             </Stack>
 
@@ -188,6 +196,10 @@ const SettingsCard: React.FC<{ data: Data; t: Tokens; onSaved: (d: Settings) => 
                     <span>Falta el teléfono: a quien ya compró, el chat le dice que el equipo de atención al cliente lo ayuda, sin darle un número.</span>
                 </Stack>
             )}
+
+            <TextField label="Políticas de la tienda" value={form.policies} sx={{ mt: 2 }} fullWidth multiline minRows={5} maxRows={16}
+                onChange={(e) => setForm({ ...form, policies: e.target.value })} slotProps={{ htmlInput: { maxLength: 4000 } }}
+                helperText="Pago y envíos, cómo es el pedido y las ofertas: lo usa el chat en todos los productos y lo da por cierto, igual que la ficha." />
 
             <TextField size="small" label="Horario de atención" value={form.hours} sx={{ mt: 2, maxWidth: 420 }} fullWidth
                 onChange={(e) => setForm({ ...form, hours: e.target.value })} slotProps={{ htmlInput: { maxLength: 120 } }}
@@ -328,7 +340,7 @@ export const StoreChatPage: React.FC = () => {
                             <Typography sx={{ fontSize: 14 }}>
                                 {rate.binance === null ? "No hay tasa Binance cargada: el chat no da precio en bolívares. Cárgala en Configuración › Tasa y pagos."
                                     : rate.fresh ? `Precio en bolívares con la tasa Binance de ${rate.binance.toLocaleString("es-VE")} Bs (${dateTime(rate.at)}).`
-                                        : `La tasa Binance es de ${dateTime(rate.at)}: con más de un día, el chat no da precio en bolívares hasta que la actualices en Configuración › Tasa y pagos.`}
+                                        : `La tasa Binance es de ${dateTime(rate.at)}: el chat da el precio en bolívares con esa, aunque esté vieja. Actualízala en Configuración › Tasa y pagos.`}
                             </Typography>
                         </Box>
 
