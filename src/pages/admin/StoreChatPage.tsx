@@ -1,8 +1,8 @@
 // src/pages/admin/StoreChatPage.tsx
 // .158 (dueño, 2026-11-18: "que sepa todo sobre los productos, y pueda responderle a los clientes con IA, sin alucinar ni nada
 // parecido, y siempre llevando al cliente a que llene el formulario"): "Chat de la tienda" (/chat-tienda). Responde "¿qué le
-// diría el chat a un cliente y en qué productos está?": el chat de prueba (como si fueras un cliente), los ajustes, lo que no
-// supo responder y las conversaciones. El botón en la tienda llega con la .159.
+// diría el chat a un cliente y en qué productos está?": el chat de prueba (como si fueras un cliente), el examen de cada
+// producto (ExamSection), los ajustes, lo que no supo responder y las conversaciones. El botón en la tienda llega con la .159.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Checkbox, FormControlLabel, Link, MenuItem, Skeleton, Stack, Switch, TextField, Typography } from "@mui/material";
 import { ReportProblemRounded } from "@mui/icons-material";
@@ -13,17 +13,8 @@ import { useValidateSession } from "../../hooks/useValidateSession";
 import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
-
-type Status = "answered" | "unknown" | "blocked" | "failed" | "limit";
-type Message = { id: number; question: string; answer: string; status: Status; reason: string | null; raw: string | null; ready: boolean; note: string; button: string; at?: string };
-type Settings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number };
-type Product = { id: number; name: string; price_bs: number | null; enabled: boolean };
-type Unanswered = { id: number; product_id: number | null; product: string; question: string; status: Status; reason: string | null; test: boolean; at: string | null };
-type Conversation = { id: number; product: string; test: boolean; questions: number; unanswered: boolean; at: string | null; messages: Message[] };
-type Data = {
-    settings: Settings; mode: "openai" | "example" | "unavailable"; rate: { binance: number | null; at: string | null; fresh: boolean };
-    today: { answers: number; cap: number }; products: Product[]; unanswered: Unanswered[]; conversations: Conversation[]; note: string; button: string;
-};
+import { ExamSection } from "../../components/store-chat/ExamSection";
+import { ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
 
 const bs = (n: number) => `${n.toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
 const fichaLink = (id: number) => `/admin/integraciones?seccion=meta&tab=profile&producto=${id}`;
@@ -268,6 +259,10 @@ export const StoreChatPage: React.FC = () => {
 
                         <Section name="Pruébalo" hint="Como si fueras un cliente">
                             <TryChat data={data} t={t} onAsked={load} />
+                        </Section>
+
+                        <Section name="Examen del chat" hint="Preguntas difíciles, capciosas y maliciosas">
+                            <ExamSection data={data} t={t} onChanged={load} />
                         </Section>
 
                         <Section name="Ajustes">
