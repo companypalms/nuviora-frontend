@@ -14,6 +14,7 @@ import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 import { ExamSection } from "../../components/store-chat/ExamSection";
+import { ChatKnowledgeSection } from "../../components/store-chat/ChatKnowledge";
 import { ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
 
 const bs = (n: number) => `${n.toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
@@ -164,6 +165,17 @@ const SettingsCard: React.FC<{ data: Data; t: Tokens; onSaved: (d: Settings) => 
                 ))}
             </Stack>
 
+            <Typography sx={{ fontSize: 14, fontWeight: 600, mt: 2 }}>Atención al cliente</Typography>
+            <TextField size="small" label="Teléfono de atención al cliente" value={form.support_phone} sx={{ mt: 1, maxWidth: 320 }} fullWidth
+                onChange={(e) => setForm({ ...form, support_phone: e.target.value })} slotProps={{ htmlInput: { maxLength: 30, inputMode: "tel" } }}
+                helperText="El chat se lo da a quien ya compró y quiere una devolución, un cambio o saber de su pedido. También lo cambias con tu asistente." />
+            {form.support_phone.trim() === "" && (
+                <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ mt: 0.75, fontSize: 13 }}>
+                    <Box sx={{ pt: "5px" }}><Dot color={t.amber} size={8} /></Box>
+                    <span>Falta el teléfono: a quien ya compró, el chat le dice que el equipo de atención al cliente lo ayuda, sin darle un número.</span>
+                </Stack>
+            )}
+
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
                 <TextField size="small" type="number" label="Respuestas por día (todas)" value={form.daily_answers}
                     onChange={(e) => setForm({ ...form, daily_answers: Number(e.target.value) })} helperText="Para que nadie te gaste la IA" slotProps={{ htmlInput: { min: 10, max: 5000 } }} />
@@ -263,6 +275,10 @@ export const StoreChatPage: React.FC = () => {
 
                         <Section name="Examen del chat" hint="Preguntas difíciles, capciosas y maliciosas">
                             <ExamSection data={data} t={t} onChanged={load} />
+                        </Section>
+
+                        <Section name="Lo que sabe el chat" hint="Su ficha y tus «Más detalles»">
+                            <ChatKnowledgeSection products={data.products} t={t} />
                         </Section>
 
                         <Section name="Ajustes">

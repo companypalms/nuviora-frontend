@@ -9,7 +9,13 @@ export type ChatMessage = {
     ready: boolean; note: string; button: string; at?: string;
 };
 
-export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number };
+export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string };
+
+/** .159 "Lo que sabe el chat" de un producto: su ficha y sus "Más detalles". */
+export type ChatKnowledge = {
+    product_id: number; name: string; has_profile: boolean; has_ficha: boolean; ficha: Record<string, string | null>;
+    labels: Record<string, string>; details: string; max: number;
+};
 
 export type LastExam = { ok: number; total: number; at: string | null };
 

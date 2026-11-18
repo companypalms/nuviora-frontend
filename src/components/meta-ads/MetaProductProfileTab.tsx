@@ -17,6 +17,7 @@ import { api, dateTime } from "./metaAds";
 import { TestingBox, TestingSummary } from "./productProfile";
 import { ACCEPT, StoredFile, fileProblem, sendFile } from "./fileUpload";
 import { FileView } from "./fileView";
+import { ChatDetailsEditor } from "../store-chat/ChatKnowledge";
 
 type FieldKey = "what_it_is" | "benefits" | "mechanism" | "not_this" | "key_info" | "photos_url";
 type PersonaKey = "name" | "who" | "pain" | "wants" | "objections";
@@ -286,6 +287,17 @@ export const MetaProductProfileTab: React.FC = () => {
                     </Paper>
                     {/* .91: las fotos y la estrategia, junto al producto (se guardan solas, sin "Guardar la ficha") */}
                     {productId && <ProductFiles productId={productId} files={data.files} onChange={(files) => setData((d) => (d ? { ...d, files } : d))} />}
+                    {/* .159: los "Más detalles" del chat de la tienda (el mismo texto que en Chat de la tienda; se guardan solos, con su botón) */}
+                    {productId && (
+                        <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
+                            <Typography variant="subtitle1" fontWeight="bold">Más detalles para el chat de la tienda</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                                Todo lo que quieras que el chat con IA de tu tienda sepa de este producto, además de la ficha. Lo da por cierto. Solo lo lee el chat: los
+                                editores no lo ven. Se guarda con su propio botón.
+                            </Typography>
+                            <ChatDetailsEditor key={productId} productId={productId} />
+                        </Paper>
+                    )}
                     <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", p: 2 }}>
                         <Typography variant="subtitle1" fontWeight="bold">Buyer personas</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
