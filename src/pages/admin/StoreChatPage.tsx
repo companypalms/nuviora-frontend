@@ -2,7 +2,8 @@
 // .158 (dueño, 2026-11-18: "que sepa todo sobre los productos, y pueda responderle a los clientes con IA, sin alucinar ni nada
 // parecido, y siempre llevando al cliente a que llene el formulario"): "Chat de la tienda" (/chat-tienda). Responde "¿qué le
 // diría el chat a un cliente y en qué productos está?": el chat de prueba (como si fueras un cliente), el examen de cada
-// producto (ExamSection), los ajustes, lo que no supo responder y las conversaciones. El botón en la tienda llega con la .159.
+// producto (ExamSection), los ajustes, lo que no supo responder y las conversaciones. .161: arriba, "Por contactar" (los
+// clientes que dejaron su WhatsApp porque el chat no supo responderles).
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Checkbox, FormControlLabel, Link, MenuItem, Skeleton, Stack, Switch, TextField, Typography } from "@mui/material";
 import { ReportProblemRounded } from "@mui/icons-material";
@@ -16,7 +17,7 @@ import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/design
 import { ExamSection } from "../../components/store-chat/ExamSection";
 import { ChatKnowledgeSection } from "../../components/store-chat/ChatKnowledge";
 import { TypingBubble } from "../../components/store-chat/TypingBubble";
-import { atLeast, ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
+import { atLeast, Callback, ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
 
 const bs = (n: number) => `${n.toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
 const fichaLink = (id: number) => `/admin/integraciones?seccion=meta&tab=profile&producto=${id}`;
@@ -25,10 +26,11 @@ const newVisitor = () => `prueba-${Math.random().toString(36).slice(2, 12)}`;
 /** Lo que pasó con una respuesta, en palabras: solo se muestra si no fue una respuesta normal. */
 const statusText = (m: Pick<Message, "status" | "reason">): string | null => ({
     answered: null,
-    unknown: "No lo sabía: dijo que lo confirma la asesora",
+    unknown: "No lo sabía: le pidió el WhatsApp",
     blocked: `La revisión la paró (${m.reason ?? "algo que no está en los datos"}) y salió la respuesta segura`,
     failed: "La IA falló: el cliente ve «intenta de nuevo»",
     limit: "Se llegó a un tope: salió el mensaje fijo",
+    callback: "Dejó su WhatsApp: está en «Por contactar» y en tu calendario",
 }[m.status]);
 
 const Bubble: React.FC<{ m: Message; t: Tokens }> = ({ m, t }) => {
@@ -43,7 +45,7 @@ const Bubble: React.FC<{ m: Message; t: Tokens }> = ({ m, t }) => {
             </Box>
             {note && (
                 <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ mt: 0.5, fontSize: 12, color: t.muted }}>
-                    <Box sx={{ pt: "4px" }}><Dot color={m.status === "unknown" ? t.amber : t.red} size={8} /></Box>
+                    <Box sx={{ pt: "4px" }}><Dot color={m.status === "callback" ? t.green : m.status === "unknown" ? t.amber : t.red} size={8} /></Box>
                     <span>{note}</span>
                 </Stack>
             )}
@@ -187,9 +189,13 @@ const SettingsCard: React.FC<{ data: Data; t: Tokens; onSaved: (d: Settings) => 
                 </Stack>
             )}
 
+            <TextField size="small" label="Horario de atención" value={form.hours} sx={{ mt: 2, maxWidth: 420 }} fullWidth
+                onChange={(e) => setForm({ ...form, hours: e.target.value })} slotProps={{ htmlInput: { maxLength: 120 } }}
+                helperText="El chat lo dice cuando pide el WhatsApp de alguien: «una asesora te responde en nuestro horario de atención: …»." />
+
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
                 <TextField size="small" type="number" label="Respuestas por día (todas)" value={form.daily_answers}
-                    onChange={(e) => setForm({ ...form, daily_answers: Number(e.target.value) })} helperText="Para que nadie te gaste la IA" slotProps={{ htmlInput: { min: 10, max: 5000 } }} />
+                    onChange={(e) => setForm({ ...form, daily_answers: Number(e.target.value) })} helperText={`Para que nadie te gaste la IA. Hoy van ${data.today.answers}.`} slotProps={{ htmlInput: { min: 10, max: 5000 } }} />
                 <TextField size="small" type="number" label="Preguntas por cliente al día" value={form.per_visitor}
                     onChange={(e) => setForm({ ...form, per_visitor: Number(e.target.value) })} helperText="Luego le sale el botón del pedido" slotProps={{ htmlInput: { min: 3, max: 100 } }} />
             </Stack>
@@ -197,6 +203,52 @@ const SettingsCard: React.FC<{ data: Data; t: Tokens; onSaved: (d: Settings) => 
                 <Button variant="contained" disableElevation onClick={save} disabled={saving || !changed} sx={{ ...inkSx(t), ...tapSx }}>{saving ? "Guardando…" : "Guardar"}</Button>
                 {changed && <Button variant="outlined" onClick={() => setForm(data.settings)} disabled={saving} sx={{ ...lineSx(t), ...tapSx }}>Deshacer</Button>}
             </Stack>
+        </Box>
+    );
+};
+
+/** .161 "Por contactar": cada cliente con lo que preguntó, su WhatsApp y "Ya lo contacté". */
+const Callbacks: React.FC<{ list: Callback[]; t: Tokens; onChange: (list: Callback[]) => void }> = ({ list, t, onChange }) => {
+    const [busy, setBusy] = useState<number | null>(null);
+    const done = async (c: Callback) => {
+        setBusy(c.id);
+        try {
+            const res = await api<{ message: string; callbacks: Callback[] }>(`/store-chat/callbacks/${c.id}/done`, "POST");
+            toast.success(res.message);
+            onChange(res.callbacks);
+        } catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
+    };
+    if (list.length === 0) {
+        return (
+            <Box sx={{ ...cardSx(t), p: 2 }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Nadie está esperando respuesta</Typography>
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>
+                    Cuando el chat no sabe algo, le pide el WhatsApp al cliente y aquí te sale (también en tu calendario y en la campanita).
+                </Typography>
+            </Box>
+        );
+    }
+    return (
+        <Box component="ul" sx={{ p: 0, m: 0 }}>
+            {list.map((c) => (
+                <Box component="li" key={c.id} sx={{ ...cardSx(t), ...appear, p: "12px 14px", mb: 1, listStyle: "none" }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 600, overflowWrap: "anywhere" }}>«{c.question}»</Typography>
+                    <Stack direction="row" columnGap={1.25} rowGap={0.25} flexWrap="wrap" sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>
+                        <span>{c.product}</span>
+                        <span>{dateTime(c.at)}</span>
+                        {c.test && <span>Prueba tuya</span>}
+                    </Stack>
+                    <Typography sx={{ fontSize: 14, mt: 0.5 }}>WhatsApp: <Box component="span" sx={{ fontWeight: 600 }}>{c.phone}</Box></Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1 }}>
+                        <Button component="a" href={c.wa} target="_blank" rel="noopener noreferrer" variant="contained" disableElevation sx={{ ...inkSx(t), ...tapSx }}>
+                            Escribirle por WhatsApp
+                        </Button>
+                        <Button variant="outlined" onClick={() => done(c)} disabled={busy === c.id} sx={{ ...lineSx(t), ...tapSx }}>
+                            {busy === c.id ? "Guardando…" : "Ya lo contacté"}
+                        </Button>
+                    </Stack>
+                </Box>
+            ))}
         </Box>
     );
 };
@@ -265,8 +317,8 @@ export const StoreChatPage: React.FC = () => {
                         <Scoreboard tiles={[
                             { label: "En la tienda", value: data.settings.enabled ? "Prendido" : "Apagado", color: data.settings.enabled ? t.green : undefined,
                                 help: "Apagado, ningún cliente ve el chat. Lo prendes en «Ajustes», abajo." },
-                            { label: "Respuestas hoy", value: `${data.today.answers} de ${data.today.cap}`, color: data.today.answers >= data.today.cap ? t.red : undefined,
-                                help: "Las de los clientes y las tuyas de prueba. Al llegar al tope, el cliente ve el botón del pedido sin respuesta de la IA." },
+                            { label: "Por contactar", value: data.callbacks.length, color: data.callbacks.length ? t.amber : undefined,
+                                help: "Clientes que dejaron su WhatsApp porque el chat no supo responderles: escríbeles en el horario de atención." },
                             { label: "No supo responder", value: data.unanswered.length, color: data.unanswered.length ? t.amber : undefined,
                                 help: "Preguntas de los últimos 30 días que no estaban en la ficha o que la revisión paró. Agrégalas a la ficha y la próxima vez sí sabe." },
                         ]} />
@@ -279,6 +331,10 @@ export const StoreChatPage: React.FC = () => {
                                         : `La tasa Binance es de ${dateTime(rate.at)}: con más de un día, el chat no da precio en bolívares hasta que la actualices en Configuración › Tasa y pagos.`}
                             </Typography>
                         </Box>
+
+                        <Section dot={data.callbacks.length ? t.amber : undefined} name="Por contactar" hint="Dejaron su WhatsApp">
+                            <Callbacks list={data.callbacks} t={t} onChange={(callbacks) => setData({ ...data, callbacks })} />
+                        </Section>
 
                         <Section name="Pruébalo" hint="Como si fueras un cliente">
                             <TryChat data={data} t={t} onAsked={load} />

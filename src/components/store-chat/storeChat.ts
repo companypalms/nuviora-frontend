@@ -2,7 +2,7 @@
 // .158 "Chat de la tienda": los datos que manda el servidor (StoreChatReport, StoreChat, StoreChatExam), compartidos por la
 // página y el examen.
 
-export type ChatStatus = "answered" | "unknown" | "blocked" | "failed" | "limit";
+export type ChatStatus = "answered" | "unknown" | "blocked" | "failed" | "limit" | "callback";
 
 export type ChatMessage = {
     id: number; question: string; answer: string; status: ChatStatus; reason: string | null; raw: string | null;
@@ -15,7 +15,10 @@ export const atLeast = async <T>(ms: number, promise: Promise<T>): Promise<T> =>
     return result;
 };
 
-export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string };
+export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string; hours: string };
+
+/** .161 un cliente "Por contactar": lo que el chat no supo responder y el WhatsApp que dejó. */
+export type Callback = { id: number; product: string; question: string; phone: string; wa: string; test: boolean; at: string | null };
 
 /** .159 "Lo que sabe el chat" de un producto: su ficha y sus "Más detalles". */
 export type ChatKnowledge = {
@@ -38,7 +41,7 @@ export type Conversation = { id: number; product: string; test: boolean; questio
 
 export type StoreChatData = {
     settings: StoreChatSettings; mode: "openai" | "example" | "unavailable"; rate: { binance: number | null; at: string | null; fresh: boolean };
-    today: { answers: number; cap: number }; products: StoreChatProduct[]; unanswered: Unanswered[]; conversations: Conversation[];
+    today: { answers: number; cap: number }; products: StoreChatProduct[]; unanswered: Unanswered[]; conversations: Conversation[]; callbacks: Callback[];
     note: string; button: string;
     exam: { questions: ExamQuestion[]; groups: Record<string, string>; expects: Record<string, string> };
 };
