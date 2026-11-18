@@ -9,6 +9,12 @@ export type ChatMessage = {
     ready: boolean; note: string; button: string; at?: string;
 };
 
+/** .160: la respuesta espera al menos ms, para que "Tu asesora está escribiendo…" se vea natural aunque la IA conteste rápido. */
+export const atLeast = async <T>(ms: number, promise: Promise<T>): Promise<T> => {
+    const [result] = await Promise.all([promise, new Promise((resolve) => setTimeout(resolve, ms))]);
+    return result;
+};
+
 export type StoreChatSettings = { enabled: boolean; product_ids: number[]; daily_answers: number; per_visitor: number; support_phone: string };
 
 /** .159 "Lo que sabe el chat" de un producto: su ficha y sus "Más detalles". */

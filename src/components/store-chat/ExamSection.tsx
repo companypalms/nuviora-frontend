@@ -10,6 +10,7 @@ import { api, dateTime } from "../meta-ads/metaAds";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens } from "../ui/design";
 import { Dot, TextAction } from "../ui/designParts";
 import { ExamQuestion, ExamResult, StoreChatData } from "./storeChat";
+import { TypingBubble } from "./TypingBubble";
 
 type Draft = { id: number | null; group: string; question: string; expect: string };
 
@@ -39,6 +40,8 @@ export const ExamSection: React.FC<{ data: StoreChatData; t: Tokens; onChanged: 
     const [results, setResults] = useState<ExamResult[]>([]);
     const [total, setTotal] = useState(0);
     const [running, setRunning] = useState(false);
+    // .160: la pregunta que se está respondiendo, con "Tu asesora está escribiendo…"
+    const [pending, setPending] = useState<ExamQuestion | null>(null);
     const [finished, setFinished] = useState(false);
     const stop = useRef(false);
     const [showQuestions, setShowQuestions] = useState(false);
@@ -60,6 +63,7 @@ export const ExamSection: React.FC<{ data: StoreChatData; t: Tokens; onChanged: 
             setTotal(start.questions.length);
             for (const q of start.questions) {
                 if (stop.current) break;
+                setPending(q);
                 try {
                     const r = await api<ExamResult>("/store-chat/exam/ask", "POST", { product_id: productId, run: start.run, question_id: q.id });
                     setResults((list) => [...list, r]);
@@ -70,7 +74,7 @@ export const ExamSection: React.FC<{ data: StoreChatData; t: Tokens; onChanged: 
             }
             setFinished(true);
             onChanged();
-        } catch (e) { toast.error((e as Error).message); } finally { setRunning(false); }
+        } catch (e) { toast.error((e as Error).message); } finally { setRunning(false); setPending(null); }
     };
 
     const saveDraft = async () => {
@@ -162,6 +166,13 @@ export const ExamSection: React.FC<{ data: StoreChatData; t: Tokens; onChanged: 
                 <Box component="ol" aria-label="Respuestas del examen" sx={{ p: 0, m: 0, mt: 1 }}>
                     {/* al terminar, las ⚠ primero */}
                     {(finished ? [...results].sort((a, b) => Number(!!a.ok) - Number(!!b.ok)) : results).map((r) => <ResultRow key={r.id} r={r} groups={groups} t={t} />)}
+                </Box>
+            )}
+            {running && pending && (
+                <Box sx={{ ...cardSx(t), p: "12px 14px", mt: 1 }}>
+                    <Typography sx={{ fontSize: 12, color: t.muted }}>{groups[pending.group] ?? pending.group}</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 600, overflowWrap: "anywhere" }}>«{pending.question}»</Typography>
+                    <Box sx={{ mt: 0.75 }}><TypingBubble t={t} /></Box>
                 </Box>
             )}
 

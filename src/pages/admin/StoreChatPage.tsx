@@ -15,7 +15,8 @@ import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens 
 import { Dot, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 import { ExamSection } from "../../components/store-chat/ExamSection";
 import { ChatKnowledgeSection } from "../../components/store-chat/ChatKnowledge";
-import { ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
+import { TypingBubble } from "../../components/store-chat/TypingBubble";
+import { atLeast, ChatMessage as Message, Conversation, StoreChatData as Data, StoreChatSettings as Settings } from "../../components/store-chat/storeChat";
 
 const bs = (n: number) => `${n.toLocaleString("es-VE", { maximumFractionDigits: 0 })} Bs`;
 const fichaLink = (id: number) => `/admin/integraciones?seccion=meta&tab=profile&producto=${id}`;
@@ -68,20 +69,23 @@ const TryChat: React.FC<{ data: Data; t: Tokens; onAsked: () => void }> = ({ dat
     const [messages, setMessages] = useState<Message[]>([]);
     const [question, setQuestion] = useState("");
     const [asking, setAsking] = useState(false);
+    // .160: la pregunta sale enseguida, como en WhatsApp, y debajo "Tu asesora está escribiendo…"
+    const [pending, setPending] = useState<string | null>(null);
     const end = useRef<HTMLDivElement>(null);
-    useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [messages]);
+    useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [messages, pending]);
 
     const restart = (id: number | "" = productId) => { setProductId(id); setVisitor(newVisitor()); setMessages([]); };
     const send = async () => {
         const q = question.trim();
         if (!q || productId === "" || asking) return;
         setAsking(true);
+        setPending(q);
+        setQuestion("");
         try {
-            const m = await api<Message>("/store-chat/test", "POST", { product_id: productId, question: q, visitor });
+            const m = await atLeast(1500, api<Message>("/store-chat/test", "POST", { product_id: productId, question: q, visitor }));
             setMessages((list) => [...list, m]);
-            setQuestion("");
             onAsked();
-        } catch (e) { toast.error((e as Error).message); } finally { setAsking(false); }
+        } catch (e) { setQuestion(q); toast.error((e as Error).message); } finally { setAsking(false); setPending(null); }
     };
     const last = messages[messages.length - 1];
 
@@ -109,13 +113,20 @@ const TryChat: React.FC<{ data: Data; t: Tokens; onAsked: () => void }> = ({ dat
             )}
 
             <Box aria-live="polite" sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
-                {messages.length === 0 ? (
+                {messages.length === 0 && !pending ? (
                     <Typography sx={{ fontSize: 14, color: t.muted }}>
                         Escribe como si fueras un cliente: «¿Cuánto cuesta?», «¿Cuánto es en dólares?», «¿Llega a Mérida?», «¿Sirve para…?». Las pruebas
                         quedan marcadas y no cuentan como clientes.
                     </Typography>
                 ) : messages.map((m) => <Bubble key={m.id} m={m} t={t} />)}
-                {asking && <Skeleton variant="rounded" height={44} sx={{ maxWidth: "70%" }} aria-label="La IA está respondiendo" />}
+                {pending && (
+                    <Box>
+                        <Box sx={{ ml: "auto", maxWidth: "85%", width: "fit-content", bgcolor: t.ink, color: t.onInk, borderRadius: "12px 12px 4px 12px", px: 1.5, py: 1, fontSize: 14, overflowWrap: "anywhere" }}>
+                            {pending}
+                        </Box>
+                        <Box sx={{ mt: 0.75 }}><TypingBubble t={t} /></Box>
+                    </Box>
+                )}
                 <div ref={end} />
             </Box>
             {last && <OrderBox note={last.note} button={last.button} ready={last.ready} t={t} />}
