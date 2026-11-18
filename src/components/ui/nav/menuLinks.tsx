@@ -20,7 +20,7 @@ import {
     AssessmentRounded, PaymentsRounded, InsightsRounded, RequestQuoteRounded,
     AccountBalanceWalletRounded, CellTowerRounded, CompareArrowsRounded, CalendarMonthRounded, TodayRounded, MovieEdit,
     VideoLibraryRounded, EmojiEventsRounded, WebRounded, SummarizeRounded, ArchiveRounded, PauseCircleRounded,
-    PlaylistAddRounded,
+    PlaylistAddRounded, SmartToyRounded,
 } from "@mui/icons-material";
 
 export type SectionId = "principal" | "ventas" | "inventario" | "dinero" | "reportes" | "config";
@@ -79,6 +79,8 @@ export const MENU_LINKS: NavLink[] = [
     { section: "ventas", text: "Logística propia", icon: <CellTowerRounded />, link: "/logistica", roles: ["Admin", "Master", "Operador logístico"], keywords: "torre de control centro despacho riders motorizados rondas carabobo valencia operador turno" },
     // El Gerente ve solo la pestaña "Hoy"; "Grupos y %" es de Admin y Master
     { section: "ventas", text: "Reparto", icon: <SyncAltRounded />, link: "/round-robin", roles: ["Admin", "Gerente", "Master"], keywords: "reparto de ordenes round robin asignar reasignar vendedoras porcentajes roster grupos de venta lider lideres equipos" },
+    // .158: la IA que responde a los clientes en la página del producto
+    { section: "ventas", text: "Chat de la tienda", icon: <SmartToyRounded />, link: "/chat-tienda", roles: ["Admin"], keywords: "ia chat tienda shopify clientes preguntas dudas boton formulario releasit asesora virtual bolivares" },
 
     // Inventario
     // Para el Admin, "Por ciudad", "Reabastecimiento" y "Exportar" son pestañas de Inventario
