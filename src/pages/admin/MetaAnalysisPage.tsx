@@ -236,7 +236,8 @@ const WhyBox: React.FC<{ item: UrgentItem; children?: React.ReactNode }> = ({ it
     const t = useTokens();
     return (
         <Box sx={{ bgcolor: t.soft, borderRadius: "8px", p: "10px 12px", mt: 1, lineHeight: 1.55 }}>
-            {(item.detail?.length ? item.detail : [item.text]).map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere" }}><Rich text={d} /></Typography>)}
+            {/* .156: un poco de aire entre cada razón (los números, la regla, las otras ciudades) */}
+            {(item.detail?.length ? item.detail : [item.text]).map((d, i) => <Typography key={i} sx={{ fontSize: 13, color: t.ink, overflowWrap: "anywhere", mt: i ? 0.75 : 0 }}><Rich text={d} /></Typography>)}
             {children}
         </Box>
     );
