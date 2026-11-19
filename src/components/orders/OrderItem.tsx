@@ -419,11 +419,6 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                     <Chip size="small" label="📦 Encomienda"
                         sx={{ mt: 0.5, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.warning.main, 0.18) }} />
                 )}
-                {/* .164: pagó el Delivery Express en el formulario de la tienda: sale primero que los demás */}
-                {order.express_fee != null && (
-                    <Chip size="small" label="⚡ Express"
-                        sx={{ mt: 0.5, ml: order.courier_shipment ? 0.5 : 0, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.success.main, 0.2) }} />
-                )}
                 {order.novedad_type && (
                     <TypographyCustom variant="caption" sx={{ color: order.status.description === ORDER_STATUS.NOVEDAD_SOLUCIONADA ? 'green' : 'orange', fontWeight: 'bold', display: 'block', mt: 0.5 }}>
                         {order.status.description === ORDER_STATUS.NOVEDAD_SOLUCIONADA ? 'Resuelta: ' : 'Novedad: '} {order.novedad_type}
