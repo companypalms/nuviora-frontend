@@ -40,6 +40,17 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
                     <CourierBox order={order} />
                 </Grid>
             )}
+            {/* .164: el cliente pagó el Delivery Express en el formulario de la tienda */}
+            {order.express_fee != null && (
+                <Grid size={{ xs: 12 }}>
+                    <Paper elevation={0} role="note" sx={{ p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'success.main', bgcolor: 'rgba(46, 125, 50, 0.08)' }}>
+                        <Typography sx={{ fontWeight: 700 }}>⚡ Delivery Express</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            El cliente pagó ${Number(order.express_fee).toFixed(2).replace('.', ',')} para que su pedido salga primero que todos los demás.
+                        </Typography>
+                    </Paper>
+                </Grid>
+            )}
 
             {/* 👤 SECCIÓN CLIENTE */}
             <Grid size={{ xs: 12, sm: 6 }}>

@@ -45,6 +45,7 @@ import { BankPage } from './pages/editor/BankPage';
 import { ProductStatesPage } from './pages/admin/ProductStatesPage';
 import { ProductQueuePage } from './pages/admin/ProductQueuePage';
 import { StoreChatPage } from './pages/admin/StoreChatPage';
+import { StoreFormPage } from './pages/admin/StoreFormPage';
 import { EditorResultsPage } from './pages/editor/EditorResultsPage';
 import { ReferencesPage } from './pages/editor/ReferencesPage';
 import { EDITOR_ROLES } from './components/meta-ads/editorShared';
@@ -178,6 +179,7 @@ function App() {
           <Route path="/meta-ads/productos" element={<RequireRole allowedRoles={['Admin']}><ProductStatesPage /></RequireRole>} />
           <Route path="/meta-ads/por-montar" element={<RequireRole allowedRoles={['Admin']}><ProductQueuePage /></RequireRole>} />
           <Route path="/chat-tienda" element={<RequireRole allowedRoles={['Admin']}><StoreChatPage /></RequireRole>} />
+          <Route path="/formulario-tienda" element={<RequireRole allowedRoles={['Admin']}><StoreFormPage /></RequireRole>} />
           <Route path="/meta-ads/landings" element={<RequireRole allowedRoles={['Admin']}><MetaLandingsPage /></RequireRole>} />
           <Route path="/meta-ads/lo-que-sabemos" element={<RequireRole allowedRoles={['Admin']}><MetaMemoryPage /></RequireRole>} />
           {/* .131: cada cambio en Meta con su hipótesis y si se cumplió */}
