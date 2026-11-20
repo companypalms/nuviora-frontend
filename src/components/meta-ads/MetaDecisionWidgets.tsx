@@ -252,6 +252,13 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
             ["worth_max_days", "Pedidos de como mucho", "días"], ["worth_rescue_gain", "Un Malo queda Regular si dejó en 4 semanas", "$"],
         ],
     },
+    // .166: revivir un ganador que se apagó, con una copia, después de descansar
+    {
+        title: "Revivir ganadores", help: "Un ganador apagado en una ciudad descansa y después se revive con una copia (misión en Crecer), uno a la vez por ciudad y sin otro cambio grande ese día. Solo si su CPA de toda su vida ahí quedó debajo de la mitad entre tu C y tu BE. Se juzga como un creativo nuevo; si vuelve a perder, ahí no se revive más.", fields: [
+            ["revive_rest_days", "Días que descansa antes de revivirlo", "días"], ["revive_min_purchases", "Con al menos estas compras en su vida en esa ciudad", "compras"],
+            ["revive_measure", "Decidir si conviene con estos revividos juzgados", "revividos"],
+        ],
+    },
     { title: "Estados automáticos de los creativos", help: "Se ponen cada día a las 06:45. Los que pones a mano no se tocan.", fields: [["archive_days", "Archived: sin anuncios activos ni gasto en", "días"]] },
     {
         title: "Cola y banca", help: "Un batch a la vez por producto: con uno en la banca o haciéndose no se pide otro; cuando se lanza, se pide el siguiente.", fields: [
