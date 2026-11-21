@@ -6,9 +6,7 @@ import React, { useState } from "react";
 import { Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { toast } from "react-toastify";
 import { request } from "../../common/request";
-import { COURIER_COMPANIES } from "../../lib/courier";
-
-const EDITORS = ["Vendedor", "Gerente", "Admin"];
+import { COURIER_COMPANIES, COURIER_EDITORS as EDITORS } from "../../lib/courier";
 
 type CourierOrder = {
     id: number;

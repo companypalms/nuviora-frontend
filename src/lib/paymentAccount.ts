@@ -10,8 +10,8 @@ export interface OrderPaymentInfo {
     payments?: { method: string; amount: number | string; rate?: number | string | null }[];
     binance_rate?: number | string;
     payment_account?: IOrderPaymentAccount | null;
-    /** .168: pagó por adelantado (formulario de la tienda): no se le cobra */
-    prepaid?: { at: string; state: string } | null;
+    /** .168: pagó por adelantado (formulario de la tienda; .173: o la encomienda que cobró la vendedora): no se le cobra */
+    prepaid?: { at: string; state: string; source?: string } | null;
 }
 
 /** Si la orden se paga (en parte o del todo) por pago móvil. */
@@ -30,9 +30,12 @@ export const pagoMovilBs = (order?: OrderPaymentInfo | null): number =>
  * missing: se paga por pago móvil pero la orden todavía no tiene cuenta (quien copia ve un aviso).
  */
 export const pagoMovilBlock = (order?: OrderPaymentInfo | null): { text: string; missing: boolean } => {
+    // .168: ya pagó por adelantado: el motorizado no le cobra (ni le da los datos de la cuenta). .173: también la encomienda
+    // que cobró la vendedora, con el método que sea
+    if (order?.prepaid) {
+        return { text: order.prepaid.source === "seller" ? "\n\n✅ *YA PAGÓ POR ADELANTADO: NO COBRAR*" : "\n\n✅ *YA PAGÓ POR ADELANTADO (pago móvil): NO COBRAR*", missing: false };
+    }
     if (!paysByPagoMovil(order)) return { text: "", missing: false };
-    // .168: ya pagó por adelantado: el motorizado no le cobra (ni le da los datos de la cuenta)
-    if (order?.prepaid) return { text: "\n\n✅ *YA PAGÓ POR ADELANTADO (pago móvil): NO COBRAR*", missing: false };
     const account = order?.payment_account ?? null;
     if (!account) return { text: "", missing: true };
     const lines = account.details.map((d) => `${d.label}: ${d.value}`).join("\n");

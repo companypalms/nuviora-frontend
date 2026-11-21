@@ -30,6 +30,7 @@ interface Webhook {
     status_id: number | null;
     status: Status | null;
     is_active: boolean;
+    event_type?: string;
 }
 
 export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
@@ -97,7 +98,6 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
         setNewName(webhook.name);
         setNewUrl(webhook.url);
         setSelectedStatus(webhook.status_id || "all");
-        // @ts-ignore - event_type might not be in the interface yet
         setSelectedEventType(webhook.event_type || "order.status_changed");
         setIsActive(webhook.is_active);
         setOpenDialog(true);
@@ -294,7 +294,6 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                                                 </Tooltip>
                                             </TableCell>
                                             <TableCell>
-                                                {/* @ts-ignore */}
                                                 {webhook.event_type === 'whatsapp.message_received' ? (
                                                     <Chip 
                                                         label="Mensaje de WhatsApp" 
@@ -305,6 +304,8 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                                                             color: '#2563eb'
                                                         }} 
                                                     />
+                                                ) : webhook.event_type === 'order.courier_guide' ? (
+                                                    <Chip label="Número de guía de una encomienda" size="small" sx={{ fontWeight: 600, bgcolor: alpha('#d97706', 0.1), color: '#b45309' }} />
                                                 ) : (
                                                     webhook.status_id ? (
                                                         <Chip 
@@ -474,6 +475,8 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                             >
                                 <MenuItem value="order.status_changed">Cambio de estado de Orden</MenuItem>
                                 <MenuItem value="whatsapp.message_received"><strong>Recibir mensaje de WhatsApp</strong></MenuItem>
+                                {/* .173: la vendedora escribió el número de guía de una encomienda (n8n le avisa al cliente) */}
+                                <MenuItem value="order.courier_guide">Número de guía de una encomienda</MenuItem>
                             </Select>
                         </FormControl>
 

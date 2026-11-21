@@ -419,9 +419,9 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                     <Chip size="small" label="✅ Ya pagó"
                         sx={{ mt: 0.5, mr: 0.5, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.success.main, 0.18) }} />
                 )}
-                {/* .112: que la agencia vea que es encomienda antes de abrirla */}
+                {/* .112: que la agencia vea que es encomienda antes de abrirla (.173: con su número de guía, si ya lo tiene) */}
                 {order.courier_shipment && (
-                    <Chip size="small" label="📦 Encomienda"
+                    <Chip size="small" label={order.courier_guide ? `📦 Guía ${order.courier_guide}` : "📦 Encomienda"}
                         sx={{ mt: 0.5, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.warning.main, 0.18) }} />
                 )}
                 {order.novedad_type && (

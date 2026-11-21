@@ -2,6 +2,7 @@
 // .168 (dueño, 2026-11-21): el pedido que pagó por adelantado en el formulario de la tienda (pago móvil con la foto del
 // comprobante). Arriba de todo, para que nadie le cobre otra vez al entregar, y cómo va su pago: lo que hizo el sistema
 // (validarlo y avisarle por WhatsApp) y lo que le toca a la vendedora.
+// .173: también la encomienda que cobró la vendedora (queda "Ya pagó" sola al registrar el pago completo).
 import React from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -11,6 +12,8 @@ export interface PrepaidInfo {
     at: string;
     state: "validating" | "validated" | "confirmed" | "seller" | "review" | string;
     confirm_sent_at?: string | null;
+    /** .173: "form" = el pago móvil del formulario; "seller" = el pago que registró la vendedora en una encomienda */
+    source?: "form" | "seller" | string;
 }
 
 const STATE_TEXT: Record<string, { text: string; warn?: boolean }> = {
@@ -19,6 +22,7 @@ const STATE_TEXT: Record<string, { text: string; warn?: boolean }> = {
     confirmed: { text: "Pago validado y confirmado al cliente por WhatsApp." },
     seller: { text: "Escríbele al cliente que ya confirmamos su pago: no se le pudo avisar solo (revisa el historial del pedido).", warn: true },
     review: { text: "El comprobante tiene un problema: revísalo antes de confirmarle el pago al cliente.", warn: true },
+    registered: { text: "La vendedora registró el pago completo de la encomienda." },
 };
 
 export const PrepaidBox: React.FC<{ prepaid: PrepaidInfo }> = ({ prepaid }) => {
@@ -27,7 +31,9 @@ export const PrepaidBox: React.FC<{ prepaid: PrepaidInfo }> = ({ prepaid }) => {
         <Box role="status" sx={{ p: 2, borderRadius: 3, border: 2, borderColor: "success.main", bgcolor: (t) => alpha(t.palette.success.main, 0.08) }}>
             <Stack direction="row" alignItems="center" gap={1}>
                 <CheckCircleRounded sx={{ color: "success.main" }} />
-                <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.25 }}>YA PAGÓ POR ADELANTADO (pago móvil): NO COBRAR</Typography>
+                <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.25 }}>
+                    {prepaid.source === "seller" ? "YA PAGÓ POR ADELANTADO: NO COBRAR" : "YA PAGÓ POR ADELANTADO (pago móvil): NO COBRAR"}
+                </Typography>
             </Stack>
             <Typography variant="body2" sx={{ mt: 1, fontWeight: s.warn ? 700 : 400, color: s.warn ? "warning.dark" : "text.primary" }}>{s.text}</Typography>
         </Box>

@@ -71,7 +71,7 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
             {/* .112: en una encomienda, lo primero: a qué oficina va y los datos de la guía */}
             {order.courier_shipment && (
                 <Grid size={{ xs: 12 }}>
-                    <CourierBox order={order} />
+                    <CourierBox order={order} user={user} onSaved={onOrderSaved} />
                 </Grid>
             )}
 
