@@ -13,6 +13,8 @@ import { CpaRow, CpaVersion, CpaWindow, FixedShare, api, count, day, errorMessag
 type Response = {
     window: { from: string; to: string; long_from: string; days: number; long_days: number };
     fixed: FixedShare; city_min_purchases: number; sin_stock_hours?: number; last_computed_at: string | null; rows: CpaRow[];
+    /** .174: la zona «Resto de Venezuela» (todas las encomiendas) y si falta lo que cobra MRW o Zoom */
+    courier_zone?: { id: number | null; fee_missing: boolean; fee_missing_text: string };
 };
 
 const windowLine = (label: string, w: CpaWindow | null, hours?: number) => !w ? `${label}: sin datos`
@@ -135,7 +137,12 @@ export const CpaTab: React.FC = () => {
                                     const over = r.meta_cpa !== null && r.break_even !== null && r.meta_cpa > r.break_even;
                                     return (
                                         <TableRow key={r.id} hover onClick={() => setHistory(r)} sx={{ cursor: "pointer", bgcolor: r.city_id ? undefined : "action.hover" }}>
-                                            <TableCell sx={{ pl: r.city_id ? 4 : 2, fontWeight: r.city_id ? 400 : 700, minWidth: 180 }}>{r.city ?? r.product}</TableCell>
+                                            <TableCell sx={{ pl: r.city_id ? 4 : 2, fontWeight: r.city_id ? 400 : 700, minWidth: 180 }}>
+                                                {r.city ?? r.product}
+                                                {r.city_id !== null && r.city_id === data.courier_zone?.id && data.courier_zone.fee_missing && (
+                                                    <Typography variant="caption" color="warning.main" display="block" sx={{ fontWeight: 600 }}>{data.courier_zone.fee_missing_text}</Typography>
+                                                )}
+                                            </TableCell>
                                             <TableCell align="right">{pct(r.effectiveness)}</TableCell><TableCell align="right">{money(r.revenue)}</TableCell>
                                             <TableCell align="right">{money(r.variable_costs)}</TableCell><TableCell align="right">{count(r.purchases)}</TableCell>
                                             <TableCell align="right" sx={{ color: over ? "error.main" : undefined }}>{money(r.meta_cpa)}</TableCell>

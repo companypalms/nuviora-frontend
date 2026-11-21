@@ -178,6 +178,17 @@ const PrepaidCard: React.FC<{ data: Data; form: Settings; set: (f: Settings) => 
                         <MenuItem value="">Sin elegir</MenuItem>
                         {data.cod_cities.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
                     </TextField>
+                    {/* .174: las encomiendas cuentan en «Resto de Venezuela», con lo que cobra MRW o Zoom */}
+                    <TextField size="small" type="number" label="Costo de cada envío (USD)" value={form.courier_fee_usd ?? ""}
+                        sx={{ maxWidth: 360 }} onChange={(e) => set({ ...form, courier_fee_usd: e.target.value === "" ? null : Number(e.target.value) })}
+                        slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5, inputMode: "decimal" } }}
+                        helperText="Lo que te cobra MRW o Zoom, en promedio. Se suma a cada encomienda despachada; todas cuentan en la zona «Resto de Venezuela» (CPA objetivo, break-even y ganancia)." />
+                    {form.courier_fee_usd === null && (
+                        <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ fontSize: 13 }}>
+                            <Box sx={{ pt: "5px" }}><Dot color={t.amber} size={8} /></Box>
+                            <span>Falta el costo de la encomienda: sin él, los números de «Resto de Venezuela» salen sin lo que cobra MRW o Zoom.</span>
+                        </Stack>
+                    )}
                     {form.courier_companies.map((c) => (
                         <TextField key={c} size="small" label={`Dónde deja el paquete el motorizado (${c})`} value={form.courier_dropoff[c] ?? ""}
                             onChange={(e) => set({ ...form, courier_dropoff: { ...form.courier_dropoff, [c]: e.target.value } })}

@@ -33,6 +33,8 @@ export interface StoreFormSettings {
     confirm_message: string;
     confirm_message_courier: string;
     ack_message: string;
+    /** .174: lo que cobra MRW o Zoom por envío, en promedio (null = falta): un costo de cada encomienda en «Resto de Venezuela» */
+    courier_fee_usd: number | null;
 }
 
 /** Lo que se guarda: la clave solo si se escribe una nueva. */
