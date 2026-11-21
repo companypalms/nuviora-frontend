@@ -305,7 +305,7 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                                                         }} 
                                                     />
                                                 ) : webhook.event_type === 'order.courier_guide' ? (
-                                                    <Chip label="Número de guía de una encomienda" size="small" sx={{ fontWeight: 600, bgcolor: alpha('#d97706', 0.1), color: '#b45309' }} />
+                                                    <Chip label="Foto de la guía de una encomienda" size="small" sx={{ fontWeight: 600, bgcolor: alpha('#d97706', 0.1), color: '#b45309' }} />
                                                 ) : (
                                                     webhook.status_id ? (
                                                         <Chip 
@@ -475,8 +475,8 @@ export const WebhooksPage: FC<{ isEmbedded?: boolean }> = ({ isEmbedded }) => {
                             >
                                 <MenuItem value="order.status_changed">Cambio de estado de Orden</MenuItem>
                                 <MenuItem value="whatsapp.message_received"><strong>Recibir mensaje de WhatsApp</strong></MenuItem>
-                                {/* .173: la vendedora escribió el número de guía de una encomienda (n8n le avisa al cliente) */}
-                                <MenuItem value="order.courier_guide">Número de guía de una encomienda</MenuItem>
+                                {/* .173: subieron la foto de la guía de una encomienda (n8n se la manda al cliente) */}
+                                <MenuItem value="order.courier_guide">Foto de la guía de una encomienda</MenuItem>
                             </Select>
                         </FormControl>
 
