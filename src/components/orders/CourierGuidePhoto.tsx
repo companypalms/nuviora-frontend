@@ -1,7 +1,7 @@
 // src/components/orders/CourierGuidePhoto.tsx
 // .173 (dueño, 2026-11-21): la guía de una encomienda es una foto. La toma la agencia que lleva el paquete a la oficina de MRW
 // o Zoom (en la logística propia, la operadora; la vendedora también puede). Sin ella el pedido no pasa a Entregado. En el
-// teléfono, el botón abre la cámara directo.
+// teléfono, el botón abre la galería, no la cámara (dueño, 21/11: la foto ya está tomada).
 import React, { useRef, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import PhotoCameraRounded from "@mui/icons-material/PhotoCameraRounded";
@@ -51,7 +51,7 @@ export const CourierGuidePhoto: React.FC<Props> = ({ orderId, photoUrl, at, canU
     };
     const pick = () => input.current?.click();
     const picker = (
-        <input ref={input} type="file" accept="image/*" capture="environment" hidden aria-label="Foto de la guía"
+        <input ref={input} type="file" accept="image/*" hidden aria-label="Foto de la guía"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
     );
 
