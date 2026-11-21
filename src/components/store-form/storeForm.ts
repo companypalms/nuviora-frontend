@@ -69,6 +69,8 @@ export interface StoreFormProduct {
     cities: { id: number; name: string }[];
     /** .168: sus campañas y cuáles mandan el Purchase al entregar */
     campaigns: StoreFormCampaign[];
+    /** .170: su landing (sin parámetros), para el link de prueba de cada campaña */
+    page: string | null;
 }
 
 export interface StoreFormCampaign {

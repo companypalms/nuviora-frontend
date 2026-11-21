@@ -7,6 +7,8 @@
 // .168 (dueño, 2026-11-21): el pago anticipado (pago móvil con la foto del comprobante), "hablar con una asesora", las
 // encomiendas (MRW y Zoom, con su lista de oficinas), los mensajes al cliente que pagó, y las campañas de cada producto que
 // mandan el Purchase al entregar, con el experimento lado a lado ("Purchase al pedir" contra "al entregar").
+// .170 (dueño, 2026-11-21: "quiero probar que podamos enviar bien los eventos de meta de purchase… antes de prender
+// campañas"): el link de prueba de cada campaña y, con el código de prueba guardado, "Probar el Purchase al entregar".
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Checkbox, FormControlLabel, MenuItem, Skeleton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { ContentCopyRounded, ReportProblemRounded } from "@mui/icons-material";
@@ -95,7 +97,8 @@ const MetaCard: React.FC<{ data: Data; form: StoreFormSettingsInput & { capi_set
             )}
         </Box>
         <TextField size="small" label="Código de prueba de eventos (opcional)" value={form.capi_test_code} onChange={(e) => set({ ...form, capi_test_code: e.target.value })}
-            helperText="Solo mientras pruebas en «Probar eventos» de Meta; después bórralo." sx={{ maxWidth: 360 }} />
+            helperText="Solo mientras pruebas en «Probar eventos» de Meta; después bórralo. Con él guardado, en «Pedidos del formulario» puedes probar el Purchase al entregar."
+            sx={{ maxWidth: 360 }} />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <TextField select size="small" label="Formato del Content ID" value={form.content_id_format} onChange={(e) => set({ ...form, content_id_format: e.target.value })} sx={{ minWidth: 240 }}>
                 {Object.entries(data.formats).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
@@ -285,6 +288,14 @@ const PurchaseModeCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: 
             onSaved(res.product);
         } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
     };
+    // .170: el link de la landing como si vinieras de un anuncio de esa campaña (para tus pedidos de prueba)
+    const copyLink = async (id: string) => {
+        const text = p.page ? `${p.page}?utm_campaign=${id}` : `?utm_campaign=${id}`;
+        try {
+            await navigator.clipboard.writeText(text);
+            toast.success(p.page ? "Link copiado: ábrelo en «Probar eventos» de Meta y haz ahí tu pedido de prueba." : "Copiado: pégalo al final del link de tu landing.");
+        } catch { toast.error(`No se pudo copiar: ${text}`); }
+    };
     if (p.campaigns.length === 0) {
         return <Typography sx={{ fontSize: 14, color: t.muted }}>Este producto todavía no tiene campañas de Meta en el sistema.</Typography>;
     }
@@ -303,6 +314,7 @@ const PurchaseModeCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: 
                                 {marked.includes(c.id) ? `Purchase al entregar${c.since ? ` desde el ${c.since.split("-").reverse().join("/")}` : " (desde hoy, al guardar)"}` : "Purchase al pedir (como siempre)"}
                                 {c.status ? ` · ${c.status === "ACTIVE" ? "Activa" : "No activa"}` : ""}
                             </Typography>
+                            <TextAction onClick={() => copyLink(c.id)} sx={{ fontSize: 12.5, minHeight: 32 }}>{p.page ? "Copiar link de prueba" : "Copiar el parámetro de prueba"}</TextAction>
                         </Box>
                         <Switch checked={marked.includes(c.id)} onChange={(e) => setMarked(e.target.checked ? [...marked, c.id] : marked.filter((x) => x !== c.id))}
                             slotProps={{ input: { "aria-label": `Purchase al entregar en ${c.name || c.id}` } }} />
@@ -513,6 +525,7 @@ export const StoreFormPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [form, setForm] = useState<(StoreFormSettingsInput & { capi_set: boolean }) | null>(null);
     const [saving, setSaving] = useState(false);
+    const [testing, setTesting] = useState<number | null>(null);
 
     const load = useCallback(() => {
         setError(null);
@@ -532,6 +545,16 @@ export const StoreFormPage: React.FC = () => {
         } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
     };
     const replace = (p: StoreFormProduct) => data && setData({ ...data, selected: data.selected.map((x) => (x.id === p.id ? p : x)) });
+    // .170: el Purchase "al entregar" de un pedido de prueba, sin entregarlo (solo con el código de prueba de eventos guardado)
+    const testPurchase = async (id: number) => {
+        if (!data) return;
+        setTesting(id);
+        try {
+            const res = await api<{ message: string; orders: Data["orders"] }>(`/store-form/orders/${id}/test-purchase`, "POST");
+            toast.success(res.message);
+            setData({ ...data, orders: res.orders });
+        } catch (e) { toast.error((e as Error).message); } finally { setTesting(null); }
+    };
     const saveBar = (
         <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
             <Button variant="contained" disableElevation onClick={save} disabled={saving || !changed} sx={{ ...inkSx(t), ...tapSx }}>{saving ? "Guardando…" : "Guardar ajustes"}</Button>
@@ -680,6 +703,11 @@ export const StoreFormPage: React.FC = () => {
                                                 <span>{o.capi === "sent" ? (o.purchase_sent_at ? "Meta recibió la compra al entregar" : "Meta recibió la compra")
                                                     : o.capi === "failed" ? "Meta no recibió la compra"
                                                         : o.purchase_mode === "delivery" && o.payment !== "pago_movil" ? "La compra le llega a Meta al entregar" : "Sin API de Meta"}</span>
+                                                {data.settings.capi_test_code && o.purchase_mode === "delivery" && o.payment !== "pago_movil" && o.capi !== "sent" && (
+                                                    <TextAction onClick={() => testPurchase(o.id)} disabled={testing !== null} sx={{ fontSize: 13, color: t.ink }}>
+                                                        {testing === o.id ? "Mandando…" : "Probar el Purchase al entregar"}
+                                                    </TextAction>
+                                                )}
                                                 {o.confirm && CONFIRM_TEXT[o.confirm] && <span>{CONFIRM_TEXT[o.confirm]}</span>}
                                             </Stack>
                                         </Box>
