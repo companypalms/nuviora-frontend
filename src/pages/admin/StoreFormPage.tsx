@@ -8,7 +8,9 @@
 // encomiendas (MRW y Zoom, con su lista de oficinas), los mensajes al cliente que pagó, y las campañas de cada producto que
 // mandan el Purchase al entregar, con el experimento lado a lado ("Purchase al pedir" contra "al entregar").
 // .170 (dueño, 2026-11-21: "quiero probar que podamos enviar bien los eventos de meta de purchase… antes de prender
-// campañas"): el link de prueba de cada campaña y, con el código de prueba guardado, "Probar el Purchase al entregar".
+// campañas"): con el código de prueba guardado, "Probar el Purchase al entregar".
+// .171 (dueño, 2026-11-21: "sin duplicar campañas"): "Purchase según cómo paga el cliente" se prende por producto, y
+// "¿Funciona?" lo compara con el mismo producto antes.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Checkbox, FormControlLabel, MenuItem, Skeleton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { ContentCopyRounded, ReportProblemRounded } from "@mui/icons-material";
@@ -19,7 +21,7 @@ import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { appear, cardSx, geist, inkSx, lineSx, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 import {
-    bsText, COLOR_LABELS, CourierOffice, ExperimentArm, offerUsd, snippet, StoreFormData as Data, StoreFormDesign, StoreFormKpi, StoreFormOffer, StoreFormProduct,
+    bsText, COLOR_LABELS, CourierOffice, ExperimentArm, ExperimentNow, offerUsd, snippet, StoreFormData as Data, StoreFormDesign, StoreFormKpi, StoreFormOffer, StoreFormProduct,
     StoreFormSettings as Settings, StoreFormSettingsInput, SYSTEM_CODES, TEXT_LABELS, usdText, WA_CODES,
 } from "../../components/store-form/storeForm";
 
@@ -111,7 +113,7 @@ const MetaCard: React.FC<{ data: Data; form: StoreFormSettingsInput & { capi_set
         <FormControlLabel sx={{ m: 0, gap: 1 }} control={<Switch checked={form.send_pageview} onChange={(e) => set({ ...form, send_pageview: e.target.checked })} />}
             label={<Typography sx={{ fontSize: 14 }}>Mandar «PageView» (solo si tu página no lo manda ya)</Typography>} />
         <Typography sx={{ fontSize: 13, color: t.muted }}>
-            «Purchase» sale al confirmar (en la página y por la API, con el mismo número: Meta no lo cuenta doble), salvo en las campañas que marques «al entregar»;
+            «Purchase» sale al confirmar (en la página y por la API, con el mismo número: Meta no lo cuenta doble), salvo en los productos con «Purchase según cómo paga»;
             «pedido hecho» (AddPaymentInfo) sale siempre al confirmar, y «Lead» al pasar a WhatsApp.
         </Typography>
     </Stack>
@@ -273,93 +275,72 @@ const OfficesCard: React.FC<{ data: Data; t: Tokens }> = ({ data, t }) => {
     );
 };
 
-/** .168: las campañas de un producto que mandan el Purchase al entregar (para comparar con una igual "al pedir"). */
-const PurchaseModeCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, t, onSaved }) => {
-    const savedKey = p.campaigns.filter((c) => c.delivery).map((c) => c.id).join(",");
-    const [marked, setMarked] = useState<string[]>(savedKey ? savedKey.split(",") : []);
+/** .171: "Purchase según cómo paga el cliente" en todo el producto, con todas sus campañas (también las nuevas). */
+const PurchaseByPaymentCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, t, onSaved }) => {
     const [saving, setSaving] = useState(false);
-    useEffect(() => setMarked(savedKey ? savedKey.split(",") : []), [savedKey]);
-    const changed = [...marked].sort().join(",") !== savedKey.split(",").filter(Boolean).sort().join(",");
-    const save = async () => {
+    const on = p.purchase_by_payment !== null;
+    const toggle = async (value: boolean) => {
         setSaving(true);
         try {
-            const res = await api<{ message: string; product: StoreFormProduct }>(`/store-form/products/${p.id}/purchase-modes`, "PUT", { campaigns: marked });
+            const res = await api<{ message: string; product: StoreFormProduct }>(`/store-form/products/${p.id}/purchase-mode`, "PUT", { on: value });
             toast.success(res.message);
             onSaved(res.product);
         } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
     };
-    // .170: el link de la landing como si vinieras de un anuncio de esa campaña (para tus pedidos de prueba)
-    const copyLink = async (id: string) => {
-        const text = p.page ? `${p.page}?utm_campaign=${id}` : `?utm_campaign=${id}`;
-        try {
-            await navigator.clipboard.writeText(text);
-            toast.success(p.page ? "Link copiado: ábrelo en «Probar eventos» de Meta y haz ahí tu pedido de prueba." : "Copiado: pégalo al final del link de tu landing.");
-        } catch { toast.error(`No se pudo copiar: ${text}`); }
-    };
-    if (p.campaigns.length === 0) {
-        return <Typography sx={{ fontSize: 14, color: t.muted }}>Este producto todavía no tiene campañas de Meta en el sistema.</Typography>;
-    }
     return (
         <Box>
-            <Typography sx={{ fontSize: 13, color: t.muted, mb: 1 }}>
-                Marcada «al entregar»: si paga al recibir o habla con la asesora, el Purchase le llega a Meta cuando el pedido pasa a Entregado (si paga por adelantado, al pedir).
-                El sistema la sigue midiendo por pedidos. Para comparar, duplica una campaña con el mismo presupuesto y marca solo la copia.
-            </Typography>
-            <Box component="ul" sx={{ p: 0, m: 0 }}>
-                {p.campaigns.map((c) => (
-                    <Box component="li" key={c.id} sx={{ listStyle: "none", py: 0.75, borderBottom: `1px solid ${t.line}`, display: "flex", alignItems: "center", gap: 1 }}>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 600, overflowWrap: "anywhere" }}>{c.name || c.id}</Typography>
-                            <Typography sx={{ fontSize: 12, color: t.muted }}>
-                                {marked.includes(c.id) ? `Purchase al entregar${c.since ? ` desde el ${c.since.split("-").reverse().join("/")}` : " (desde hoy, al guardar)"}` : "Purchase al pedir (como siempre)"}
-                                {c.status ? ` · ${c.status === "ACTIVE" ? "Activa" : "No activa"}` : ""}
-                            </Typography>
-                            <TextAction onClick={() => copyLink(c.id)} sx={{ fontSize: 12.5, minHeight: 32 }}>{p.page ? "Copiar link de prueba" : "Copiar el parámetro de prueba"}</TextAction>
-                        </Box>
-                        <Switch checked={marked.includes(c.id)} onChange={(e) => setMarked(e.target.checked ? [...marked, c.id] : marked.filter((x) => x !== c.id))}
-                            slotProps={{ input: { "aria-label": `Purchase al entregar en ${c.name || c.id}` } }} />
-                    </Box>
-                ))}
+            <FormControlLabel sx={{ m: 0, gap: 1, alignItems: "flex-start" }} disabled={saving}
+                control={<Switch checked={on} onChange={(e) => toggle(e.target.checked)} />}
+                label={<Box sx={{ pt: "7px" }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 600 }}>Purchase según cómo paga el cliente</Typography>
+                    <Typography sx={{ fontSize: 13, color: on ? t.green : t.muted }}>
+                        {on ? `Prendido desde el ${p.purchase_by_payment!.split("-").reverse().join("/")}, en todas sus campañas` : "Apagado: el Purchase sale al pedir, como siempre"}
+                    </Typography>
+                </Box>} />
+            <Box component="ul" sx={{ fontSize: 14, m: 0, mt: 1.5, pl: 2.5, "& li": { mb: 0.5 } }}>
+                <li><b>Paga ahora</b> (pago móvil o encomienda): el Purchase sale al pedir.</li>
+                <li><b>Paga al recibir o con la asesora</b>: el Purchase sale cuando el pedido pasa a Entregado; si se cancela, nunca.</li>
             </Box>
-            <Button variant="contained" disableElevation onClick={save} disabled={saving || !changed} sx={{ ...inkSx(t), ...tapSx, mt: 1.5 }}>{saving ? "Guardando…" : "Guardar campañas"}</Button>
+            <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                Vale para todas las campañas del producto, también las que crees después. El sistema las sigue midiendo por pedidos (el C, el BE y las reglas no
+                cambian). En el Administrador de anuncios vas a ver menos compras: es normal. Cómo va, en «¿Funciona?».
+            </Typography>
         </Box>
     );
 };
 
-/** .168: el experimento lado a lado: "Purchase al pedir" contra "al entregar", con los días ya cerrados. */
-const ExperimentCard: React.FC<{ arms: { order: ExperimentArm; delivery: ExperimentArm }; t: Tokens }> = ({ arms, t }) => {
+/** .171: el producto ahora (con "Purchase según cómo paga") contra el mismo producto antes, con los días ya cerrados. */
+const ExperimentCard: React.FC<{ before: ExperimentArm | null; after: ExperimentNow; t: Tokens }> = ({ before, after, t }) => {
     const money = (v: number | null) => (v === null ? "—" : usdText(v));
     const pct = (v: number | null) => (v === null ? "—" : `${num(v)} %`);
     const rows: [string, (a: ExperimentArm) => string, string?][] = [
-        ["Costo por pedido entregado", (a) => money(a.cost_per_delivered), "El que decide: gasto ÷ entregados."],
+        ["Publicidad ÷ lo vendido", (a) => pct(a.ad_share), "El que decide: de lo que se entregó, cuánto se fue en publicidad."],
         ["Efectividad", (a) => pct(a.effectiveness), "Entregados ÷ cerrados."],
+        ["Costo por pedido entregado", (a) => money(a.cost_per_delivered), "Gasto ÷ entregados."],
         ["Ganancia por día", (a) => money(a.profit_per_day), "Lo que dejan los pedidos menos el gasto, sin los gastos fijos."],
         ["Gasto", (a) => money(a.spend)],
         ["Pedidos · entregados", (a) => `${a.orders} · ${a.delivered}`],
-        ["Meta ve los pedidos", (a) => pct(a.meta_sees), "95 % o más: si no, los números del sistema fallan."],
-        ["Pagaron por adelantado", (a) => `${a.prepaid}${a.courier ? ` (${a.courier} encomiendas)` : ""}`],
-        ["Con asesora", (a) => String(a.advisor)],
     ];
-    const deliveryRow = arms.delivery.purchase_on_delivery;
+    const [sent, delivered] = after.purchase_on_delivery;
     return (
         <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 }, overflowX: "auto" }}>
             <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 14, fontVariantNumeric: "tabular-nums", "& th, & td": { py: 0.75, borderBottom: `1px solid ${t.line}`, textAlign: "right", px: 1 }, "& th:first-of-type, & td:first-of-type": { textAlign: "left", pl: 0 } }}>
-                <thead><tr><Box component="th" sx={{ fontWeight: 500, color: t.muted }} /><th>Al pedir</th><th>Al entregar</th></tr></thead>
+                <thead><tr><Box component="th" sx={{ fontWeight: 500, color: t.muted }} /><th>Antes</th><th>Ahora</th></tr></thead>
                 <tbody>
                     {rows.map(([label, f, help]) => (
                         <tr key={label}>
                             <td><Box sx={{ fontWeight: 600 }}>{label}</Box>{help && <Box sx={{ fontSize: 12, color: t.muted }}>{help}</Box>}</td>
-                            <td>{f(arms.order)}</td>
-                            <td>{f(arms.delivery)}</td>
+                            <td>{before ? f(before) : "—"}</td>
+                            <td>{f(after)}</td>
                         </tr>
                     ))}
                 </tbody>
             </Box>
-            {deliveryRow && (
-                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
-                    Purchase que llegaron a Meta al entregar: {deliveryRow[0]} de {deliveryRow[1]} entregados (meta: todos).
-                </Typography>
-            )}
+            <Box component="ul" sx={{ fontSize: 13, color: t.muted, m: 0, mt: 1, pl: 2.5 }}>
+                <li>Meta ve los pedidos: {pct(after.meta_sees)} (95 % o más; si no, los números del sistema fallan).</li>
+                <li>Purchase que llegaron a Meta al entregar: {sent} de {delivered} entregados (meta: todos).</li>
+                <li>Pagaron por adelantado: {after.prepaid}{after.courier ? ` (${after.courier} encomiendas)` : ""} · con asesora: {after.advisor}.</li>
+            </Box>
         </Box>
     );
 };
@@ -594,14 +575,21 @@ export const StoreFormPage: React.FC = () => {
 
                         {data.experiment.active && (
                             <Section dot={data.experiment.verdict.key === "go" ? t.green : data.experiment.verdict.key === "back" ? t.red : undefined}
-                                name="Purchase al pedir o al entregar" hint={data.experiment.days > 0
-                                    ? `Días cerrados: ${data.experiment.days} (del ${data.experiment.from.split("-").reverse().join("/")} al ${data.experiment.to.split("-").reverse().join("/")})`
-                                    : "Cuenta los días que ya cerraron (4 días después): todavía ninguno"}>
+                                name="Purchase según cómo paga" hint={data.experiment.days > 0
+                                    ? `¿Funciona en ${data.experiment.product}? Días cerrados: ${data.experiment.days} (del ${data.experiment.from.split("-").reverse().join("/")} al ${data.experiment.to.split("-").reverse().join("/")})`
+                                    : `¿Funciona en ${data.experiment.product}? Cuenta los días que ya cerraron (4 días después): todavía ninguno`}>
                                 <Box role="status" sx={{ ...cardSx(t), ...appear, p: "12px 14px", mb: 1, display: "flex", gap: 1, alignItems: "flex-start" }}>
                                     <Box sx={{ pt: "6px" }}><Dot color={data.experiment.verdict.key === "go" ? t.green : data.experiment.verdict.key === "back" ? t.red : t.gray} size={8} /></Box>
                                     <Typography sx={{ fontSize: 15, fontWeight: 600 }}>{data.experiment.verdict.text}</Typography>
                                 </Box>
-                                <ExperimentCard arms={data.experiment.arms} t={t} />
+                                <Typography sx={{ fontSize: 13, color: t.muted, mb: 1 }}>
+                                    {data.experiment.basis === "own" && data.experiment.before
+                                        ? `Antes: ${data.experiment.product} del ${data.experiment.before.from!.split("-").reverse().join("/")} al ${data.experiment.before.to!.split("-").reverse().join("/")} (sus últimos 14 días con anuncios), con el Purchase al pedir.`
+                                        : data.experiment.basis === "launches"
+                                            ? `Antes: el arranque de tus otros ${data.experiment.before?.products ?? 0} productos (sus primeros 14 días), con el Purchase al pedir: ${data.experiment.product} no tenía ventas de antes.`
+                                            : "Todavía no hay ventas de antes con qué comparar."}
+                                </Typography>
+                                <ExperimentCard before={data.experiment.before} after={data.experiment.after} t={t} />
                             </Section>
                         )}
 
@@ -635,9 +623,9 @@ export const StoreFormPage: React.FC = () => {
                                         Pagan al recibir en: {p.cities.length ? p.cities.map((c) => c.name).join(", ") : "ninguna ciudad (no tienes agencias activas para este producto): el formulario no sale"}.
                                     </Typography>
                                 </Section>
-                                <Section name={`Meta: cuándo sale el Purchase de ${p.name}`} hint="Por campaña">
+                                <Section name="Cuándo sale el Purchase" hint={p.name}>
                                     <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
-                                        <PurchaseModeCard p={p} t={t} onSaved={replace} />
+                                        <PurchaseByPaymentCard p={p} t={t} onSaved={replace} />
                                     </Box>
                                 </Section>
                                 <Section name={`Diseño de ${p.name}`} hint="Como tu landing">

@@ -67,18 +67,8 @@ export interface StoreFormProduct {
     offers: StoreFormOffer[];
     design: StoreFormDesign;
     cities: { id: number; name: string }[];
-    /** .168: sus campañas y cuáles mandan el Purchase al entregar */
-    campaigns: StoreFormCampaign[];
-    /** .170: su landing (sin parámetros), para el link de prueba de cada campaña */
-    page: string | null;
-}
-
-export interface StoreFormCampaign {
-    id: string;
-    name: string;
-    status: string | null;
-    delivery: boolean;
-    since: string | null;
+    /** .171: desde cuándo manda el Purchase según cómo paga el cliente (null = apagado) */
+    purchase_by_payment: string | null;
 }
 
 /** .168: una oficina de MRW o Zoom donde el cliente retira su encomienda. */
@@ -94,25 +84,33 @@ export interface CourierOffice {
     source: string;
 }
 
-/** .168: un lado del experimento ("Purchase al pedir" o "al entregar"), con días ya cerrados. */
+/** .171: un lado del experimento (antes o ahora), con días ya cerrados. */
 export interface ExperimentArm {
     spend: number;
     orders: number;
     delivered: number;
     closed: number;
+    revenue: number;
     effectiveness: number | null;
+    /** cuánto de lo vendido (los entregados) se fue en publicidad, en % */
+    ad_share: number | null;
     cost_per_delivered: number | null;
     profit_per_day: number | null;
+}
+
+/** .171: lo de ahora, con lo que solo se sabe del formulario */
+export interface ExperimentNow extends ExperimentArm {
     meta_sees: number | null;
     prepaid: number;
     courier: number;
     advisor: number;
-    /** al entregar: [Purchase que llegaron a Meta, entregados que no habían pagado antes] */
-    purchase_on_delivery: [number, number] | null;
+    /** [Purchase que llegaron a Meta al entregar, entregados que no habían pagado antes] */
+    purchase_on_delivery: [number, number];
 }
 
 export type StoreFormExperiment = { active: false }
-    | { active: true; from: string; to: string; days: number; arms: { order: ExperimentArm; delivery: ExperimentArm }; verdict: { key: string; text: string } };
+    | { active: true; product: string; from: string; to: string; days: number; after: ExperimentNow; verdict: { key: string; text: string };
+        basis: "own" | "launches" | null; before: (ExperimentArm & { from?: string; to?: string; products?: number }) | null };
 
 export interface StoreFormKpi {
     key: string;
