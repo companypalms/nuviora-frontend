@@ -152,10 +152,10 @@ const PrepaidCard: React.FC<{ data: Data; form: Settings; set: (f: Settings) => 
     const offices = (c: string) => data.offices.find((o) => o.company === c);
     return (
         <Stack spacing={2}>
-            {onOff("prepaid_enabled", "Pago por adelantado con pago móvil",
-                "El cliente ve la cuenta del día y el monto exacto en Bs, paga en su banco y sube la foto del comprobante. El pedido llega marcado «✅ Ya pagó»: nadie le cobra al entregar.")}
-            {onOff("advisor_enabled", "«Prefiero hablar con una asesora antes»",
-                "Pide nombre, WhatsApp y ciudad (la dirección es opcional); la vendedora lo atiende por WhatsApp.")}
+            {onOff("prepaid_enabled", "Pago por adelantado en tus ciudades con delivery",
+                "Además de pagar al recibir: ve la cuenta del día y el monto exacto en Bs, paga y sube la foto del comprobante. El pedido llega «✅ Ya pagó»: nadie le cobra al entregar. (Las encomiendas siempre se pagan por adelantado.)")}
+            {onOff("advisor_enabled", "Encomiendas: «Hacer el pago con una asesora»",
+                "En el resto del país, el cliente llena sus datos y la agencia, y hace el pago móvil con una asesora por WhatsApp (no paga en el formulario).")}
             {onOff("courier_enabled", "Encomiendas a todo el país (MRW y Zoom)",
                 "El envío va incluido en el precio y se paga por adelantado. El cliente elige la empresa y la oficina donde retira.")}
             {form.courier_enabled && (
