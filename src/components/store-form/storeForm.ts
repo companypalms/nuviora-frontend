@@ -69,6 +69,14 @@ export interface StoreFormProduct {
     cities: { id: number; name: string }[];
     /** .171: desde cuándo manda el Purchase según cómo paga el cliente (null = apagado) */
     purchase_by_payment: string | null;
+    /** .172: qué sale hoy en el formulario: cada ciudad y la de las encomiendas, con lo que puede entregar (ok = sale) */
+    stock: { cities: StockPlace[]; courier: StockPlace | null };
+}
+
+export interface StockPlace {
+    name: string;
+    ok: boolean;
+    units: number;
 }
 
 /** .168: una oficina de MRW o Zoom donde el cliente retira su encomienda. */
@@ -183,7 +191,7 @@ export const SYSTEM_CODES: [string, string][] = [
 /** Para qué es cada texto del formulario (en el editor de diseño). */
 export const TEXT_LABELS: Record<string, string> = {
     title: "Título", step_offer: "Paso: la oferta", step_data: "Paso: tus datos", step_delivery: "Paso: entrega y pago", step_confirm: "Paso: confirmar",
-    size_label: "Talla", name_label: "Nombre (etiqueta)", name_placeholder: "Nombre (ejemplo)", phone_label: "WhatsApp (etiqueta)", phone_placeholder: "WhatsApp (ejemplo)",
+    size_label: "Talla", size_sold_out: "Talla sin stock (al lado de su nombre)", name_label: "Nombre (etiqueta)", name_placeholder: "Nombre (ejemplo)", phone_label: "WhatsApp (etiqueta)", phone_placeholder: "WhatsApp (ejemplo)",
     where_label: "Estado o ciudad (etiqueta)", where_placeholder: "Estado o ciudad (ejemplo)", where_group_cod: "Grupo: delivery a domicilio",
     where_group_courier: "Grupo: resto del país", delivery_wait: "Antes de elegir el estado", cod_notice: "Aviso a domicilio ({ciudad})",
     address_label: "Dirección (etiqueta)", address_placeholder: "Dirección (ejemplo)", reference_placeholder: "Puntos de referencia (ejemplo)",
@@ -203,7 +211,7 @@ export const TEXT_LABELS: Record<string, string> = {
     thanks_text: "Gracias (texto)", thanks_prepaid_title: "Gracias si pagó ({pedido})", thanks_prepaid_open: "Gracias si pagó (tienda abierta)",
     thanks_prepaid_closed: "Gracias si pagó (tienda cerrada: {horario} y {cuando})", thanks_advisor: "Gracias con asesora", thanks_go_whatsapp: "Gracias: pasa a WhatsApp",
     thanks_button: "Botón de WhatsApp", repeat_text: "Si lo vuelve a enviar ({pedido})", error_required: "Error: falta un dato", error_phone: "Error: el WhatsApp",
-    error_where: "Error: el estado o ciudad", error_receipt: "Error: falta el comprobante", error_id: "Error: la cédula", error_office: "Error: la agencia",
+    error_where: "Error: el estado o ciudad", error_receipt: "Error: falta el comprobante", error_id: "Error: la cédula", error_office: "Error: la agencia", error_stock: "Error: se agotó en su ciudad ({ciudad})",
 };
 
 export const COLOR_LABELS: Record<string, string> = {

@@ -275,6 +275,24 @@ const OfficesCard: React.FC<{ data: Data; t: Tokens }> = ({ data, t }) => {
     );
 };
 
+/** .172: qué sale hoy en el formulario con el stock de cada ciudad (y de dónde salen las encomiendas). */
+const StockToday: React.FC<{ p: StoreFormProduct; t: Tokens }> = ({ p, t }) => {
+    const on = p.stock.cities.filter((c) => c.ok);
+    const off = p.stock.cities.filter((c) => !c.ok);
+    const courier = p.stock.courier;
+    const nothing = on.length === 0 && !courier?.ok;
+    return (
+        <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ fontSize: 13, mt: 0.75 }}>
+            <Box sx={{ pt: "5px" }}><Dot color={nothing ? t.red : off.length || (courier && !courier.ok) ? t.amber : t.green} size={8} /></Box>
+            <span>
+                {nothing ? "Hoy no sale en el formulario: no hay stock en ninguna ciudad." : `Hoy sale en: ${on.map((c) => `${c.name} (${c.units})`).join(", ") || "ninguna ciudad con delivery"}.`}
+                {off.length > 0 && ` Sin stock: ${off.map((c) => c.name).join(", ")}${courier?.ok ? " (ahí pueden pedir por encomienda)" : ""}.`}
+                {courier && ` Encomiendas: ${courier.ok ? `desde ${courier.name} (${courier.units})` : `no salen (sin stock en ${courier.name})`}.`}
+            </span>
+        </Stack>
+    );
+};
+
 /** .171: "Purchase según cómo paga el cliente" en todo el producto, con todas sus campañas (también las nuevas). */
 const PurchaseByPaymentCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, t, onSaved }) => {
     const [saving, setSaving] = useState(false);
@@ -622,6 +640,7 @@ export const StoreFormPage: React.FC = () => {
                                     <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
                                         Pagan al recibir en: {p.cities.length ? p.cities.map((c) => c.name).join(", ") : "ninguna ciudad (no tienes agencias activas para este producto): el formulario no sale"}.
                                     </Typography>
+                                    <StockToday p={p} t={t} />
                                 </Section>
                                 <Section name="Cuándo sale el Purchase" hint={p.name}>
                                     <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
