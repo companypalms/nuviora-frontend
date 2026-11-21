@@ -10,6 +10,8 @@ export interface OrderPaymentInfo {
     payments?: { method: string; amount: number | string; rate?: number | string | null }[];
     binance_rate?: number | string;
     payment_account?: IOrderPaymentAccount | null;
+    /** .168: pagó por adelantado (formulario de la tienda): no se le cobra */
+    prepaid?: { at: string; state: string } | null;
 }
 
 /** Si la orden se paga (en parte o del todo) por pago móvil. */
@@ -29,6 +31,8 @@ export const pagoMovilBs = (order?: OrderPaymentInfo | null): number =>
  */
 export const pagoMovilBlock = (order?: OrderPaymentInfo | null): { text: string; missing: boolean } => {
     if (!paysByPagoMovil(order)) return { text: "", missing: false };
+    // .168: ya pagó por adelantado: el motorizado no le cobra (ni le da los datos de la cuenta)
+    if (order?.prepaid) return { text: "\n\n✅ *YA PAGÓ POR ADELANTADO (pago móvil): NO COBRAR*", missing: false };
     const account = order?.payment_account ?? null;
     if (!account) return { text: "", missing: true };
     const lines = account.details.map((d) => `${d.label}: ${d.value}`).join("\n");

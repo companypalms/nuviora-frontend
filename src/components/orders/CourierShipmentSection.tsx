@@ -3,9 +3,10 @@
 // oficina de donde sale la encomienda, y aparte van los datos que pide la empresa: cédula, nombre y teléfono de quien la
 // recibe. La vendedora y administración los editan; la agencia los ve, porque es quien lleva el paquete a la oficina.
 import React, { useState } from "react";
-import { Box, Button, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { toast } from "react-toastify";
 import { request } from "../../common/request";
+import { COURIER_COMPANIES } from "../../lib/courier";
 
 const EDITORS = ["Vendedor", "Gerente", "Admin"];
 
@@ -15,6 +16,8 @@ type CourierOrder = {
     courier_recipient_name?: string | null;
     courier_recipient_id_number?: string | null;
     courier_recipient_phone?: string | null;
+    courier_company?: string | null;
+    courier_office?: string | null;
     client?: { first_name?: string | null; last_name?: string | null; phone?: string | null } | null;
 };
 
@@ -22,6 +25,8 @@ const defaults = (order: CourierOrder) => ({
     name: order.courier_recipient_name ?? [order.client?.first_name, order.client?.last_name].filter(Boolean).join(" "),
     idNumber: order.courier_recipient_id_number ?? "",
     phone: order.courier_recipient_phone ?? order.client?.phone ?? "",
+    company: order.courier_company ?? "",
+    office: order.courier_office ?? "",
 });
 
 type Props = { order: CourierOrder; user: { role?: { description?: string } | null }; onSaved: (order: unknown) => void; dense?: boolean };
@@ -29,7 +34,7 @@ type Props = { order: CourierOrder; user: { role?: { description?: string } | nu
 // Al abrir otra orden, o cuando se guardan sus datos, el formulario vuelve a empezar con lo que tiene la orden (sin borrar
 // lo que se está escribiendo cuando la orden se actualiza por otra cosa)
 export const CourierShipmentSection: React.FC<Props> = (props) => (
-    <CourierShipmentForm key={[props.order.id, props.order.courier_shipment, props.order.courier_recipient_name, props.order.courier_recipient_id_number, props.order.courier_recipient_phone].join("|")} {...props} />
+    <CourierShipmentForm key={[props.order.id, props.order.courier_shipment, props.order.courier_recipient_name, props.order.courier_recipient_id_number, props.order.courier_recipient_phone, props.order.courier_company, props.order.courier_office].join("|")} {...props} />
 );
 
 const CourierShipmentForm: React.FC<Props> = ({ order, user, onSaved, dense }) => {
@@ -42,7 +47,8 @@ const CourierShipmentForm: React.FC<Props> = ({ order, user, onSaved, dense }) =
         setSaving(true);
         try {
             const body = shipment
-                ? { courier_shipment: true, courier_recipient_name: form.name, courier_recipient_id_number: form.idNumber, courier_recipient_phone: form.phone }
+                ? { courier_shipment: true, courier_recipient_name: form.name, courier_recipient_id_number: form.idNumber, courier_recipient_phone: form.phone,
+                    courier_company: form.company || null, courier_office: form.office.trim() || null }
                 : { courier_shipment: false };
             const { status, response } = await request(`/orders/${order.id}/courier`, "PUT", body);
             const data = await response.json().catch(() => null);
@@ -80,6 +86,15 @@ const CourierShipmentForm: React.FC<Props> = ({ order, user, onSaved, dense }) =
                         <TextField size={dense ? "small" : "medium"} label="Nombre de quien recibe" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} fullWidth inputProps={{ maxLength: 150 }} />
                         <TextField size={dense ? "small" : "medium"} label="Cédula" value={form.idNumber} onChange={(e) => setForm({ ...form, idNumber: e.target.value })} placeholder="V-12345678" sx={{ minWidth: { sm: 170 } }} inputProps={{ maxLength: 30 }} />
                         <TextField size={dense ? "small" : "medium"} label="Teléfono" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} sx={{ minWidth: { sm: 170 } }} inputProps={{ maxLength: 40, inputMode: "tel" }} />
+                    </Stack>
+                    {/* .168: la empresa y la oficina donde retira (opcionales) */}
+                    <Stack direction={{ xs: "column", sm: "row" }} gap={1}>
+                        <TextField select size={dense ? "small" : "medium"} label="Empresa" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} sx={{ minWidth: { sm: 170 } }}>
+                            <MenuItem value="">Otra o sin elegir</MenuItem>
+                            {COURIER_COMPANIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                        </TextField>
+                        <TextField size={dense ? "small" : "medium"} label="Oficina donde retira" value={form.office} onChange={(e) => setForm({ ...form, office: e.target.value })}
+                            placeholder="MRW Alto Barinas, Barinas" fullWidth inputProps={{ maxLength: 300 }} />
                     </Stack>
                     <Box>
                         <Button variant="contained" size="small" disabled={saving || !complete} onClick={() => save(true)}>Guardar datos de la encomienda</Button>

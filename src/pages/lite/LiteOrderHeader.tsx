@@ -4,6 +4,7 @@ import { TextFieldCustom } from "../../components/custom";
 import { Link } from "react-router-dom";
 import { PhoneActionMenu } from '../../components/orders/PhoneActionMenu';
 import { CourierShipmentSection } from '../../components/orders/CourierShipmentSection';
+import { PrepaidBox } from '../../components/orders/PrepaidBox';
 import { CourierBox } from '../../components/orders/CourierBox';
 import MapIcon from '@mui/icons-material/Map';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -57,6 +58,13 @@ export const LiteOrderHeader: React.FC<LiteOrderHeaderProps> = ({
                             {order.novedad_description}
                         </Typography>
                     </Alert>
+                </Grid>
+            )}
+
+            {/* .168: pagó por adelantado: que nadie le cobre, y cómo va su pago */}
+            {order.prepaid && (
+                <Grid size={{ xs: 12 }}>
+                    <PrepaidBox prepaid={order.prepaid} />
                 </Grid>
             )}
 

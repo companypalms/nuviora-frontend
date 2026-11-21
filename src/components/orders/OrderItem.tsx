@@ -414,6 +414,11 @@ export const OrderItem: FC<OrderItemProps> = ({ order }) => {
                         Agencia: {isAgent ? 'Asignada' : order.agency?.names}
                     </TypographyCustom>
                 )}
+                {/* .168: pagó por adelantado en el formulario: no se le cobra */}
+                {order.prepaid_at && (
+                    <Chip size="small" label="✅ Ya pagó"
+                        sx={{ mt: 0.5, mr: 0.5, fontWeight: 700, color: 'text.primary', bgcolor: alpha(theme.palette.success.main, 0.18) }} />
+                )}
                 {/* .112: que la agencia vea que es encomienda antes de abrirla */}
                 {order.courier_shipment && (
                     <Chip size="small" label="📦 Encomienda"

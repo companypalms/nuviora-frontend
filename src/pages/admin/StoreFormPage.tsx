@@ -4,6 +4,9 @@
 // la landing?": arriba los KPIs con la regla para decidir, y después todo para dejarlo listo: prenderlo, el producto y sus
 // ofertas (como en Releasit), el diseño con vista previa, Meta (píxel y API de conversiones), el WhatsApp del final, el código
 // para pegar en la landing y los pedidos que entraron por ahí. Si nuestro formulario falla, la landing muestra Releasit.
+// .168 (dueño, 2026-11-21): el pago anticipado (pago móvil con la foto del comprobante), "hablar con una asesora", las
+// encomiendas (MRW y Zoom, con su lista de oficinas), los mensajes al cliente que pagó, y las campañas de cada producto que
+// mandan el Purchase al entregar, con el experimento lado a lado ("Purchase al pedir" contra "al entregar").
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Autocomplete, Box, Button, Checkbox, FormControlLabel, MenuItem, Skeleton, Stack, Switch, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { ContentCopyRounded, ReportProblemRounded } from "@mui/icons-material";
@@ -14,8 +17,8 @@ import { api, dateTime } from "../../components/meta-ads/metaAds";
 import { appear, cardSx, geist, inkSx, lineSx, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 import {
-    bsText, COLOR_LABELS, offerUsd, snippet, StoreFormData as Data, StoreFormDesign, StoreFormKpi, StoreFormOffer, StoreFormProduct,
-    StoreFormSettings as Settings, StoreFormSettingsInput, TEXT_LABELS, usdText, WA_CODES,
+    bsText, COLOR_LABELS, CourierOffice, ExperimentArm, offerUsd, snippet, StoreFormData as Data, StoreFormDesign, StoreFormKpi, StoreFormOffer, StoreFormProduct,
+    StoreFormSettings as Settings, StoreFormSettingsInput, SYSTEM_CODES, TEXT_LABELS, usdText, WA_CODES,
 } from "../../components/store-form/storeForm";
 
 const stateColor = (t: Tokens, s: StoreFormKpi["state"]) => ({ ok: t.green, bad: t.red, wait: t.gray, info: t.faint }[s]);
@@ -104,7 +107,10 @@ const MetaCard: React.FC<{ data: Data; form: StoreFormSettingsInput & { capi_set
             label={<Typography sx={{ fontSize: 14 }}>Mandar «InitiateCheckout» al empezar a llenarlo (apágalo si en tu prueba sale doble)</Typography>} />
         <FormControlLabel sx={{ m: 0, gap: 1 }} control={<Switch checked={form.send_pageview} onChange={(e) => set({ ...form, send_pageview: e.target.checked })} />}
             label={<Typography sx={{ fontSize: 14 }}>Mandar «PageView» (solo si tu página no lo manda ya)</Typography>} />
-        <Typography sx={{ fontSize: 13, color: t.muted }}>«Purchase» sale siempre al confirmar (en la página y por la API, con el mismo número: Meta no lo cuenta doble) y «Lead» al pasar a WhatsApp.</Typography>
+        <Typography sx={{ fontSize: 13, color: t.muted }}>
+            «Purchase» sale al confirmar (en la página y por la API, con el mismo número: Meta no lo cuenta doble), salvo en las campañas que marques «al entregar»;
+            «pedido hecho» (AddPaymentInfo) sale siempre al confirmar, y «Lead» al pasar a WhatsApp.
+        </Typography>
     </Stack>
 );
 
@@ -120,6 +126,234 @@ const WhatsappCard: React.FC<{ form: Settings; set: (f: Settings) => void; t: To
         </Typography>
     </Stack>
 );
+
+const Codes: React.FC<{ codes: [string, string][]; t: Tokens }> = ({ codes, t }) => (
+    <Typography sx={{ fontSize: 13, color: t.muted }}>
+        Códigos: {codes.map(([c, w], i) => <React.Fragment key={c}>{i ? " · " : ""}<Box component="code" sx={{ fontSize: 12 }}>{c}</Box> {w}</React.Fragment>)}
+    </Typography>
+);
+
+/**
+ * .168: el pago anticipado (pago móvil con la foto del comprobante), la asesora y las encomiendas (de qué ciudad salen y
+ * dónde deja el paquete el motorizado), y los mensajes. Nada de lo que ve o recibe el cliente nombra a una IA.
+ */
+const PrepaidCard: React.FC<{ data: Data; form: Settings; set: (f: Settings) => void; t: Tokens }> = ({ data, form, set, t }) => {
+    const onOff = (key: "prepaid_enabled" | "advisor_enabled" | "courier_enabled", label: string, help: string) => (
+        <Box>
+            <FormControlLabel sx={{ m: 0, gap: 1 }} label={<Typography sx={{ fontSize: 15, fontWeight: 600 }}>{label}</Typography>}
+                control={<Switch checked={form[key]} onChange={(e) => set({ ...form, [key]: e.target.checked })} />} />
+            <Typography sx={{ fontSize: 13, color: t.muted }}>{help}</Typography>
+        </Box>
+    );
+    const message = (key: keyof Settings, label: string) => (
+        <TextField label={label} value={String(form[key] ?? "")} multiline minRows={2} onChange={(e) => set({ ...form, [key]: e.target.value })}
+            placeholder={data.messages[key as string]} helperText="Vacío = el de siempre." slotProps={{ htmlInput: { maxLength: 1000 } }} />
+    );
+    const offices = (c: string) => data.offices.find((o) => o.company === c);
+    return (
+        <Stack spacing={2}>
+            {onOff("prepaid_enabled", "Pago por adelantado con pago móvil",
+                "El cliente ve la cuenta del día y el monto exacto en Bs, paga en su banco y sube la foto del comprobante. El pedido llega marcado «✅ Ya pagó»: nadie le cobra al entregar.")}
+            {onOff("advisor_enabled", "«Prefiero hablar con una asesora antes»",
+                "Pide nombre, WhatsApp y ciudad (la dirección es opcional); la vendedora lo atiende por WhatsApp.")}
+            {onOff("courier_enabled", "Encomiendas a todo el país (MRW y Zoom)",
+                "El envío va incluido en el precio y se paga por adelantado. El cliente elige la empresa y la oficina donde retira.")}
+            {form.courier_enabled && (
+                <Stack spacing={1.5} sx={{ pl: { sm: 2 }, borderLeft: { sm: `2px solid ${t.line}` } }}>
+                    <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                        {data.couriers.map((c) => (
+                            <FormControlLabel key={c} sx={{ m: 0 }} label={<Typography sx={{ fontSize: 14 }}>{c} ({offices(c)?.active ?? 0} oficinas)</Typography>}
+                                control={<Checkbox checked={form.courier_companies.includes(c)}
+                                    onChange={(e) => set({ ...form, courier_companies: e.target.checked ? [...form.courier_companies, c] : form.courier_companies.filter((x) => x !== c) })} />} />
+                        ))}
+                    </Stack>
+                    <TextField select size="small" label="Las encomiendas salen de" value={form.courier_origin_city_id ?? ""} sx={{ maxWidth: 360 }}
+                        onChange={(e) => set({ ...form, courier_origin_city_id: e.target.value === "" ? null : Number(e.target.value) })}
+                        helperText="Su agencia recibe el pedido y su stock es el que se usa. Lo cambias cuando quieras.">
+                        <MenuItem value="">Sin elegir</MenuItem>
+                        {data.cod_cities.map((c) => <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>)}
+                    </TextField>
+                    {form.courier_companies.map((c) => (
+                        <TextField key={c} size="small" label={`Dónde deja el paquete el motorizado (${c})`} value={form.courier_dropoff[c] ?? ""}
+                            onChange={(e) => set({ ...form, courier_dropoff: { ...form.courier_dropoff, [c]: e.target.value } })}
+                            helperText={`El link de Google Maps de la oficina de ${c} en esa ciudad. Vacío = lo pone la vendedora en cada pedido.`} />
+                    ))}
+                    {data.offices.every((o) => o.total === 0) && (
+                        <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ fontSize: 13 }}>
+                            <Box sx={{ pt: "5px" }}><Dot color={t.amber} size={8} /></Box>
+                            <span>Todavía no está cargada la lista de oficinas: en el servidor corre «php artisan couriers:oficinas».</span>
+                        </Stack>
+                    )}
+                </Stack>
+            )}
+            <Typography sx={{ fontSize: 14, fontWeight: 600, pt: 1 }}>Lo que le escribimos al que pagó por adelantado</Typography>
+            <Typography sx={{ fontSize: 13, color: t.muted, mt: "-8px !important" }}>
+                Por WhatsApp, como si lo escribiera una persona: el aviso sale si pidió con la tienda cerrada; la confirmación, entre 5 y 15 minutos después de validar el comprobante y con la tienda abierta.
+                Si no nos escribió por WhatsApp, o el comprobante tiene un problema, lo atiende la vendedora.
+            </Typography>
+            {message("ack_message", "Si pidió con la tienda cerrada")}
+            {message("confirm_message", "Ya confirmamos tu pago")}
+            {message("confirm_message_courier", "Ya confirmamos tu pago (encomienda)")}
+            <Codes codes={SYSTEM_CODES} t={t} />
+            <Typography sx={{ fontSize: 14, fontWeight: 600, pt: 1 }}>Lo que el cliente te envía por WhatsApp</Typography>
+            {message("whatsapp_message_prepaid", "Si pagó por adelantado")}
+            {message("whatsapp_message_courier", "Si es encomienda")}
+            {message("whatsapp_message_advisor", "Si quiere hablar con una asesora")}
+            <Codes codes={[...WA_CODES, ["{courier}", "MRW o Zoom"]]} t={t} />
+        </Stack>
+    );
+};
+
+/** .168: la lista de oficinas de MRW y Zoom: buscar, apagar una o agregar otra. */
+const OfficesCard: React.FC<{ data: Data; t: Tokens }> = ({ data, t }) => {
+    const [company, setCompany] = useState(data.couriers[0] ?? "MRW");
+    const [q, setQ] = useState("");
+    const [list, setList] = useState<CourierOffice[] | null>(null);
+    const [adding, setAdding] = useState({ state: "", city: "", name: "", address: "" });
+    const [busy, setBusy] = useState(false);
+    const search = useCallback(async (c: string, text: string) => {
+        try { setList((await api<{ offices: CourierOffice[] }>(`/store-form/courier-offices?company=${encodeURIComponent(c)}&q=${encodeURIComponent(text)}`)).offices); }
+        catch (e) { toast.error((e as Error).message); }
+    }, []);
+    useEffect(() => { search(company, ""); }, [company, search]);
+    const toggle = async (o: CourierOffice) => {
+        try {
+            const r = await api<{ message: string; office: CourierOffice }>(`/store-form/courier-offices/${o.id}`, "PUT", { is_active: !o.is_active });
+            toast.success(r.message);
+            setList((l) => l?.map((x) => (x.id === o.id ? r.office : x)) ?? null);
+        } catch (e) { toast.error((e as Error).message); }
+    };
+    const add = async () => {
+        setBusy(true);
+        try {
+            const r = await api<{ message: string; office: CourierOffice }>("/store-form/courier-offices", "POST", { company, ...adding });
+            toast.success(r.message);
+            setAdding({ state: "", city: "", name: "", address: "" });
+            search(company, q);
+        } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+    };
+    return (
+        <Box>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+                <ToggleButtonGroup size="small" exclusive value={company} onChange={(_, v) => v && setCompany(v)} aria-label="Empresa">
+                    {data.couriers.map((c) => <ToggleButton key={c} value={c}>{c}</ToggleButton>)}
+                </ToggleButtonGroup>
+                <TextField size="small" label="Buscar (estado, ciudad o nombre)" value={q} onChange={(e) => setQ(e.target.value)} sx={{ flex: 1 }}
+                    onKeyDown={(e) => { if (e.key === "Enter") search(company, q); }} />
+                <Button variant="outlined" onClick={() => search(company, q)} sx={{ ...lineSx(t), ...tapSx }}>Buscar</Button>
+            </Stack>
+            {list === null ? <Skeleton variant="rounded" height={120} sx={{ mt: 1 }} /> : (
+                <Box component="ul" sx={{ p: 0, m: 0, mt: 1, maxHeight: 360, overflowY: "auto" }}>
+                    {list.length === 0 && <Typography component="li" sx={{ fontSize: 14, color: t.muted, listStyle: "none" }}>No hay oficinas con esa búsqueda.</Typography>}
+                    {list.map((o) => (
+                        <Box component="li" key={o.id} sx={{ listStyle: "none", py: 0.75, borderBottom: `1px solid ${t.line}`, display: "flex", gap: 1, alignItems: "center", opacity: o.is_active ? 1 : 0.55 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{o.name} <Box component="span" sx={{ color: t.muted, fontWeight: 400 }}>· {o.city ? `${o.city}, ` : ""}{o.state}</Box></Typography>
+                                {o.address && <Typography sx={{ fontSize: 12, color: t.muted, overflowWrap: "anywhere" }}>{o.address}</Typography>}
+                            </Box>
+                            <Switch checked={o.is_active} onChange={() => toggle(o)} slotProps={{ input: { "aria-label": `${o.is_active ? "Apagar" : "Prender"} ${o.name}` } }} />
+                        </Box>
+                    ))}
+                </Box>
+            )}
+            <Typography sx={{ fontSize: 14, fontWeight: 600, mt: 2 }}>Agregar una oficina de {company}</Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1, mt: 1 }}>
+                <TextField size="small" label="Estado" value={adding.state} onChange={(e) => setAdding({ ...adding, state: e.target.value })} />
+                <TextField size="small" label="Ciudad" value={adding.city} onChange={(e) => setAdding({ ...adding, city: e.target.value })} />
+                <TextField size="small" label="Nombre de la oficina" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} />
+                <TextField size="small" label="Dirección" value={adding.address} onChange={(e) => setAdding({ ...adding, address: e.target.value })} />
+            </Box>
+            <Button variant="contained" disableElevation onClick={add} disabled={busy || !adding.state.trim() || !adding.name.trim()} sx={{ ...inkSx(t), ...tapSx, mt: 1 }}>
+                {busy ? "Agregando…" : "Agregar oficina"}
+            </Button>
+        </Box>
+    );
+};
+
+/** .168: las campañas de un producto que mandan el Purchase al entregar (para comparar con una igual "al pedir"). */
+const PurchaseModeCard: React.FC<{ p: StoreFormProduct; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, t, onSaved }) => {
+    const savedKey = p.campaigns.filter((c) => c.delivery).map((c) => c.id).join(",");
+    const [marked, setMarked] = useState<string[]>(savedKey ? savedKey.split(",") : []);
+    const [saving, setSaving] = useState(false);
+    useEffect(() => setMarked(savedKey ? savedKey.split(",") : []), [savedKey]);
+    const changed = [...marked].sort().join(",") !== savedKey.split(",").filter(Boolean).sort().join(",");
+    const save = async () => {
+        setSaving(true);
+        try {
+            const res = await api<{ message: string; product: StoreFormProduct }>(`/store-form/products/${p.id}/purchase-modes`, "PUT", { campaigns: marked });
+            toast.success(res.message);
+            onSaved(res.product);
+        } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
+    };
+    if (p.campaigns.length === 0) {
+        return <Typography sx={{ fontSize: 14, color: t.muted }}>Este producto todavía no tiene campañas de Meta en el sistema.</Typography>;
+    }
+    return (
+        <Box>
+            <Typography sx={{ fontSize: 13, color: t.muted, mb: 1 }}>
+                Marcada «al entregar»: si paga al recibir o habla con la asesora, el Purchase le llega a Meta cuando el pedido pasa a Entregado (si paga por adelantado, al pedir).
+                El sistema la sigue midiendo por pedidos. Para comparar, duplica una campaña con el mismo presupuesto y marca solo la copia.
+            </Typography>
+            <Box component="ul" sx={{ p: 0, m: 0 }}>
+                {p.campaigns.map((c) => (
+                    <Box component="li" key={c.id} sx={{ listStyle: "none", py: 0.75, borderBottom: `1px solid ${t.line}`, display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 14, fontWeight: 600, overflowWrap: "anywhere" }}>{c.name || c.id}</Typography>
+                            <Typography sx={{ fontSize: 12, color: t.muted }}>
+                                {marked.includes(c.id) ? `Purchase al entregar${c.since ? ` desde el ${c.since.split("-").reverse().join("/")}` : " (desde hoy, al guardar)"}` : "Purchase al pedir (como siempre)"}
+                                {c.status ? ` · ${c.status === "ACTIVE" ? "Activa" : "No activa"}` : ""}
+                            </Typography>
+                        </Box>
+                        <Switch checked={marked.includes(c.id)} onChange={(e) => setMarked(e.target.checked ? [...marked, c.id] : marked.filter((x) => x !== c.id))}
+                            slotProps={{ input: { "aria-label": `Purchase al entregar en ${c.name || c.id}` } }} />
+                    </Box>
+                ))}
+            </Box>
+            <Button variant="contained" disableElevation onClick={save} disabled={saving || !changed} sx={{ ...inkSx(t), ...tapSx, mt: 1.5 }}>{saving ? "Guardando…" : "Guardar campañas"}</Button>
+        </Box>
+    );
+};
+
+/** .168: el experimento lado a lado: "Purchase al pedir" contra "al entregar", con los días ya cerrados. */
+const ExperimentCard: React.FC<{ arms: { order: ExperimentArm; delivery: ExperimentArm }; t: Tokens }> = ({ arms, t }) => {
+    const money = (v: number | null) => (v === null ? "—" : usdText(v));
+    const pct = (v: number | null) => (v === null ? "—" : `${num(v)} %`);
+    const rows: [string, (a: ExperimentArm) => string, string?][] = [
+        ["Costo por pedido entregado", (a) => money(a.cost_per_delivered), "El que decide: gasto ÷ entregados."],
+        ["Efectividad", (a) => pct(a.effectiveness), "Entregados ÷ cerrados."],
+        ["Ganancia por día", (a) => money(a.profit_per_day), "Lo que dejan los pedidos menos el gasto, sin los gastos fijos."],
+        ["Gasto", (a) => money(a.spend)],
+        ["Pedidos · entregados", (a) => `${a.orders} · ${a.delivered}`],
+        ["Meta ve los pedidos", (a) => pct(a.meta_sees), "95 % o más: si no, los números del sistema fallan."],
+        ["Pagaron por adelantado", (a) => `${a.prepaid}${a.courier ? ` (${a.courier} encomiendas)` : ""}`],
+        ["Con asesora", (a) => String(a.advisor)],
+    ];
+    const deliveryRow = arms.delivery.purchase_on_delivery;
+    return (
+        <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 }, overflowX: "auto" }}>
+            <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 14, fontVariantNumeric: "tabular-nums", "& th, & td": { py: 0.75, borderBottom: `1px solid ${t.line}`, textAlign: "right", px: 1 }, "& th:first-of-type, & td:first-of-type": { textAlign: "left", pl: 0 } }}>
+                <thead><tr><Box component="th" sx={{ fontWeight: 500, color: t.muted }} /><th>Al pedir</th><th>Al entregar</th></tr></thead>
+                <tbody>
+                    {rows.map(([label, f, help]) => (
+                        <tr key={label}>
+                            <td><Box sx={{ fontWeight: 600 }}>{label}</Box>{help && <Box sx={{ fontSize: 12, color: t.muted }}>{help}</Box>}</td>
+                            <td>{f(arms.order)}</td>
+                            <td>{f(arms.delivery)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </Box>
+            {deliveryRow && (
+                <Typography sx={{ fontSize: 13, color: t.muted, mt: 1 }}>
+                    Purchase que llegaron a Meta al entregar: {deliveryRow[0]} de {deliveryRow[1]} entregados (meta: todos).
+                </Typography>
+            )}
+        </Box>
+    );
+};
+
+const PAYMENT_TEXT = { cod: "Al recibir", pago_movil: "Pagó por pago móvil", asesora: "Con asesora" } as const;
+const CONFIRM_TEXT: Record<string, string> = { sent: "Se le confirmó el pago por WhatsApp", seller: "La vendedora confirma el pago", skip: "Cancelado" };
 
 /** Las ofertas de un producto, como en Releasit: título, etiqueta, unidades y % de descuento. */
 const OffersEditor: React.FC<{ p: StoreFormProduct; rate: number; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, rate, t, onSaved }) => {
@@ -335,6 +569,19 @@ export const StoreFormPage: React.FC = () => {
                             { label: "Día", value: data.kpis.window.orders ? `${Math.min(data.kpis.window.days, 14)} de 14` : "—", help: "Días desde el primer pedido del formulario." },
                         ]} />
 
+                        {data.experiment.active && (
+                            <Section dot={data.experiment.verdict.key === "go" ? t.green : data.experiment.verdict.key === "back" ? t.red : undefined}
+                                name="Purchase al pedir o al entregar" hint={data.experiment.days > 0
+                                    ? `Días cerrados: ${data.experiment.days} (del ${data.experiment.from.split("-").reverse().join("/")} al ${data.experiment.to.split("-").reverse().join("/")})`
+                                    : "Cuenta los días que ya cerraron (4 días después): todavía ninguno"}>
+                                <Box role="status" sx={{ ...cardSx(t), ...appear, p: "12px 14px", mb: 1, display: "flex", gap: 1, alignItems: "flex-start" }}>
+                                    <Box sx={{ pt: "6px" }}><Dot color={data.experiment.verdict.key === "go" ? t.green : data.experiment.verdict.key === "back" ? t.red : t.gray} size={8} /></Box>
+                                    <Typography sx={{ fontSize: 15, fontWeight: 600 }}>{data.experiment.verdict.text}</Typography>
+                                </Box>
+                                <ExperimentCard arms={data.experiment.arms} t={t} />
+                            </Section>
+                        )}
+
                         <Section dot={data.kpis.verdict.key === "go" ? t.green : data.kpis.verdict.key === "review" ? t.red : undefined} name="¿Funciona?" hint="Contra tus productos con Releasit en su arranque">
                             <Box role="status" sx={{ ...cardSx(t), ...appear, p: "12px 14px", mb: 1, display: "flex", gap: 1, alignItems: "flex-start" }}>
                                 <Box sx={{ pt: "6px" }}><Dot color={data.kpis.verdict.key === "go" ? t.green : data.kpis.verdict.key === "review" ? t.red : t.gray} size={8} /></Box>
@@ -365,6 +612,11 @@ export const StoreFormPage: React.FC = () => {
                                         Pagan al recibir en: {p.cities.length ? p.cities.map((c) => c.name).join(", ") : "ninguna ciudad (no tienes agencias activas para este producto): el formulario no sale"}.
                                     </Typography>
                                 </Section>
+                                <Section name={`Meta: cuándo sale el Purchase de ${p.name}`} hint="Por campaña">
+                                    <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
+                                        <PurchaseModeCard p={p} t={t} onSaved={replace} />
+                                    </Box>
+                                </Section>
                                 <Section name={`Diseño de ${p.name}`} hint="Como tu landing">
                                     <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
                                         <DesignEditor p={p} data={data} t={t} onSaved={replace} />
@@ -372,6 +624,21 @@ export const StoreFormPage: React.FC = () => {
                                 </Section>
                             </React.Fragment>
                         ))}
+
+                        <Section name="Pago anticipado, asesora y encomiendas">
+                            <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
+                                <PrepaidCard data={data} form={form} set={(f) => setForm({ ...form, ...f })} t={t} />
+                                {saveBar}
+                            </Box>
+                        </Section>
+
+                        {form.courier_enabled && (
+                            <Section name="Oficinas de encomienda" hint="Las que ve el cliente">
+                                <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
+                                    <OfficesCard data={data} t={t} />
+                                </Box>
+                            </Section>
+                        )}
 
                         <Section name="Meta" hint="Como en Releasit">
                             <Box sx={{ ...cardSx(t), p: { xs: 1.5, sm: 2 } }}>
@@ -405,11 +672,15 @@ export const StoreFormPage: React.FC = () => {
                                             <Stack direction="row" columnGap={1.25} rowGap={0.25} flexWrap="wrap" sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>
                                                 <span>{o.units} {o.units === 1 ? "unidad" : "unidades"}</span>
                                                 <span>{bsText(o.total_bs)} ({usdText(o.total_usd)})</span>
+                                                <span>{o.courier ? `Encomienda ${o.courier}` : PAYMENT_TEXT[o.payment] ?? o.payment}</span>
                                                 {o.express && <span>⚡ Express</span>}
                                                 {o.city && <span>{o.city}</span>}
                                                 {o.status && <span>{o.status}</span>}
                                                 <span>{o.whatsapp ? "Pasó a WhatsApp" : "No pasó a WhatsApp"}</span>
-                                                <span>{o.capi === "sent" ? "Meta lo recibió" : o.capi === "failed" ? "Meta no lo recibió" : "Sin API de Meta"}</span>
+                                                <span>{o.capi === "sent" ? (o.purchase_sent_at ? "Meta recibió la compra al entregar" : "Meta recibió la compra")
+                                                    : o.capi === "failed" ? "Meta no recibió la compra"
+                                                        : o.purchase_mode === "delivery" && o.payment !== "pago_movil" ? "La compra le llega a Meta al entregar" : "Sin API de Meta"}</span>
+                                                {o.confirm && CONFIRM_TEXT[o.confirm] && <span>{CONFIRM_TEXT[o.confirm]}</span>}
                                             </Stack>
                                         </Box>
                                     ))}

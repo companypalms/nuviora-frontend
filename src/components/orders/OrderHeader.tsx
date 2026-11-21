@@ -10,6 +10,7 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import MapIcon from '@mui/icons-material/Map';
 import { PhoneActionMenu } from './PhoneActionMenu';
 import { CourierShipmentSection } from './CourierShipmentSection';
+import { PrepaidBox } from './PrepaidBox';
 import { CourierBox } from './CourierBox';
 import { canRelocate } from '../../common/relocate';
 
@@ -34,6 +35,13 @@ export const OrderHeader: React.FC<OrderHeaderProps> = ({
 }) => {
     return (
         <Grid container spacing={4}>
+            {/* .168: pagó por adelantado: que nadie le cobre, y cómo va su pago */}
+            {order.prepaid && (
+                <Grid size={{ xs: 12 }}>
+                    <PrepaidBox prepaid={order.prepaid} />
+                </Grid>
+            )}
+
             {/* .112: en una encomienda, lo primero: a qué oficina va y los datos de la guía */}
             {order.courier_shipment && (
                 <Grid size={{ xs: 12 }}>
