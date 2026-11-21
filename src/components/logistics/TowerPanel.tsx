@@ -14,6 +14,7 @@ import {
     api, CenterBoard, clientName, clock, errorMessage, hour, mapsLink, minutes, OrdersResponse, RouteProposal, SLA_COLOR, STATUS_COLOR, TowerOrder,
 } from "./logistics";
 import { AgencyDialog, AssignDialog, DetailDialog, IncidentDialog, NoveltyDialog } from "./OrderDialogs";
+import { CourierGuidePhoto } from "../orders/CourierGuidePhoto";
 
 const STATE_COLOR = { abierto: "success", sin_operador: "error", cerrado: "default", inactivo: "default" } as const;
 const ALERT_SEVERITY = { critical: "error", red: "error", warning: "warning", info: "info" } as const;
@@ -299,7 +300,7 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
                                 {data.orders.map((o) => (
                                     <OrderRow key={o.id} o={o} elapsed={elapsed} busy={busy === o.id} isAdmin={isAdmin} onAct={(p, body) => act(o, p, body)}
                                         onAssign={() => setAssign(o)} onAgency={() => setAgency(o)} onNovelty={() => setNovelty(o)} onIncident={() => setIncident(o)}
-                                        onDetail={() => setDetail(o.id)} onReorder={() => o.route && setReorder(o.route.id)} />
+                                        onDetail={() => setDetail(o.id)} onReorder={() => o.route && setReorder(o.route.id)} onGuide={load} />
                                 ))}
                             </TableBody>
                         </Table>
@@ -387,7 +388,8 @@ export const TowerPanel: React.FC<{ centerId: number; isAdmin: boolean }> = ({ c
 const OrderRow: React.FC<{
     o: TowerOrder; elapsed: number; busy: boolean; isAdmin: boolean; onAct: (path: string, body?: Record<string, unknown>) => void;
     onAssign: () => void; onAgency: () => void; onNovelty: () => void; onIncident: () => void; onDetail: () => void; onReorder: () => void;
-}> = ({ o, elapsed, busy, isAdmin, onAct, onAssign, onAgency, onNovelty, onIncident, onDetail, onReorder }) => {
+    onGuide: () => void;
+}> = ({ o, elapsed, busy, isAdmin, onAct, onAssign, onAgency, onNovelty, onIncident, onDetail, onReorder, onGuide }) => {
     const sla = o.sla_minutes !== null ? o.sla_minutes + elapsed / 60 : null;
     const searching = o.searching_seconds !== null ? o.searching_seconds + elapsed : null;
     const agencyIn = o.agency_in_seconds !== null ? o.agency_in_seconds - elapsed : null;
@@ -406,6 +408,11 @@ const OrderRow: React.FC<{
             <TableCell>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{o.order?.name ?? `#${o.order_id}`}</Typography>
                 <Typography variant="caption" color="text.secondary">{clientName(o)}{o.order?.client?.address1 ? ` · ${o.order.client.address1}` : ""}</Typography>
+                {/* .173: encomienda: la operadora sube la foto de la guía (sin ella el rider no puede marcar Entregado) */}
+                {o.courier && (
+                    <Chip size="small" variant="outlined" color={o.courier.guide_photo_url ? "success" : "warning"} sx={{ display: "flex", width: "fit-content", mt: 0.5 }}
+                        label={o.courier.guide_photo_url ? "📦 Guía lista" : "📦 Encomienda · falta la guía"} />
+                )}
             </TableCell>
             <TableCell>
                 <Chip size="small" color={STATUS_COLOR[s] ?? "default"} label={o.status_label} />
@@ -476,6 +483,7 @@ const OrderRow: React.FC<{
                         <Button size="small" color="error" disabled={busy}
                             onClick={() => window.confirm("¿Dar de baja la pieza? Sale del inventario.") && onAct("review", { action: "discard" })}>Dar de baja</Button>
                     </>}
+                    {o.courier && <CourierGuidePhoto compact orderId={o.order_id} photoUrl={o.courier.guide_photo_url} at={o.courier.guide_at} canUpload onSaved={onGuide} />}
                     <Tooltip title="Historial"><IconButton size="small" onClick={onDetail}><HistoryRounded fontSize="small" /></IconButton></Tooltip>
                 </Stack>
             </TableCell>

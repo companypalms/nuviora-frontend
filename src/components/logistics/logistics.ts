@@ -48,6 +48,8 @@ export type TowerOrder = {
     // §10, §20.2: la ruta de varias paradas en la que va (la salida es de toda la ruta)
     route: { id: number; status: string; exceptional: boolean; stop: number | null; stops: number; locked: boolean } | null;
     route_stop: number | null;
+    // .173: una encomienda: la operadora sube la foto de la guía (sin ella no se entrega)
+    courier: { guide_photo_url: string | null; guide_at: string | null } | null;
 };
 
 /** §24.1: una ruta que propone el sistema (sumar una orden que busca rider a la de un rider que todavía no salió). */
