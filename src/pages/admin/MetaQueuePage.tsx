@@ -28,6 +28,7 @@ import { BatchTask, EditorFields, EditorOption, dueLabel, reviewContext } from "
 import { UploadPlanDialog } from "../../components/meta-ads/UploadPlanDialog";
 import { PersonaInfo, ProductInfo, TestingBox, TestingSummary } from "../../components/meta-ads/productProfile";
 import { Forecast, ForecastCard, Unfilled } from "../../components/meta-ads/editorDemand";
+import { OwnerTeamCard } from "../../components/meta-ads/editorTeam";
 
 type Status = "proposed" | "approved" | "production" | "review" | "bank" | "testing" | "tested" | "discarded";
 /** .81: qué prueba la pieza, su formato, su hipótesis, por qué ese formato y, al terminar el test, si ganó. */
@@ -523,6 +524,8 @@ export const MetaQueuePage: React.FC = () => {
                     description="Los encargos de creativos de cada producto: cada mañana tus reglas piden todo lo que hace falta, con su fecha (para hoy o en 2 días), sin tope de editores; la IA los redacta, el sistema les da su número único (B#### y C####) y le llegan directo al editor líder, que los reparte y revisa. Si no estás de acuerdo con uno, descártalo. Pasan solos a En test y Testeado cuando aparecen en Meta. Nada de esto cambia Meta." />
                 {/* .88: si alcanza el equipo y lo que hace falta pero no se pudo pedir (lo de la ficha ya lo dice el aviso de abajo) */}
                 <ForecastCard f={data.forecast} />
+                {/* .175: el horario de cada editor (el del líder lo pones tú) y cómo va cada uno hoy contra la meta */}
+                <OwnerTeamCard />
                 {noCity.length > 0 && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                         <b>Hace falta y no se pudo pedir</b> (no hay una ciudad activa con stock donde probarlo): {[...new Set(noCity.map((u) => u.product))].join(", ")}.
@@ -537,7 +540,7 @@ export const MetaQueuePage: React.FC = () => {
                 )}
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
-                        {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} de video: ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día. Un batch a la vez por producto.
+                        {s.video_editors} {s.video_editors === 1 ? "editor" : "editores"} (con el líder): ≈{Math.max(1, Math.round(s.capacity))} batches nuevos por día si cumplen su meta. Un batch a la vez por producto; el líder puede adelantar.
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Button size="small" startIcon={<InsightsRounded />} component={RouterLink} to="/meta-ads/analisis">Análisis del día</Button>

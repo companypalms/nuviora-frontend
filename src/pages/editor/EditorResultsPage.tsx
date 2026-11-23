@@ -77,9 +77,9 @@ export const EditorResultsPage: React.FC = () => {
     // El equipo en orden: más ganadores, después más a tiempo, después más entregados
     const people = [...(d.team?.people ?? [])].sort((a, b) =>
         (b.values.winners ?? -1) - (a.values.winners ?? -1) || (b.values.on_time ?? -1) - (a.values.on_time ?? -1) || (b.values.delivered ?? 0) - (a.values.delivered ?? 0));
-    // En el orden del ranking: ganadores, a tiempo, entregados
-    const short = ["winners", "on_time", "delivered"].map((k) => d.metrics.find((m) => m.key === k)).filter((m): m is Metric => !!m);
-    const SHORT: Record<string, string> = { winners: "Ganadores", on_time: "A tiempo", delivered: "Entregados" };
+    // En el orden del ranking: ganadores, a tiempo, entregados. .175: primero, los días con la meta cumplida
+    const short = ["goal_days", "winners", "on_time", "delivered"].map((k) => d.metrics.find((m) => m.key === k)).filter((m): m is Metric => !!m);
+    const SHORT: Record<string, string> = { goal_days: "Meta cumplida", winners: "Ganadores", on_time: "A tiempo", delivered: "Entregados" };
     /** "Ganadores: 50 % · A tiempo: 90 % · Entregados: 6" */
     const line = (v: Values) => short.map((m) => `${SHORT[m.key]}: ${value(v, m.key, m.format)}`).join(" · ");
 

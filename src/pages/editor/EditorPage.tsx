@@ -14,6 +14,10 @@
 //   abre "Revisar", que compara la referencia con lo entregado y al terminar ofrece el siguiente.
 // .99: cada encargo dice qué hay que hacer ("Asigna B0101: 3 iteraciones del hook de C0146"); la banca pasa a su pantalla
 //   (BankPage, en el menú del líder) y aquí queda una línea; lo de un producto parado por el dueño queda en espera.
+// .175 (dueño, 2026-11-23: meta mínima de 2 batches por día, también el líder; "nunca se le da la opción al editor, le debe
+//   aparecer una misión al líder para que le asigne otro"; "el líder… debe ver absolutamente todo lo que se tiene que hacer"):
+//   cada uno ve su meta de hoy; el líder, "Tu equipo hoy" (con el horario de sus editores), la misión de asignarle otro al que
+//   quedó libre y "Para adelantar" dentro de "Todo lo que hay que hacer".
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, IconButton, Link, Skeleton, Stack, Tooltip, Typography } from "@mui/material";
 import { CheckCircleRounded, CloseRounded, EmojiEventsRounded, PauseCircleOutlineRounded, RateReviewRounded, ReportProblemRounded, TaskAltRounded, UploadRounded } from "@mui/icons-material";
@@ -26,6 +30,8 @@ import { EditorBatch, EditorGameData, EditorOption, dueLabel, notifyEditorChange
 import { Forecast, ForecastCard, NeedsList, Unfilled } from "../../components/meta-ads/editorDemand";
 import { BriefDetail, SuggestedRef } from "../../components/meta-ads/briefView";
 import { CommissionBar } from "../../components/meta-ads/commissionBar";
+import { AdvanceDialog, AdvanceList, GoalMeter, TeamStrip } from "../../components/meta-ads/editorTeam";
+import { AdvanceItem, EditorToday, TeamMember, hourLabel, leftLabel } from "../../components/meta-ads/editorShared";
 import { appear, cardSx, geist, inkSx, lineSx, plural, tapSx, Tokens, useTokens } from "../../components/ui/design";
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 
@@ -42,6 +48,8 @@ type Data = {
     game?: EditorGameData;
     /** .99: para el líder, los encargos en espera porque el dueño paró su producto (en pausa, en liquidación o abandonado). */
     on_hold?: { product_id: number; product: string | null; mode_label: string; codes: string[] }[];
+    /** .175: la meta, cómo va quien mira hoy y, para el líder, su equipo y lo que se puede adelantar. */
+    goal?: number; me_today?: EditorToday | null; team?: TeamMember[]; advance?: AdvanceItem[];
 };
 
 /** .94: los ganadores que ya celebró quien mira (en este navegador). */
@@ -192,6 +200,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     const [showDone, setShowDone] = useState(false);
     // .94: los ganadores que ya se celebraron
     const [seenWins, setSeenWins] = useState<string[]>(readSeen);
+    // .175: "Adelantar y dárselo a…" desde la misión del editor libre
+    const [advanceFor, setAdvanceFor] = useState<{ item: AdvanceItem; preset: number } | null>(null);
 
     const load = useCallback(() => {
         setError(null);
@@ -296,6 +306,10 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     onClose={() => setDeliverId(null)}
                     onDone={(r) => changed(r?.status === "bank" ? `${deliverBatch.code} entregado: pasa directo a la banca.` : `${deliverBatch.code} entregado: va a revisión del líder.`)} />
             )}
+            {advanceFor && (
+                <AdvanceDialog item={advanceFor.item} team={data.team ?? []} preset={advanceFor.preset} onClose={() => { setAdvanceFor(null); load(); }}
+                    onDone={(m) => { setAdvanceFor(null); changed(m); }} />
+            )}
             {reviewBatch && (
                 <ReviewDialog<EditorBatch> key={reviewBatch.id} open={!!reviewBatch} title={reviewBatch.code ?? "el encargo"}
                     delivery={reviewBatch.deliveries.find((d) => d.review === "pending") ?? null}
@@ -310,7 +324,11 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
     // ---------- Encargos del equipo (el líder): ¿qué reviso o asigno ahora? ----------
     if (team) {
         const nextReview = reviewable[0];
-        const nextAssign = nextReview ? null : lists.toAssign[0];
+        // .175: un editor libre (también el líder) va primero: es plata perdida y darle trabajo es un clic; después revisar y asignar
+        const freeOne = (data.team ?? []).find((m) => m.free) ?? null;
+        const firstAssign = lists.toAssign[0] ?? null;
+        const nextAssign = nextReview ? null : firstAssign;
+        const firstAdvance = (data.advance ?? []).find((a) => !a.blocked) ?? null;
         const lateWorking = late(lists.working);
         return frame(
             <>
@@ -344,7 +362,37 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         </Typography>
                     </Stack>
                 ))}
-                {nextReview ? missionFrame(`Por revisar · ${when(nextReview).text}`, signal(t, when(nextReview).level), `${nextReview.product}${angleOf(nextReview) ? ` · ${angleOf(nextReview)}` : ""}`,
+                {freeOne ? missionFrame(`Libre · ${freeOne.free_since ? `desde las ${hourLabel(freeOne.free_since)}` : "ahora"}`, t.amber, "Tu equipo",
+                        freeOne.id === data.me.id ? "Estás libre: asígnate otro" : `${freeOne.name} está libre: asígnale otro`, <>
+                            <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5 }}>
+                                Hoy lleva {freeOne.done} de {freeOne.goal}{freeOne.left !== null ? ` y le quedan ${leftLabel(freeOne.left)} de su horario` : ""}.
+                                {freeOne.done >= freeOne.goal ? " Ya cumplió su meta: con otro, adelanta trabajo." : " Que no se quede sin trabajo."}
+                            </Typography>
+                            {firstAssign ? <>
+                                <Typography sx={{ fontSize: 14, mt: 1.25, overflowWrap: "anywhere" }}>
+                                    El siguiente: <b style={{ fontWeight: 600 }}>{firstAssign.code}</b> · {firstAssign.product} · {whatOf(firstAssign)} · {when(firstAssign).text}
+                                </Typography>
+                                <NumberedSteps label="Cómo hacerlo" steps={[`Toca «Asignar»: viene elegido ${freeOne.id === data.me.id ? "tú" : freeOne.name}.`, "Le llega en «Mis encargos» con su plazo y todo el encargo."]} />
+                                <Box sx={{ mt: 2 }}>
+                                    <AssignButton<EditorBatch> primary {...assignOf(firstAssign)} madeBy={freeOne.id} editors={data.editors} current={null}
+                                        url={`/editor/queue/${firstAssign.id}/editor`} allowNone onDone={() => changed(`${firstAssign.code} asignado.`)} />
+                                </Box>
+                            </> : firstAdvance ? <>
+                                <Typography sx={{ fontSize: 14, mt: 1.25, overflowWrap: "anywhere" }}>
+                                    No hay nada sin asignar. Lo siguiente para adelantar: <b style={{ fontWeight: 600 }}>{firstAdvance.product}</b>. {firstAdvance.why}
+                                </Typography>
+                                <NumberedSteps label="Cómo hacerlo" steps={[`Toca «Adelantar»: el sistema escribe el encargo y se lo da a ${freeOne.id === data.me.id ? "ti" : freeOne.name}.`, "Le llega en «Mis encargos» con su plazo."]} />
+                                <Button variant="contained" disableElevation onClick={() => setAdvanceFor({ item: firstAdvance, preset: freeOne.id })}
+                                    sx={{ ...inkSx(t), ...tapSx, mt: 2, width: { xs: "100%", sm: "auto" } }}>
+                                    {freeOne.id === data.me.id ? "Adelantar y hacerlo yo" : `Adelantar y dárselo a ${freeOne.name}`}
+                                </Button>
+                            </> : (
+                                <Typography sx={{ fontSize: 14, mt: 1.25 }}>
+                                    No hay nada sin asignar ni para adelantar en las próximas 2 semanas. Si pasa seguido, avísale al dueño.
+                                </Typography>
+                            )}
+                        </>)
+                    : nextReview ? missionFrame(`Por revisar · ${when(nextReview).text}`, signal(t, when(nextReview).level), `${nextReview.product}${angleOf(nextReview) ? ` · ${angleOf(nextReview)}` : ""}`,
                     `Revisa ${nextReview.code}: lo entregó ${nextReview.deliveries.find((d) => d.review === "pending")?.editor ?? nextReview.editor ?? "el editor"}`, <>
                         {nextReview.task && <Typography sx={{ fontSize: 14, color: t.muted, mt: 0.5, overflowWrap: "anywhere" }}>Lo que había que hacer: {nextReview.task.title}</Typography>}
                         <NumberedSteps label="Cómo revisar" steps={[
@@ -368,6 +416,9 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         </>)
                     : empty("Todo en orden: nada por revisar ni asignar", "Cuando alguien entregue o llegue un encargo nuevo, aparece aquí.")}
 
+                {/* .175: cada uno hoy contra la meta, si está libre y su horario (el de sus editores lo pone el líder) */}
+                <TeamStrip team={data.team ?? []} meId={data.me.id} base="/editor/team" onChanged={load} />
+
                 {/* .93: "Por revisar", siempre a la vista; tocar un encargo abre la ventana de revisar */}
                 <Section dot={t.amber} name="Por revisar" hint={lists.toReview.length ? "toca uno para revisarlo" : undefined} mt={3}>
                     {lists.toReview.length === 0 ? (
@@ -381,7 +432,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
 
                 <Box sx={{ mt: 3 }}>
                     <ForecastCard f={data.forecast} compact />
-                    <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={today} correctionsDays={corrections} onOpen={openFromNeeds} />
+                    <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={today} correctionsDays={corrections} onOpen={openFromNeeds}
+                        after={<AdvanceList items={data.advance ?? []} team={data.team ?? []} onDone={(m) => changed(m)} onBlocked={load} />} />
                 </Box>
 
                 {lists.toAssign.length > 0 && (
@@ -458,6 +510,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                     { text: `${plural(data.game.me.winners, "ganador", "ganadores")} en Meta`, help: "Tus creativos que ganaron en Meta este mes." },
                 ]} link={<Link component={RouterLink} to="/editor/resultados" sx={{ color: t.ink }}>Mis resultados</Link>} />
             )}
+            {/* .175: la meta de hoy (2 batches), con su horario */}
+            {data.me_today && <GoalMeter today={data.me_today} />}
             {newWins.length > 0 && (
                 <Box role="status" sx={{ mt: 2, p: "12px 14px", borderRadius: "10px", display: "flex", gap: 1.25, alignItems: "center", bgcolor: t.greenSoft, color: t.greenInk, ...appear }}>
                     <EmojiEventsRounded />
@@ -500,7 +554,9 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                         </Box>
                     </Collapse>
                 </>)
-                : empty("Estás al día: no tienes encargos por entregar", "Cuando te asignen uno, aparece aquí con su plazo y todo lo que necesitas.")}
+                : empty("Estás al día: no tienes encargos por entregar", data.me_today?.free
+                    ? (leader ? "Estás libre: asígnate otro en «Encargos del equipo» (o adelanta uno)." : "Ya le avisamos al líder: te asigna el siguiente.")
+                    : "Cuando te asignen uno, aparece aquí con su plazo y todo lo que necesitas.")}
 
             {rest.length > 0 && (
                 <Section dot={t.ink} name="Lo que sigue" hint="por fecha">

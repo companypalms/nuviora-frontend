@@ -11,7 +11,7 @@ import { EDITOR_ROLES, onEditorChanged } from "../../meta-ads/editorShared";
 
 const REFRESH_MS = 5 * 60_000;
 
-type Pending = { todo: number; to_assign: number; to_review: number; total: number };
+type Pending = { todo: number; to_assign: number; to_review: number; total: number; free?: number };
 
 /** "Encargos: 2 por hacer, 1 para asignar y 1 para revisar". */
 const tooltip = (p: Pending | null) => {
@@ -21,6 +21,8 @@ const tooltip = (p: Pending | null) => {
     if (p.todo > 0) parts.push(`${p.todo} por hacer`);
     if (p.to_assign > 0) parts.push(`${p.to_assign} para asignar`);
     if (p.to_review > 0) parts.push(`${p.to_review} para revisar`);
+    // .175: un editor libre es una misión del líder (asignarle otro)
+    if ((p.free ?? 0) > 0) parts.push(p.free === 1 ? "1 editor libre" : `${p.free} editores libres`);
     return `Encargos: ${parts.join(", ").replace(/, ([^,]*)$/, " y $1")}`;
 };
 
@@ -46,7 +48,7 @@ export const EditorBell = () => {
     if (!isEditor) return null;
     // .93: el líder va a lo del equipo (su pantalla principal), salvo que ahí no haya nada y él sí tenga lo suyo
     const leader = user.role?.description === "Editor líder";
-    const teamWork = (pending?.to_assign ?? 0) + (pending?.to_review ?? 0);
+    const teamWork = (pending?.to_assign ?? 0) + (pending?.to_review ?? 0) + (pending?.free ?? 0);
     const target = leader && !(teamWork === 0 && (pending?.todo ?? 0) > 0) ? "/editor/equipo" : "/editor";
 
     return (

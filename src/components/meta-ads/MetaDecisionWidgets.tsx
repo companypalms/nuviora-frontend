@@ -263,7 +263,7 @@ const GROUPS: { title: string; help?: string; fields: [string, string, string?][
     {
         title: "Cola y banca", help: "Un batch a la vez por producto: con uno en la banca o haciéndose no se pide otro; cuando se lanza, se pide el siguiente.", fields: [
             ["bank_min", "Reserva por producto (0 o 1)", "batch"], ["batch_pieces", "Piezas por batch", "piezas"],
-            ["video_editors", "Editores de video", "personas"], ["batches_per_editor", "Batches por editor por día", "batches"],
+            ["video_editors", "Editores de video", "personas"], ["batches_per_editor", "Meta mínima por editor por día (también el líder)", "batches"],
             ["corrections_pct", "Tiempo de correcciones", "%"], ["due_days", "Plazo de un encargo al aprobarlo", "días"],
             ["reserve_due_days", "La reserva y los productos nuevos, para dentro de", "días"],
             ["corrections_days", "Correcciones del líder después de la entrega", "días"],

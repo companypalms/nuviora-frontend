@@ -30,6 +30,45 @@ export type EditorFields = {
 /** .94: con lo que tiene cada uno (encargos abiertos y atrasados) y el sugerido para el próximo. */
 export type EditorOption = { id: number; name: string; leader: boolean; open?: number; late?: number; suggested?: boolean };
 
+/** .175: cómo va hoy alguien contra la meta (EditorTeam::today del servidor). */
+export type EditorToday = {
+    state: "no_schedule" | "day_off" | "rest" | "before" | "in" | "after"; left: number | null; start: string | null; end: string | null;
+    done: number; goal: number; open: number; free: boolean; schedule_text: string | null;
+};
+/** .175: el horario de un editor (0 = domingo … 6 = sábado; horas de Venezuela). */
+export type Schedule = { days: number[]; start: string; end: string };
+/** .175: un editor en la franja del equipo (el líder y el dueño). */
+export type TeamMember = EditorToday & {
+    id: number; name: string; leader: boolean; schedule: Schedule | null; free_since: string | null; can_edit?: boolean; days_off?: { date: string; note: string | null }[];
+};
+/** .175: lo que el líder puede adelantar (AdvanceRules del servidor). */
+export type AdvanceItem = { key: string; kind: "next" | "new"; product_id: number; product: string; left: number; next: string | null; why: string;
+    /** Hoy ya se intentó y no se pudo (sin ciudad con stock o sin ángulo): el porqué. */
+    blocked?: string | null };
+/** "17:00" o "2026-11-23 14:10:00" → "5:00 p. m.". */
+export const hourLabel = (v: string | null | undefined) => {
+    if (!v) return "";
+    const hm = v.length > 5 ? v.slice(11, 16) : v;
+    const h = Number(hm.slice(0, 2));
+    return `${h % 12 || 12}:${hm.slice(3, 5)} ${h < 12 ? "a. m." : "p. m."}`;
+};
+/** 190 → "3 h 10 min". */
+export const leftLabel = (min: number | null) => (min === null ? "" : min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
+
+/** Cómo está ahora, en palabras: "Libre desde las 2:10 p. m. · le quedan 3 h", "Trabajando · sale a las 5:00 p. m.". */
+export const stateLabel = (m: EditorToday & { free_since?: string | null }) => {
+    switch (m.state) {
+        case "no_schedule": return m.free ? "Libre · sin horario" : "Trabajando · sin horario";
+        case "day_off": return "De permiso hoy";
+        case "rest": return "Hoy no le toca";
+        case "before": return `Entra a las ${hourLabel(m.start)}`;
+        case "after": return `Ya salió (a las ${hourLabel(m.end)})`;
+        default: return m.free
+            ? `Libre${m.free_since ? ` desde las ${hourLabel(m.free_since)}` : ""} · le quedan ${leftLabel(m.left)}`
+            : `Trabajando · sale a las ${hourLabel(m.end)}`;
+    }
+};
+
 /** .94: los números del juego (EditorGame del servidor): de quien mira y, para el líder, los del equipo. */
 export type EditorGameData = {
     me: { streak: number; first: { ok: number; total: number }; winners: number; recent_wins: { code: string; at: string }[] };

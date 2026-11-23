@@ -13,7 +13,9 @@ export type Forecast = {
     verdict: "ok" | "floater" | "fixed"; text: string; need: number; can: number; extra: number; short_days: string[];
     inputs: {
         ordered: number; replace: number; new: number; products: number; life: number; life_source: "meta" | "settings";
-        new_products_month: number; start_batches: number; editors: number; per_day: number; per_editor: number; capacity_source: "real" | "settings";
+        new_products_month: number; start_batches: number; editors: number; per_day: number; per_editor: number; capacity_source: "goal" | "real" | "settings";
+        /** .175: la meta de cada uno, a quién le falta el horario y cómo va el equipo contra la meta (las últimas 2 semanas). */
+        goal?: number; missing_schedule?: string[]; pace?: { done: number; goal: number; pct: number | null; from: string; to: string } | null;
     };
 };
 /** Lo que hace falta y no se pudo pedir (sin la ficha del producto o sin una ciudad donde probarlo). */
@@ -50,10 +52,23 @@ export const ForecastCard: React.FC<{ f: Forecast | null | undefined; compact?: 
                     dura ~{num(i.life)} días{i.life_source === "settings" ? ", de tus ajustes" : " en Meta"} y cada campaña necesita 2 vivos) · ~{num(i.new)} de
                     productos nuevos ({i.new_products_month} al mes × {i.start_batches} de inicio).
                 </Typography>
-                <Typography sx={{ fontSize: 13, color: t.muted }}>
-                    Tu equipo: {i.editors} {i.editors === 1 ? "editor" : "editores"}, ~{num(i.per_editor)} por día cada uno
-                    {i.capacity_source === "real" ? " (lo que entregaron de verdad en las últimas 4 semanas)." : " (de tus ajustes: todavía no hay 2 semanas de entregas)."}
-                </Typography>
+                {i.capacity_source === "goal" ? (
+                    <Typography sx={{ fontSize: 13, color: t.muted }}>
+                        Tu equipo: {i.editors} {i.editors === 1 ? "editor" : "editores"} (con el líder). Si cada uno cumple su meta de {i.goal ?? 2} por día en los días de su
+                        horario, hacen ~{num(i.per_day)} por día.
+                        {(i.missing_schedule ?? []).length > 0 && ` Falta el horario de ${(i.missing_schedule ?? []).join(", ")}: se cuentan de lunes a viernes.`}
+                    </Typography>
+                ) : (
+                    <Typography sx={{ fontSize: 13, color: t.muted }}>
+                        Tu equipo: {i.editors} {i.editors === 1 ? "editor" : "editores"}, ~{num(i.per_editor)} por día cada uno (de tus ajustes).
+                    </Typography>
+                )}
+                {/* .175: lo de verdad contra la meta, para que la lentitud no se vea como "falta gente" */}
+                {i.pace && i.pace.goal > 0 && (
+                    <Typography sx={{ fontSize: 13, mt: 0.5, color: (i.pace.pct ?? 0) >= 100 ? t.green : (i.pace.pct ?? 0) >= 80 ? t.ink : t.red }}>
+                        Las últimas 2 semanas el equipo entregó {i.pace.done} de {i.pace.goal}: va al {num(i.pace.pct ?? 0)} % de su meta.
+                    </Typography>
+                )}
             </>}
         </Box>
     );
@@ -83,8 +98,12 @@ const short = (date: string) => dueLabel(date) ?? date;
  * .89: dos fechas: la entrega del editor y "lista" (con las correcciones del líder); atrasado = no entregó a tiempo, o ya
  * entregó y las correcciones pasaron de "lista".
  */
-export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; today: string; correctionsDays?: number; onOpen?: (id: number) => void }> = ({
-    batches, unfilled, today, correctionsDays = 1, onOpen,
+export const NeedsList: React.FC<{
+    batches: NeedBatch[]; unfilled: Unfilled[]; today: string; correctionsDays?: number; onOpen?: (id: number) => void;
+    /** .175: "Para adelantar" (solo el líder): lo que va a hacer falta después y el sistema todavía no pidió. */
+    after?: React.ReactNode;
+}> = ({
+    batches, unfilled, today, correctionsDays = 1, onOpen, after,
 }) => {
     const t = useTokens();
     const rows = [
@@ -105,11 +124,11 @@ export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; t
     const tone = (key: Bucket) => (key === "late" ? t.red : key === "today" ? t.amber : t.gray);
     return (
         <Box sx={{ ...cardSx(t), p: "12px 14px", mb: 2 }}>
-            <Typography component="h2" sx={{ fontSize: 15, fontWeight: 600 }}>Lo que necesitamos</Typography>
+            <Typography component="h2" sx={{ fontSize: 15, fontWeight: 600 }}>{after ? "Todo lo que hay que hacer" : "Lo que necesitamos"}</Typography>
             <Typography sx={{ fontSize: 13, color: t.muted }}>
                 Todo lo que hay que hacer para mantener cada producto y seguir escalando, del más urgente al menos.{onOpen ? " Toca uno para verlo." : ""}
             </Typography>
-            {rows.length === 0 ? <Typography sx={{ fontSize: 14, color: t.muted, mt: 1 }}>Nada pendiente.</Typography>
+            {rows.length === 0 ? <Typography sx={{ fontSize: 14, color: t.muted, mt: 1 }}>Nada pendiente{after ? " de lo ya pedido" : ""}.</Typography>
                 : BUCKETS.map(([key, label]) => {
                     const list = rows.filter((r) => r.bucket === key);
                     return list.length === 0 ? null : (
@@ -135,6 +154,7 @@ export const NeedsList: React.FC<{ batches: NeedBatch[]; unfilled: Unfilled[]; t
                         </Box>
                     );
                 })}
+            {after}
         </Box>
     );
 };
