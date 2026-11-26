@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Box,
     Typography,
@@ -85,6 +85,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+/** .176: la tabla muestra estas; los totales, el buscador y el Excel usan todas (un mes son ~5.000). */
+const SHOWN = 200;
 const firstOfMonth = () => new Date().toISOString().slice(0, 8) + '01';
 
 export const OrdersExportPage: React.FC = () => {
@@ -99,30 +101,39 @@ export const OrdersExportPage: React.FC = () => {
     const [orders, setOrders] = useState<OrderRow[]>([]);
     const [search, setSearch] = useState('');
     const [hasLoaded, setHasLoaded] = useState(false);
-
-    if (!user || !['Admin', 'Gerente'].includes(user.role?.description || '')) {
-        return <Navigate to="/dashboard" />;
-    }
+    // .176: antes, si el servidor fallaba (un mes pasaba su memoria), salía "No hay órdenes en este rango"
+    const [error, setError] = useState<string | null>(null);
 
     const fetchOrders = useCallback(async () => {
         if (!fromDate || !toDate) return;
         setLoading(true);
+        setError(null);
         try {
             const { status, response }: IResponse = await request(
                 `/reports/orders-export?from=${fromDate}&to=${toDate}`,
                 'GET'
             );
-            if (status) {
-                const json = await response.json();
-                setOrders(json.data ?? []);
-                setHasLoaded(true);
+            if (status < 200 || status >= 300) {
+                throw new Error(`el servidor respondió ${status}`);
             }
+            const json = await response.json();
+            const data: OrderRow[] = json.data ?? [];
+            data.sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
+            setOrders(data);
+            setHasLoaded(true);
         } catch (e) {
             console.error(e);
+            setOrders([]);
+            setHasLoaded(false);
+            setError(`No se pudo armar el reporte de esas fechas (${(e as Error).message}). Vuelve a intentar o prueba con menos días.`);
         } finally {
             setLoading(false);
         }
     }, [fromDate, toDate]);
+
+    if (!user || !['Admin', 'Gerente'].includes(user.role?.description || '')) {
+        return <Navigate to="/dashboard" />;
+    }
 
     const filtered = orders.filter((o) => {
         const q = search.toLowerCase();
@@ -186,7 +197,7 @@ export const OrdersExportPage: React.FC = () => {
 
         // Autofit columns
         const colWidths = Object.keys(rows[0] ?? {}).map((key) => ({
-            wch: Math.max(key.length, ...rows.map((r: any) => String(r[key] ?? '').length)) + 2,
+            wch: Math.max(key.length, ...rows.map((r: Record<string, unknown>) => String(r[key] ?? '').length)) + 2,
         }));
         ws['!cols'] = colWidths;
 
@@ -320,13 +331,22 @@ export const OrdersExportPage: React.FC = () => {
                     </Paper>
                 )}
 
+                {error && !loading && (
+                    <Alert severity="error" sx={{ borderRadius: 3, mb: 2 }}>{error}</Alert>
+                )}
+
                 {/* Table */}
-                {!hasLoaded && !loading && (
+                {!hasLoaded && !loading && !error && (
                     <Alert severity="info" sx={{ borderRadius: 3 }}>
                         Selecciona un rango de fechas y presiona <strong>Consultar</strong> para ver las órdenes.
                     </Alert>
                 )}
 
+                {hasLoaded && filtered.length > SHOWN && !loading && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        La tabla muestra las primeras {SHOWN} de {filtered.length.toLocaleString('es-VE')}. El Excel trae las {filtered.length.toLocaleString('es-VE')}.
+                    </Typography>
+                )}
                 {hasLoaded && (
                     <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
                         {loading ? (
@@ -352,7 +372,7 @@ export const OrdersExportPage: React.FC = () => {
                                                     </Typography>
                                                 </TableCell>
                                             </TableRow>
-                                        ) : filtered.map((o) => (
+                                        ) : filtered.slice(0, SHOWN).map((o) => (
                                             <TableRow key={o.id} hover>
                                                 <TableCell>
                                                     <Typography variant="body2" fontWeight="bold" color="primary">{o.order_number}</Typography>
