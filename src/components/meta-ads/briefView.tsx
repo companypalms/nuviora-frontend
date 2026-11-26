@@ -86,7 +86,8 @@ export const BriefDetail: React.FC<{ b: EditorBatch; hideSuggested?: boolean; hi
                     </Stack>
                 </Box>
             )}
-            <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos} persona={b.persona?.name} angle={b.angle_code} />
+            <ProductBox product={b.product} info={b.product_info} personas={b.personas} angles={b.angles} photos={b.photos} strategy={b.strategy}
+                persona={b.persona?.name} angle={b.angle_code} />
             {b.reference && (
                 <Box sx={{ mt: 1.5, p: "10px 12px", borderRadius: "10px", bgcolor: t.soft }}>
                     <Stack direction="row" spacing={1.25}>

@@ -292,7 +292,7 @@ export const AdvanceList: React.FC<{ items: AdvanceItem[]; team: TeamMember[]; q
             {queued > 0 && (
                 <Typography sx={{ fontSize: 14, mt: 1 }}>
                     Productos nuevos en la cola del dueño: {queued} ·{" "}
-                    <Link component={RouterLink} to="/editor/productos-nuevos" sx={{ color: t.ink, textUnderlineOffset: 3 }}>Ver</Link>
+                    <Link component={RouterLink} to="/editor/productos" sx={{ color: t.ink, textUnderlineOffset: 3 }}>Ver</Link>
                 </Typography>
             )}
             {open && <AdvanceDialog item={open} team={team} onClose={() => { setOpen(null); onBlocked?.(); }} onDone={(m) => { setOpen(null); onDone(m); }} />}

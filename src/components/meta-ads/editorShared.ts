@@ -103,6 +103,8 @@ export type EditorBatch = EditorFields & {
     /** .93: de qué trata el ángulo; la hipótesis del encargo (solo le llega al líder). */
     angle_about?: string | null; hypothesis?: string | null;
     product_info?: ProductInfo | null; persona?: PersonaInfo | null; personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[];
+    /** .180: los PDF de estrategia del dueño (los ven el líder y los editores). */
+    strategy?: StoredFile[];
     style_label?: string | null;
     reference: string | null; reference_thumbnail: string | null; reference_texts: string[];
     reference_script?: { hook: string | null; text: string | null } | null; format: string | null; keep: string | null;
