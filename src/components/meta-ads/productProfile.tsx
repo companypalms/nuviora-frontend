@@ -62,7 +62,9 @@ export const PersonaBox: React.FC<{ persona?: PersonaInfo | null }> = ({ persona
  */
 export const ProductBox: React.FC<{
     product: string; info?: ProductInfo | null; personas?: PersonaInfo[]; angles?: AngleInfo[]; photos?: StoredFile[]; persona?: string | null; angle?: string | null;
-}> = ({ product, info, personas = [], angles = [], photos = [], persona, angle }) => {
+    /** .177: sin "El producto" y su nombre (cuando la tarjeta ya los dice). */
+    hideName?: boolean;
+}> = ({ product, info, personas = [], angles = [], photos = [], persona, angle, hideName = false }) => {
     const t = useTokens();
     const [open, setOpen] = useState(false);
     if (!info) return null;
@@ -71,8 +73,10 @@ export const ProductBox: React.FC<{
     const mine = { borderLeft: `3px solid ${t.ink}`, pl: 1.25 } as const;
     return (
         <Box sx={{ mt: 1.5, p: "12px 14px", borderRadius: "10px", border: `1px solid ${t.line}` }}>
-            <Typography sx={{ fontSize: 13, color: t.muted }}>El producto</Typography>
-            <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 0.25 }}>{product}</Typography>
+            {!hideName && <>
+                <Typography sx={{ fontSize: 13, color: t.muted }}>El producto</Typography>
+                <Typography sx={{ fontSize: 15, fontWeight: 600, mb: 0.25 }}>{product}</Typography>
+            </>}
             <InkLine label="Qué es" text={info.what_it_is} />
             <InkLine label="Para qué sirve" text={info.benefits} />
             {info.not_this && (

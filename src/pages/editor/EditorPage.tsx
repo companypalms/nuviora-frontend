@@ -49,7 +49,7 @@ type Data = {
     /** .99: para el líder, los encargos en espera porque el dueño paró su producto (en pausa, en liquidación o abandonado). */
     on_hold?: { product_id: number; product: string | null; mode_label: string; codes: string[] }[];
     /** .175: la meta, cómo va quien mira hoy y, para el líder, su equipo y lo que se puede adelantar. */
-    goal?: number; me_today?: EditorToday | null; team?: TeamMember[]; advance?: AdvanceItem[];
+    goal?: number; me_today?: EditorToday | null; team?: TeamMember[]; advance?: AdvanceItem[]; queued?: number;
 };
 
 /** .94: los ganadores que ya celebró quien mira (en este navegador). */
@@ -433,7 +433,8 @@ export const EditorPage: React.FC<{ team?: boolean }> = ({ team = false }) => {
                 <Box sx={{ mt: 3 }}>
                     <ForecastCard f={data.forecast} compact />
                     <NeedsList batches={data.batches} unfilled={data.unfilled ?? []} today={today} correctionsDays={corrections} onOpen={openFromNeeds}
-                        after={<AdvanceList items={data.advance ?? []} team={data.team ?? []} onDone={(m) => changed(m)} onBlocked={load} />} />
+                        after={<AdvanceList items={(data.advance ?? []).filter((a) => a.kind !== "new")} queued={data.queued ?? 0} team={data.team ?? []}
+                            onDone={(m) => changed(m)} onBlocked={load} />} />
                 </Box>
 
                 {lists.toAssign.length > 0 && (

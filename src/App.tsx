@@ -42,6 +42,7 @@ import { MetaMemoryPage } from './pages/admin/MetaMemoryPage';
 import { MetaChangesPage } from './pages/admin/MetaChangesPage';
 import { EditorPage } from './pages/editor/EditorPage';
 import { BankPage } from './pages/editor/BankPage';
+import { NewProductsPage } from './pages/editor/NewProductsPage';
 import { ProductStatesPage } from './pages/admin/ProductStatesPage';
 import { ProductQueuePage } from './pages/admin/ProductQueuePage';
 import { StoreChatPage } from './pages/admin/StoreChatPage';
@@ -188,6 +189,7 @@ function App() {
           <Route path="/editor/equipo" element={<RequireRole allowedRoles={['Editor líder']}><EditorPage team /></RequireRole>} />
           {/* .99: la banca del líder (en su menú) */}
           <Route path="/editor/banca" element={<RequireRole allowedRoles={['Editor líder']}><BankPage /></RequireRole>} />
+          <Route path="/editor/productos-nuevos" element={<RequireRole allowedRoles={['Editor líder']}><NewProductsPage /></RequireRole>} />
           <Route path="/editor/resultados" element={<RequireRole allowedRoles={EDITOR_ROLES}><EditorResultsPage /></RequireRole>} />
           <Route path="/editor/referencias" element={<RequireRole allowedRoles={EDITOR_ROLES}><ReferencesPage /></RequireRole>} />
           <Route path="/editor-landings" element={<RequireRole allowedRoles={[LANDING_EDITOR_ROLE]}><LandingEditorPage /></RequireRole>} />

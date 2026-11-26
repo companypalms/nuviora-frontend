@@ -6,8 +6,9 @@
 // de cada uno: el del líder lo pone el dueño, el de sus editores el líder), la ventana del horario y "Para adelantar".
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    Box, Button, ButtonBase, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography, useMediaQuery, useTheme,
+    Box, Button, ButtonBase, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Link, Stack, TextField, Typography, useMediaQuery, useTheme,
 } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { CheckCircleRounded, FastForwardRounded } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { api } from "./metaAds";
@@ -251,8 +252,13 @@ export const AdvanceDialog: React.FC<{ item: AdvanceItem; team: TeamMember[]; pr
     );
 };
 
-/** "Para adelantar": lo que va a hacer falta después (lo que el sistema todavía no pidió). */
-export const AdvanceList: React.FC<{ items: AdvanceItem[]; team: TeamMember[]; onDone: (message: string) => void; onBlocked?: () => void }> = ({ items, team, onDone, onBlocked }) => {
+/**
+ * "Para adelantar": lo que va a hacer falta después (lo que el sistema todavía no pidió). .177: los productos nuevos de la cola
+ * del dueño están en su pantalla ("Productos nuevos"); aquí, cuántos hay y "Ver".
+ */
+export const AdvanceList: React.FC<{ items: AdvanceItem[]; team: TeamMember[]; queued?: number; onDone: (message: string) => void; onBlocked?: () => void }> = ({
+    items, team, queued = 0, onDone, onBlocked,
+}) => {
     const t = useTokens();
     const [open, setOpen] = useState<AdvanceItem | null>(null);
     return (
@@ -283,6 +289,12 @@ export const AdvanceList: React.FC<{ items: AdvanceItem[]; team: TeamMember[]; o
                         )}
                     </Stack>
                 ))}
+            {queued > 0 && (
+                <Typography sx={{ fontSize: 14, mt: 1 }}>
+                    Productos nuevos en la cola del dueño: {queued} ·{" "}
+                    <Link component={RouterLink} to="/editor/productos-nuevos" sx={{ color: t.ink, textUnderlineOffset: 3 }}>Ver</Link>
+                </Typography>
+            )}
             {open && <AdvanceDialog item={open} team={team} onClose={() => { setOpen(null); onBlocked?.(); }} onDone={(m) => { setOpen(null); onDone(m); }} />}
         </Box>
     );

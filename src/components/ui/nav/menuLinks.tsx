@@ -51,6 +51,7 @@ export const MENU_LINKS: NavLink[] = [
     // .93: para el líder, lo del equipo va primero (es su pantalla principal)
     { section: "principal", text: "Encargos del equipo", icon: <VideoLibraryRounded />, link: "/editor/equipo", roles: ["Editor líder"], keywords: "asignar revisar por revisar aprobar devolver editores videos" },
     // .99: la banca del líder (cargar batches ya hechos y ver lo que está listo, en Meta o sin banca)
+    { section: "principal", text: "Productos nuevos", icon: <PlaylistAddRounded />, link: "/editor/productos-nuevos", roles: ["Editor líder"], keywords: "productos nuevos cola por montar testeo adelantar ficha fotos estrategia dueño" },
     { section: "principal", text: "Banca", icon: <ArchiveRounded />, link: "/editor/banca", roles: ["Editor líder"], keywords: "banca batches listos lanzar cargar ya hechos drive en meta sin banca" },
     { section: "principal", text: "Mis encargos", icon: <MovieEdit />, link: "/editor", roles: ["Editor líder", "Editor de video"], keywords: "videos batches creativos entregar drive cola pendientes" },
     // .92: la biblioteca de referencias (videos probados de otros anunciantes)
