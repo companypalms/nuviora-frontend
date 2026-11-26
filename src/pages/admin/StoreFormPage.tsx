@@ -22,7 +22,7 @@ import { appear, cardSx, geist, inkSx, lineSx, tapSx, Tokens, useTokens } from "
 import { Dot, NumberedSteps, Scoreboard, Section, TextAction } from "../../components/ui/designParts";
 import {
     bsText, COLOR_LABELS, CourierOffice, ExperimentArm, ExperimentNow, offerUsd, snippet, StoreFormData as Data, StoreFormDesign, StoreFormKpi, StoreFormOffer, StoreFormProduct,
-    StoreFormSettings as Settings, StoreFormSettingsInput, SYSTEM_CODES, TEXT_LABELS, usdText, WA_CODES,
+    StoreFormSettings as Settings, StoreFormSettingsInput, StoreFormTemplate, TEXT_LABELS, usdText, WA_CODES,
 } from "../../components/store-form/storeForm";
 
 const stateColor = (t: Tokens, s: StoreFormKpi["state"]) => ({ ok: t.green, bad: t.red, wait: t.gray, info: t.faint }[s]);
@@ -138,6 +138,15 @@ const Codes: React.FC<{ codes: [string, string][]; t: Tokens }> = ({ codes, t })
     </Typography>
 );
 
+/** .181: una plantilla de Meta de los casos nuevos: su nombre exacto, cuándo sale y su texto (para crearla igual en Meta). */
+const TemplateRow: React.FC<{ tp: StoreFormTemplate; t: Tokens }> = ({ tp, t }) => (
+    <Box sx={{ border: `1px solid ${t.line}`, borderRadius: "10px", p: 1.5 }}>
+        <Box component="code" sx={{ fontSize: 13, fontWeight: 600, overflowWrap: "anywhere" }}>{tp.name}</Box>
+        <Typography sx={{ fontSize: 13, color: t.muted, mt: 0.25 }}>{tp.when}</Typography>
+        <Typography sx={{ fontSize: 13, mt: 1, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{tp.text}</Typography>
+    </Box>
+);
+
 /**
  * .168: el pago anticipado (pago móvil con la foto del comprobante), la asesora y las encomiendas (de qué ciudad salen y
  * dónde deja el paquete el motorizado), y los mensajes. Nada de lo que ve o recibe el cliente nombra a una IA.
@@ -202,15 +211,12 @@ const PrepaidCard: React.FC<{ data: Data; form: Settings; set: (f: Settings) => 
                     )}
                 </Stack>
             )}
-            <Typography sx={{ fontSize: 14, fontWeight: 600, pt: 1 }}>Lo que le escribimos al que pagó por adelantado</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 600, pt: 1 }}>Lo que le escribimos al cliente (plantillas de Meta)</Typography>
             <Typography sx={{ fontSize: 13, color: t.muted, mt: "-8px !important" }}>
-                Por WhatsApp, como si lo escribiera una persona: el aviso sale si pidió con la tienda cerrada; la confirmación, entre 5 y 15 minutos después de validar el comprobante y con la tienda abierta.
-                Si no nos escribió por WhatsApp, o el comprobante tiene un problema, lo atiende la vendedora.
+                Por WhatsApp, como si lo escribiera una persona, y siempre con su plantilla: le llega aunque no nos haya escrito. Créalas en WhatsApp Manager › Plantillas de mensajes
+                con este nombre exacto (Utilidad, Español). Si una no sale (por ejemplo, Meta todavía no la aprobó) o el comprobante tiene un problema, lo atiende la vendedora.
             </Typography>
-            {message("ack_message", "Si pidió con la tienda cerrada")}
-            {message("confirm_message", "Ya confirmamos tu pago")}
-            {message("confirm_message_courier", "Ya confirmamos tu pago (encomienda)")}
-            <Codes codes={SYSTEM_CODES} t={t} />
+            {data.templates.map((tp) => <TemplateRow key={tp.name} tp={tp} t={t} />)}
             <Typography sx={{ fontSize: 14, fontWeight: 600, pt: 1 }}>Lo que el cliente te envía por WhatsApp</Typography>
             {message("whatsapp_message_prepaid", "Si pagó por adelantado")}
             {message("whatsapp_message_courier", "Si es encomienda")}
@@ -375,7 +381,8 @@ const ExperimentCard: React.FC<{ before: ExperimentArm | null; after: Experiment
 };
 
 const PAYMENT_TEXT = { cod: "Al recibir", pago_movil: "Pagó por pago móvil", asesora: "Con asesora" } as const;
-const CONFIRM_TEXT: Record<string, string> = { sent: "Se le confirmó el pago por WhatsApp", seller: "La vendedora confirma el pago", skip: "Cancelado" };
+const CONFIRM_TEXT: Record<string, string> = { sent: "Se le confirmó el pago por WhatsApp", seller: "La vendedora confirma el pago", skip: "Cancelado",
+    advisor: "Se le escribió para pagar con la asesora" }; // .181
 
 /** Las ofertas de un producto, como en Releasit: título, etiqueta, unidades y % de descuento. */
 const OffersEditor: React.FC<{ p: StoreFormProduct; rate: number; t: Tokens; onSaved: (p: StoreFormProduct) => void }> = ({ p, rate, t, onSaved }) => {

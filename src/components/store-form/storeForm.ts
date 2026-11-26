@@ -30,9 +30,6 @@ export interface StoreFormSettings {
     whatsapp_message_prepaid: string;
     whatsapp_message_advisor: string;
     whatsapp_message_courier: string;
-    confirm_message: string;
-    confirm_message_courier: string;
-    ack_message: string;
     /** .174: lo que cobra MRW o Zoom por envío, en promedio (null = falta): un costo de cada encomienda en «Resto de Venezuela» */
     courier_fee_usd: number | null;
 }
@@ -157,6 +154,14 @@ export interface StoreFormOrder {
     after_hours: boolean;
 }
 
+/** .181: una plantilla de Meta de los casos nuevos: su nombre exacto, cuándo sale y su texto (con {{1}}, {{2}}…). */
+export interface StoreFormTemplate {
+    name: string;
+    when: string;
+    text: string;
+    examples: string[];
+}
+
 export interface StoreFormData {
     settings: StoreFormSettings;
     shops: { id: number; name: string; shopify_domain: string | null }[];
@@ -174,6 +179,8 @@ export interface StoreFormData {
     couriers: string[];
     offices: { company: string; total: number; active: number }[];
     messages: Record<string, string>;
+    /** .181: lo que le escribe el sistema al cliente de los casos nuevos, siempre con estas plantillas de Meta */
+    templates: StoreFormTemplate[];
     experiment: StoreFormExperiment;
 }
 
@@ -182,12 +189,6 @@ export const WA_CODES: [string, string][] = [
     ["{first_name}", "nombre"], ["{last_name}", "apellido"], ["{order_id}", "el pedido (WEB-12)"], ["{order_total}", "el total en $"],
     ["{product_title}", "el producto"], ["{product_quantity}", "las unidades"], ["{products_summary_with_quantity}", "producto × unidades"],
     ["{phone}", "su teléfono"], ["{address}", "su dirección"], ["{address2}", "puntos de referencia"], ["{province}", "su estado o ciudad"],
-];
-
-/** .168: los códigos de los mensajes que le escribe el sistema al cliente que pagó por adelantado. */
-export const SYSTEM_CODES: [string, string][] = [
-    ["{first_name}", "nombre"], ["{order_id}", "el pedido (WEB-12)"], ["{courier}", "MRW o Zoom"], ["{horario}", "tu horario de atención"],
-    ["{cuando}", "cuándo vuelves a atender (\"Mañana a partir de las 8:00 a. m.\")"],
 ];
 
 /** Para qué es cada texto del formulario (en el editor de diseño). */
