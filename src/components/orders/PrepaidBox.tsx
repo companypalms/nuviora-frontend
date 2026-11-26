@@ -14,6 +14,8 @@ export interface PrepaidInfo {
     confirm_sent_at?: string | null;
     /** .173: "form" = el pago móvil del formulario; "seller" = el pago que registró la vendedora en una encomienda */
     source?: "form" | "seller" | string;
+    /** .182: no mandó su ubicación ni con el recordatorio automático (o el recordatorio no salió) */
+    location_missing?: boolean;
 }
 
 const STATE_TEXT: Record<string, { text: string; warn?: boolean }> = {
@@ -36,6 +38,11 @@ export const PrepaidBox: React.FC<{ prepaid: PrepaidInfo }> = ({ prepaid }) => {
                 </Typography>
             </Stack>
             <Typography variant="body2" sx={{ mt: 1, fontWeight: s.warn ? 700 : 400, color: s.warn ? "warning.dark" : "text.primary" }}>{s.text}</Typography>
+            {prepaid.location_missing && (
+                <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700, color: "warning.dark" }}>
+                    📍 Falta la ubicación: no la mandó ni con el recordatorio automático. Pídesela por WhatsApp.
+                </Typography>
+            )}
         </Box>
     );
 };
